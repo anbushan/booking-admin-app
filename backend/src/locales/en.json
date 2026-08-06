@@ -1,0 +1,21 @@
+{
+  "auth.enterPhone": "Enter your mobile number",
+  "auth.sendOtp": "Send OTP",
+  "auth.enterOtp": "Enter the OTP sent to {phone}",
+  "auth.verify": "Verify",
+  "home.whereTo": "Where to?",
+  "home.searchRides": "Search rides",
+  "booking.requestBooking": "Request booking",
+  "booking.payAfterTrip": "Pay after your trip completes. No charge until then.",
+  "trip.shareCode": "Share this code with {driverName}",
+  "trip.sosHold": "SOS · hold for help",
+  "trip.reconnecting": "Reconnecting...",
+  "driver.offerRide": "Offer a ride",
+  "driver.publishRide": "Publish ride",
+  "driver.acceptBooking": "Accept",
+  "driver.declineBooking": "Decline",
+  "payment.securedBy": "Secured by Razorpay",
+  "refund.initiated": "Your refund of Rs {amount} will be credited within {days} working days.",
+  "emergency.addContact": "Add contact",
+  "emergency.setPrimary": "Set as primary contact"
+}

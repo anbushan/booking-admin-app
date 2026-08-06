@@ -1,0 +1,228 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id          String   @id @default(cuid())
+  phone       String   @unique
+  name        String?
+  email       String?
+  role        String   @default("PASSENGER") // PASSENGER, DRIVER, ADMIN
+  photoUrl    String?
+  ratingAvg   Float?
+  disabled    Boolean  @default(false)
+  fcmToken    String?
+  createdAt   DateTime @default(now())
+
+  vehicles           Vehicle[]
+  ridesAsDriver      Ride[]
+  bookingsAsPassenger Booking[]
+  emergencyContacts  EmergencyContact[]
+  documents          Document[]
+  notifications      Notification[]
+  reviewsGiven       Review[] @relation("ReviewsGiven")
+  reviewsReceived    Review[] @relation("ReviewsReceived")
+}
+
+model Vehicle {
+  id            String   @id @default(cuid())
+  driverId      String
+  driver        User     @relation(fields: [driverId], references: [id])
+  make          String
+  model         String
+  regNumber     String
+  color         String?
+  createdAt     DateTime @default(now())
+}
+
+model Ride {
+  id              String   @id @default(cuid())
+  driverId        String
+  driver          User     @relation(fields: [driverId], references: [id])
+  sourceLat       Float
+  sourceLng       Float
+  sourceAddress   String
+  destLat         Float
+  destLng         Float
+  destAddress     String
+  routePolyline   String?
+  maxDetourKm     Float    @default(3)
+  travelDate      DateTime
+  seatsAvailable  Int
+  pricePerSeat    Decimal
+  preferences     Json     @default("{}")
+  status          String   @default("PUBLISHED") // PUBLISHED, CANCELLED, COMPLETED
+  createdAt       DateTime @default(now())
+
+  bookings        Booking[]
+}
+
+model Booking {
+  id                String   @id @default(cuid())
+  rideId            String
+  ride              Ride     @relation(fields: [rideId], references: [id])
+  passengerId       String
+  passenger         User     @relation(fields: [passengerId], references: [id])
+  seatsBooked       Int      @default(1)
+
+  pickupLat         Float
+  pickupLng         Float
+  pickupAddress     String
+  isCustomPickup    Boolean  @default(false)
+  dropLat           Float?
+  dropLng           Float?
+  dropAddress       String?
+  isCustomDrop      Boolean  @default(false)
+
+  status            String   @default("BOOKED")
+  // BOOKED, CONFIRMED, REJECTED, EXPIRED, CANCELLED, IN_PROGRESS,
+  // CHARGE_ATTEMPTED, PAID, PAYMENT_PENDING
+
+  expiresAt         DateTime?
+  tripOtp           String?
+  otpVerifiedAt     DateTime?
+  tripStartedAt     DateTime?
+  tripCompletedAt   DateTime?
+
+  lastLocationAt    DateTime?
+  lastLat           Float?
+  lastLng           Float?
+  razorpayPaymentId String?
+
+  createdAt         DateTime @default(now())
+
+  refund            Refund?
+  callLogs          CallLog[]
+  sosAlerts         SosAlert[]
+}
+
+model Refund {
+  id                    String   @id @default(cuid())
+  bookingId             String   @unique
+  booking               Booking  @relation(fields: [bookingId], references: [id])
+  amount                Decimal
+  status                String   @default("INITIATED") // INITIATED, PROCESSING, COMPLETED, FAILED
+  initiatedAt           DateTime @default(now())
+  estimatedCompletionAt DateTime
+  completedAt           DateTime?
+  razorpayRefundId      String?
+}
+
+model CallLog {
+  id           String   @id @default(cuid())
+  bookingId    String
+  booking      Booking  @relation(fields: [bookingId], references: [id])
+  callerId     String
+  calleeId     String
+  proxyNumber  String
+  durationSec  Int?
+  status       String   @default("INITIATED")
+  createdAt    DateTime @default(now())
+}
+
+model EmergencyContact {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  name      String
+  phone     String
+  relation  String?
+  isPrimary Boolean  @default(false)
+  createdAt DateTime @default(now())
+}
+
+model SosAlert {
+  id            String   @id @default(cuid())
+  bookingId     String
+  booking       Booking  @relation(fields: [bookingId], references: [id])
+  triggeredBy   String
+  lat           Float
+  lng           Float
+  contactedIds  String[]
+  status        String   @default("OPEN") // OPEN, ACKNOWLEDGED, RESOLVED
+  createdAt     DateTime @default(now())
+}
+
+model Document {
+  id           String   @id @default(cuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id])
+  docType      String   // LICENSE, RC, INSURANCE
+  r2Key        String
+  status       String   @default("PENDING") // PENDING, APPROVED, REJECTED
+  uploadedAt   DateTime @default(now())
+  reviewedAt   DateTime?
+  reviewedBy   String?
+}
+
+model Notification {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+  type        String
+  title       String
+  body        String
+  read        Boolean  @default(false)
+  pushSent    Boolean  @default(false)
+  createdAt   DateTime @default(now())
+}
+
+model AdminRole {
+  id        String   @id @default(cuid())
+  adminId   String
+  role      String   // super_admin, finance, verification, support
+  createdAt DateTime @default(now())
+}
+
+model AppConfig {
+  id                  String   @id @default(cuid())
+  commissionPercent   Float    @default(12)
+  fareCapPerKmInr     Float    @default(12)
+  defaultMaxDetourKm  Float    @default(3)
+  bookingExpiryMinutes Int     @default(20)
+  refundWorkingDays   Int      @default(3)
+  updatedAt           DateTime @updatedAt
+}
+
+model NotificationTemplate {
+  id        String   @id @default(cuid())
+  type      String   @unique // matches Notification.type values
+  title     String
+  body      String   // supports {placeholder} tokens
+  updatedAt DateTime @updatedAt
+}
+
+model ChatMessage {
+  id         String   @id @default(cuid())
+  bookingId  String
+  senderId   String
+  text       String
+  createdAt  DateTime @default(now())
+}
+
+model Review {
+  id           String   @id @default(cuid())
+  bookingId    String
+  fromUserId   String
+  fromUser     User     @relation("ReviewsGiven", fields: [fromUserId], references: [id])
+  toUserId     String
+  toUser       User     @relation("ReviewsReceived", fields: [toUserId], references: [id])
+  rating       Int      // 1-5
+  comment      String?
+  flagged      Boolean  @default(false)
+  createdAt    DateTime @default(now())
+}
+
+model AdminUser {
+  id                 String    @id @default(cuid())
+  email              String    @unique
+  passwordHash       String
+  resetToken         String?
+  resetTokenExpiresAt DateTime?
+  createdAt          DateTime  @default(now())
+}

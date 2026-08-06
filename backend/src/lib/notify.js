@@ -1,0 +1,26 @@
+import { prisma } from "./prisma.js";
+import { sendPush } from "./fcm.js";
+
+// The Notification row is the source of truth — it's written whether or
+// not FCM push succeeds, so a user who denied push permission still sees
+// every update in-app (see plan section 11L).
+export async function notify(userId, type, title, body) {
+  const record = await prisma.notification.create({
+    data: { userId, type, title, body },
+  });
+
+  const user = await prisma.user.findUnique({ where: { id: userId } });
+  if (user?.fcmToken) {
+    try {
+      await sendPush(user.fcmToken, title, body);
+      await prisma.notification.update({ where: { id: record.id }, data: { pushSent: true } });
+    } catch (err) {
+      // Push failing is not fatal — the in-app row already exists.
+      console.error("FCM push failed, in-app notification still recorded:", err.message);
+    }
+  }
+  // No fcmToken on file (push permission denied or never registered) —
+  // in-app notification is already saved, nothing more to do.
+
+  return record;
+}
