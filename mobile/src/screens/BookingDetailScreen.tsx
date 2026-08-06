@@ -1,0 +1,109 @@
+import React, { useEffect, useState } from "react";
+import { View, Text, Pressable, StyleSheet, ActivityIndicator } from "react-native";
+import { colors, spacing, radius, typography } from "../theme/theme";
+import { api } from "../lib/api";
+import { SafeAreaView } from "react-native-safe-area-context";
+
+export default function BookingDetailScreen({ route, navigation }: any) {
+  const { bookingId } = route.params;
+  const [booking, setBooking] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    api.getBookingDetail(bookingId)
+      .then(setBooking)
+      .catch(() => setBooking(null))
+      .finally(() => setLoading(false));
+  }, [bookingId]);
+
+  if (loading) {
+    return (
+      <SafeAreaView style={[styles.screen, { justifyContent: "center", alignItems: "center" }]} edges={["top"]}>
+        <ActivityIndicator color={colors.accent} />
+      </SafeAreaView>
+    );
+  }
+
+  if (!booking) {
+    return (
+      <SafeAreaView style={[styles.screen, { justifyContent: "center", alignItems: "center" }]} edges={["top"]}>
+        <Text style={styles.notFound}>Booking not found.</Text>
+      </SafeAreaView>
+    );
+  }
+
+  const amount = Number(booking.ride.pricePerSeat) * booking.seatsBooked;
+
+  return (
+    <SafeAreaView style={styles.screen} edges={["top"]}>
+      <View style={styles.header}>
+        <Pressable onPress={() => navigation.goBack()}>
+          <Text style={styles.back}>{"<"}</Text>
+        </Pressable>
+        <Text style={styles.title}>Booking</Text>
+      </View>
+
+      <View style={styles.body}>
+        <Text style={styles.route}>{booking.ride.sourceAddress} to {booking.ride.destAddress}</Text>
+        <Text style={styles.date}>{new Date(booking.ride.travelDate).toLocaleString()}</Text>
+
+        <View style={styles.card}>
+          <View style={styles.row}>
+            <Text style={styles.label}>Driver</Text>
+            <Text style={styles.value}>{booking.ride.driver.name || booking.ride.driver.phone}</Text>
+          </View>
+          <View style={styles.row}>
+            <Text style={styles.label}>Passenger</Text>
+            <Text style={styles.value}>{booking.passenger.name || booking.passenger.phone}</Text>
+          </View>
+          <View style={styles.row}>
+            <Text style={styles.label}>Seats</Text>
+            <Text style={styles.value}>{booking.seatsBooked}</Text>
+          </View>
+          <View style={styles.row}>
+            <Text style={styles.label}>Fare</Text>
+            <Text style={styles.value}>Rs {amount}</Text>
+          </View>
+          <View style={[styles.row, { borderBottomWidth: 0 }]}>
+            <Text style={styles.label}>Status</Text>
+            <Text style={styles.value}>{booking.status}</Text>
+          </View>
+        </View>
+
+        {booking.status === "PAID" && (
+          <Pressable
+            style={styles.actionButton}
+            onPress={() => navigation.navigate("PaymentDetail", { booking })}
+          >
+            <Text style={styles.actionButtonText}>View receipt</Text>
+          </Pressable>
+        )}
+        {booking.refund && (
+          <Pressable
+            style={styles.actionButton}
+            onPress={() => navigation.navigate("RefundStatus", { refund: booking.refund })}
+          >
+            <Text style={styles.actionButtonText}>View refund status</Text>
+          </Pressable>
+        )}
+      </View>
+    </SafeAreaView>
+  );
+}
+
+const styles = StyleSheet.create({
+  screen: { flex: 1, backgroundColor: colors.bg },
+  header: { flexDirection: "row", alignItems: "center", gap: spacing.md, padding: spacing.lg, borderBottomWidth: 1, borderBottomColor: colors.border, backgroundColor: colors.surface },
+  back: { fontSize: 18 },
+  title: typography.title,
+  body: { padding: spacing.lg },
+  route: { ...typography.title, fontSize: 15 },
+  date: { ...typography.small, color: colors.textMuted, marginTop: 2, marginBottom: spacing.md },
+  card: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: radius.md, padding: spacing.md },
+  row: { flexDirection: "row", justifyContent: "space-between", paddingVertical: spacing.sm, borderBottomWidth: 1, borderBottomColor: colors.border },
+  label: { ...typography.caption, color: colors.textSecondary },
+  value: typography.body,
+  actionButton: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, height: 44, borderRadius: radius.sm, alignItems: "center", justifyContent: "center", marginTop: spacing.md },
+  actionButtonText: { ...typography.body, color: colors.accentText },
+  notFound: { ...typography.body, color: colors.textMuted },
+});

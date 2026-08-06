@@ -1,0 +1,92 @@
+import React, { useState } from "react";
+import { View, Text, TextInput, Pressable, StyleSheet } from "react-native";
+import { showAlert } from "../lib/alert";
+import { colors, spacing, radius, typography } from "../theme/theme";
+import { api } from "../lib/api";
+import { validateVehicle } from "../lib/validators";
+import { FieldError } from "../components/FieldError";
+import { SafeAreaView } from "react-native-safe-area-context";
+
+export default function EditVehicleScreen({ route, navigation }: any) {
+  const { vehicle } = route.params;
+  const [make, setMake] = useState(vehicle.make);
+  const [model, setModel] = useState(vehicle.model);
+  const [regNumber, setRegNumber] = useState(vehicle.regNumber);
+  const [color, setColor] = useState(vehicle.color || "");
+  const [submitting, setSubmitting] = useState(false);
+  const [errors, setErrors] = useState<Record<string, string>>({});
+
+  async function handleSave() {
+    const validationErrors = validateVehicle({ make, model, regNumber });
+    setErrors(validationErrors);
+    if (Object.keys(validationErrors).length > 0) return;
+
+    setSubmitting(true);
+    try {
+      await api.updateVehicle(vehicle.id, { make, model, regNumber: regNumber.toUpperCase(), color });
+      navigation.goBack();
+    } catch (err: any) {
+      showAlert("Couldn't save", err.message);
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  return (
+    <SafeAreaView style={styles.screen} edges={["top"]}>
+      <View style={styles.header}>
+        <Pressable onPress={() => navigation.goBack()}>
+          <Text style={styles.back}>{"<"}</Text>
+        </Pressable>
+        <Text style={styles.title}>Edit vehicle</Text>
+      </View>
+
+      <View style={styles.body}>
+        <Text style={styles.label}>Make</Text>
+        <TextInput
+          style={[styles.input, errors.make && styles.inputError]}
+          value={make}
+          onChangeText={(v) => { setMake(v); if (errors.make) setErrors((e) => ({ ...e, make: "" })); }}
+        />
+        <FieldError message={errors.make} />
+
+        <Text style={styles.label}>Model</Text>
+        <TextInput
+          style={[styles.input, errors.model && styles.inputError]}
+          value={model}
+          onChangeText={(v) => { setModel(v); if (errors.model) setErrors((e) => ({ ...e, model: "" })); }}
+        />
+        <FieldError message={errors.model} />
+
+        <Text style={styles.label}>Registration number</Text>
+        <TextInput
+          style={[styles.input, errors.regNumber && styles.inputError]}
+          autoCapitalize="characters"
+          value={regNumber}
+          onChangeText={(v) => { setRegNumber(v); if (errors.regNumber) setErrors((e) => ({ ...e, regNumber: "" })); }}
+        />
+        <FieldError message={errors.regNumber} />
+
+        <Text style={styles.label}>Color</Text>
+        <TextInput style={styles.input} value={color} onChangeText={setColor} />
+
+        <Pressable style={styles.button} onPress={handleSave} disabled={submitting}>
+          <Text style={styles.buttonText}>{submitting ? "Saving..." : "Save vehicle"}</Text>
+        </Pressable>
+      </View>
+    </SafeAreaView>
+  );
+}
+
+const styles = StyleSheet.create({
+  screen: { flex: 1, backgroundColor: colors.bg },
+  header: { flexDirection: "row", alignItems: "center", gap: spacing.md, padding: spacing.lg, borderBottomWidth: 1, borderBottomColor: colors.border, backgroundColor: colors.surface },
+  back: { fontSize: 18 },
+  title: typography.title,
+  body: { padding: spacing.lg },
+  label: { ...typography.caption, color: colors.textSecondary, marginBottom: spacing.xs, marginTop: spacing.md },
+  input: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: radius.sm, height: 44, paddingHorizontal: spacing.md },
+  inputError: { borderColor: colors.danger },
+  button: { backgroundColor: colors.textPrimary, height: 46, borderRadius: radius.sm, alignItems: "center", justifyContent: "center", marginTop: spacing.xl },
+  buttonText: { color: "#FFFFFF", ...typography.title },
+});
