@@ -31,8 +31,10 @@ export default function CompleteTripConfirmationScreen({ route, navigation }: an
         </View>
         <Text style={styles.title}>Complete this trip?</Text>
         <Text style={styles.description}>
-          This ends the trip and requests payment from your passenger.
-          Make sure you've reached the drop-off point before confirming.
+          This ends the trip. The passenger already paid the platform fee
+          in-app — collect the remaining fare directly (cash/UPI) and
+          confirm it from your Earnings screen. Make sure you've reached
+          the drop-off point before confirming.
         </Text>
 
         <Pressable style={styles.confirmButton} onPress={handleConfirm} disabled={completing}>

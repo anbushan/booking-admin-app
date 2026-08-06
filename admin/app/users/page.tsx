@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import AdminShell from "../../components/AdminShell";
 import Pagination from "../../components/Pagination";
+import { EmptyState } from "../../components/EmptyState";
 
 export const dynamic = "force-dynamic";
 const PAGE_SIZE = 25;

@@ -64,13 +64,19 @@ export default function BookingDetailScreen({ route, navigation }: any) {
             <Text style={styles.label}>Fare</Text>
             <Text style={styles.value}>Rs {amount}</Text>
           </View>
+          {booking.remainingFareAmount != null && (
+            <View style={styles.row}>
+              <Text style={styles.label}>Cash/UPI due to driver</Text>
+              <Text style={styles.value}>Rs {Number(booking.remainingFareAmount)}</Text>
+            </View>
+          )}
           <View style={[styles.row, { borderBottomWidth: 0 }]}>
             <Text style={styles.label}>Status</Text>
             <Text style={styles.value}>{booking.status}</Text>
           </View>
         </View>
 
-        {booking.status === "PAID" && (
+        {!!booking.platformFeePaidAt && (
           <Pressable
             style={styles.actionButton}
             onPress={() => navigation.navigate("PaymentDetail", { booking })}

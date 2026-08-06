@@ -58,7 +58,7 @@ export default function BookingRequestsScreen({ route, navigation }: any) {
       if (action === "accept") { await api.acceptBooking(bookingId); Analytics.bookingAccepted(bookingId); }
       else { await api.rejectBooking(bookingId); Analytics.bookingRejected(bookingId); }
       setRequests((prev) => prev.filter((r) => r.id !== bookingId));
-      showSuccess(action === "accept" ? "Booking accepted" : "Booking declined");
+      showSuccess(action === "accept" ? "Booking accepted — passenger has to pay the platform fee to confirm" : "Booking declined");
     } catch (err: any) {
       showError(err.message || "Couldn't update booking");
     }

@@ -69,6 +69,9 @@ export const api = {
   cancelBooking: (bookingId: string) =>
     request(`/api/bookings/${bookingId}/cancel`, { method: "PUT" }),
 
+  driverCancelBooking: (bookingId: string) =>
+    request(`/api/bookings/${bookingId}/driver-cancel`, { method: "PUT" }),
+
   startTrip: (bookingId: string) =>
     request(`/api/trips/${bookingId}/start`, { method: "POST" }),
 
@@ -78,16 +81,29 @@ export const api = {
     // here; wire to whatever the backend exposes for this read.
     request(`/api/trips/${bookingId}/otp`),
 
-  verifyTripOtp: (bookingId: string, otp: string) =>
-    request(`/api/trips/${bookingId}/verify-otp`, { method: "POST", body: JSON.stringify({ otp }) }),
+  // `code` can be either the 4-digit OTP the passenger read aloud, or the
+  // passenger's Booking ID — either is enough to start the trip.
+  verifyTripOtp: (bookingId: string, code: string) =>
+    request(`/api/trips/${bookingId}/verify-otp`, { method: "POST", body: JSON.stringify({ code }) }),
 
   pingLocation: (bookingId: string, lat: number, lng: number) =>
     request(`/api/trips/${bookingId}/location`, { method: "PUT", body: JSON.stringify({ lat, lng }) }),
 
   trackTrip: (bookingId: string) => request(`/api/trips/${bookingId}/track`),
 
+  // Either party can close out a ride that's been abandoned/stopped
+  // mid-way. No refund/strike logic — just closes it so the passenger
+  // can search and rebook fresh.
+  stopTrip: (bookingId: string) =>
+    request(`/api/trips/${bookingId}/stop`, { method: "POST" }),
+
   completeTrip: (bookingId: string) =>
     request(`/api/trips/${bookingId}/complete`, { method: "POST" }),
+
+  // Driver's own bookkeeping: confirms the remaining fare was collected
+  // directly from the passenger (cash/UPI) — no payment processing here.
+  collectCash: (bookingId: string) =>
+    request(`/api/trips/${bookingId}/collect-cash`, { method: "PUT" }),
 
   triggerSos: (bookingId: string, payload: { lat: number; lng: number }) =>
     request(`/api/trips/${bookingId}/sos`, { method: "POST", body: JSON.stringify(payload) }),

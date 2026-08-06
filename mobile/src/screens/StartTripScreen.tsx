@@ -9,7 +9,10 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function StartTripScreen({ route, navigation }: any) {
   const { bookingId } = route.params;
-  const [otp, setOtp] = useState("");
+  // Either the 4-digit OTP the passenger read aloud, or their Booking ID
+  // — either is enough to start the trip, so this isn't restricted to
+  // digits/4 characters the way the old OTP-only input was.
+  const [code, setCode] = useState("");
   const [verifying, setVerifying] = useState(false);
   const [arriving, setArriving] = useState(true);
   const [passengerName, setPassengerName] = useState("your passenger");
@@ -32,7 +35,7 @@ export default function StartTripScreen({ route, navigation }: any) {
   async function handleStart() {
     setVerifying(true);
     try {
-      await api.verifyTripOtp(bookingId, otp);
+      await api.verifyTripOtp(bookingId, code.trim());
       Analytics.tripStarted(bookingId);
       await primeLocationIfNeeded(navigation, "ActiveTrip", { bookingId, role: "DRIVER" });
     } catch (err: any) {
@@ -55,18 +58,18 @@ export default function StartTripScreen({ route, navigation }: any) {
           </>
         ) : (
           <>
-            <Text style={styles.title}>Enter the code {passengerName} shared</Text>
+            <Text style={styles.title}>Enter {passengerName}'s OTP or Booking ID</Text>
             <TextInput
               style={styles.input}
-              keyboardType="number-pad"
-              maxLength={4}
-              placeholder="4-digit code"
+              autoCapitalize="none"
+              autoCorrect={false}
+              placeholder="OTP or Booking ID"
               placeholderTextColor={colors.textMuted}
-              value={otp}
-              onChangeText={setOtp}
+              value={code}
+              onChangeText={setCode}
               autoFocus
             />
-            <Pressable style={styles.button} onPress={handleStart} disabled={verifying || otp.length < 4}>
+            <Pressable style={styles.button} onPress={handleStart} disabled={verifying || code.trim().length < 4}>
               <Text style={styles.buttonText}>{verifying ? "Starting..." : "Start trip"}</Text>
             </Pressable>
           </>
@@ -91,8 +94,8 @@ const styles = StyleSheet.create({
     width: "100%",
     paddingHorizontal: spacing.md,
     textAlign: "center",
-    fontSize: 18,
-    letterSpacing: 4,
+    fontSize: 16,
+    letterSpacing: 1,
     marginBottom: spacing.md,
   },
   button: { backgroundColor: colors.textPrimary, height: 46, borderRadius: radius.sm, alignItems: "center", justifyContent: "center", width: "100%" },

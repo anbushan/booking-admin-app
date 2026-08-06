@@ -15,8 +15,9 @@ export default function LiveTrackingScreen({ route, navigation }: any) {
   const [lastLocationAt, setLastLocationAt] = useState<string | null>(null);
   const [position, setPosition] = useState<{ lat: number; lng: number } | null>(null);
   const [holding, setHolding] = useState(false);
+  const [stopping, setStopping] = useState(false);
   const holdTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const navigatedToPayment = useRef(false);
+  const navigatedAway = useRef(false);
 
   useEffect(() => {
     const poll = setInterval(async () => {
@@ -25,17 +26,23 @@ export default function LiveTrackingScreen({ route, navigation }: any) {
         setLastLocationAt(track.lastLocationAt);
         if (track.lat && track.lng) setPosition({ lat: track.lat, lng: track.lng });
 
-        // Passenger side: the moment the driver completes the trip,
-        // status flips to CHARGE_ATTEMPTED — auto-navigate to payment
-        // rather than making the passenger hunt for a button. Guarded so
-        // this only fires once even though polling continues.
-        if (
-          role === "PASSENGER" &&
-          !navigatedToPayment.current &&
-          ["CHARGE_ATTEMPTED", "PAYMENT_PENDING"].includes(track.status)
-        ) {
-          navigatedToPayment.current = true;
-          navigation.replace("Payment", { bookingId, amount: track.amount });
+        // The platform fee is already paid up by the time either side is
+        // on this screen (tracking only starts once IN_PROGRESS), so
+        // there's no more in-app payment step to navigate to. Instead,
+        // react to the trip ending — either normally (COMPLETED, with
+        // the cash/UPI amount now due) or abnormally (STOPPED, closed by
+        // either side mid-ride). Guarded so this only fires once even
+        // though polling continues.
+        if (!navigatedAway.current && track.status === "COMPLETED") {
+          navigatedAway.current = true;
+          if (role === "PASSENGER") {
+            showAlert("Trip completed", `Please pay Rs ${track.amount ?? 0} directly to your driver (cash/UPI).`);
+          }
+          navigation.replace("History", { role });
+        } else if (!navigatedAway.current && track.status === "STOPPED") {
+          navigatedAway.current = true;
+          showAlert("Ride closed", "This ride was stopped before reaching the destination.");
+          navigation.replace("History", { role });
         }
       } catch {
         // swallow — the stale-state UI below already communicates the gap
@@ -69,6 +76,32 @@ export default function LiveTrackingScreen({ route, navigation }: any) {
 
   function handleCompleteTrip() {
     navigation.navigate("CompleteTripConfirmation", { bookingId });
+  }
+
+  function handleStopRide() {
+    showAlert(
+      "Stop this ride?",
+      "This closes the ride for both sides — for use only if the trip was abandoned or can't continue. The other side can rebook fresh afterward.",
+      [
+        { text: "Keep going", style: "cancel" },
+        {
+          text: "Stop ride",
+          style: "destructive",
+          onPress: async () => {
+            setStopping(true);
+            try {
+              await api.stopTrip(bookingId);
+              navigatedAway.current = true;
+              navigation.replace("History", { role });
+            } catch (err: any) {
+              showAlert("Couldn't stop ride", err.message);
+            } finally {
+              setStopping(false);
+            }
+          },
+        },
+      ]
+    );
   }
 
   return (
@@ -130,6 +163,10 @@ export default function LiveTrackingScreen({ route, navigation }: any) {
           </Pressable>
         )}
 
+        <Pressable style={styles.stopButton} onPress={handleStopRide} disabled={stopping}>
+          <Text style={styles.stopButtonText}>{stopping ? "Stopping..." : "Stop ride"}</Text>
+        </Pressable>
+
         <Pressable
           style={[styles.sosButton, holding && styles.sosButtonHolding]}
           onPressIn={startHold}
@@ -173,6 +210,16 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   completeButtonText: { color: "#FFFFFF", ...typography.title },
+  stopButton: {
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    height: 40,
+    borderRadius: radius.sm,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  stopButtonText: { color: colors.textSecondary, ...typography.caption },
   sosButton: {
     backgroundColor: colors.dangerBg,
     height: 44,

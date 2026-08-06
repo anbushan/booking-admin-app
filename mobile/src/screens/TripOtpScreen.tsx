@@ -50,6 +50,7 @@ export default function TripOtpScreen({ route, navigation }: any) {
           ))}
         </View>
         <Text style={styles.hint}>Confirms it's your ride — only share it once the driver asks</Text>
+        <Text style={styles.altHint}>Trouble with the code? Your driver can also start the trip with your Booking ID: {bookingId}</Text>
         {routeLabel && <Text style={styles.routeLabel}>{routeLabel}</Text>}
       </View>
 
@@ -93,6 +94,7 @@ const styles = StyleSheet.create({
   },
   otpDigit: { fontSize: 28, fontWeight: "600", color: colors.accentText },
   hint: { ...typography.small, color: colors.textMuted, marginTop: spacing.lg, textAlign: "center" },
+  altHint: { ...typography.small, color: colors.textMuted, marginTop: spacing.sm, textAlign: "center" },
   routeLabel: { ...typography.caption, color: colors.textSecondary, marginTop: spacing.sm, textAlign: "center" },
   driverBar: { flexDirection: "row", alignItems: "center", gap: spacing.md, padding: spacing.lg, borderTopWidth: 1, borderTopColor: colors.border, backgroundColor: colors.surface },
   avatar: { width: 44, height: 44, borderRadius: 22, backgroundColor: colors.accentBg, alignItems: "center", justifyContent: "center" },

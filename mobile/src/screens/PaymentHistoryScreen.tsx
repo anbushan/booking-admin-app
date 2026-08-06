@@ -47,12 +47,12 @@ export default function PaymentHistoryScreen({ navigation }: any) {
           >
             <View>
               <Text style={styles.route}>{item.ride?.sourceAddress} to {item.ride?.destAddress}</Text>
-              <Text style={styles.date}>{item.tripCompletedAt ? new Date(item.tripCompletedAt).toLocaleDateString() : "—"}</Text>
+              <Text style={styles.date}>{item.platformFeePaidAt ? new Date(item.platformFeePaidAt).toLocaleDateString() : "—"}</Text>
             </View>
             <View style={{ alignItems: "flex-end" }}>
-              <Text style={styles.amount}>Rs {Number(item.ride?.pricePerSeat) * item.seatsBooked}</Text>
-              <Text style={[styles.status, item.status === "PAID" ? styles.statusPaid : styles.statusPending]}>
-                {item.status === "PAID" ? "Paid" : "Pending"}
+              <Text style={styles.amount}>{item.platformFeeAmount != null ? `Rs ${Number(item.platformFeeAmount)}` : "—"}</Text>
+              <Text style={[styles.status, item.platformFeePaidAt ? styles.statusPaid : styles.statusPending]}>
+                {item.platformFeePaidAt ? "Paid" : "Pending"}
               </Text>
             </View>
           </Pressable>

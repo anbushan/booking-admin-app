@@ -8,7 +8,11 @@ import { Analytics } from "../lib/analytics";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function PaymentScreen({ route, navigation }: any) {
-  const { bookingId, amount } = route.params;
+  // `description` is what shows in the Razorpay sheet and the header —
+  // this screen only ever charges the platform fee now (the remaining
+  // fare is settled directly with the driver, never charged in-app), so
+  // callers should pass "Platform fee", but default to it too.
+  const { bookingId, amount, description = "Platform fee" } = route.params;
   const [paying, setPaying] = useState(false);
 
   async function handlePay() {
@@ -22,20 +26,21 @@ export default function PaymentScreen({ route, navigation }: any) {
         currency: "INR",
         order_id: order.orderId,
         name: "Carpool",
-        description: "Trip fare",
+        description,
         theme: { color: "#1A1A18" },
       });
 
       // The Checkout success callback confirms the payment sheet closed
       // cleanly — it is NOT the source of truth that money moved. That's
       // Razorpay's server-side webhook (payments.routes.js), which is
-      // what actually flips the booking to PAID and triggers driver
-      // payout. Poll status here just to give the user quick feedback.
+      // what actually flips the booking to CONFIRMED and starts the
+      // grace-cancel window. Poll status here just to give the user
+      // quick feedback.
       let attempts = 0;
       const poll = setInterval(async () => {
         attempts++;
         const status = await api.getPaymentStatus(bookingId);
-        if (status.status === "PAID") {
+        if (status.status === "CONFIRMED") {
           clearInterval(poll);
           Analytics.paymentSuccess(bookingId, amount);
           navigation.replace("History", { role: "PASSENGER" });
@@ -69,13 +74,13 @@ export default function PaymentScreen({ route, navigation }: any) {
         <Pressable onPress={() => navigation.goBack()}>
           <Text style={styles.back}>{"<"}</Text>
         </Pressable>
-        <Text style={styles.title}>Trip completed</Text>
+        <Text style={styles.title}>{description}</Text>
       </View>
 
       <View style={styles.body}>
         <View style={styles.summary}>
           <View style={styles.row}>
-            <Text style={styles.label}>Fare</Text>
+            <Text style={styles.label}>{description}</Text>
             <Text style={styles.value}>Rs {amount}</Text>
           </View>
           <View style={[styles.row, { borderBottomWidth: 0 }]}>

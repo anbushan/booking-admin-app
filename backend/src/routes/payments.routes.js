@@ -4,9 +4,9 @@ import { prisma } from "../lib/prisma.js";
 import { requireAuth } from "../middleware/auth.js";
 import { notify } from "../lib/notify.js";
 import { razorpay } from "../lib/razorpay.js";
+import { getAppConfig } from "../lib/appConfig.js";
 
 const router = Router();
-const REFUND_WORKING_DAYS = Number(process.env.REFUND_WORKING_DAYS || 3);
 
 function addWorkingDays(date, days) {
   const result = new Date(date);
@@ -19,7 +19,10 @@ function addWorkingDays(date, days) {
   return result;
 }
 
-// POST /api/payments/:bookingId/charge — called right after trip completion.
+// POST /api/payments/:bookingId/charge — called by the passenger right
+// after the driver accepts, to pay the platform fee (NOT the full fare —
+// the remaining fare is settled directly with the driver, cash/UPI,
+// after the trip; see trips.routes.js /complete).
 router.post("/:bookingId/charge", requireAuth, async (req, res) => {
   const booking = await prisma.booking.findUnique({
     where: { id: req.params.bookingId },
@@ -29,8 +32,11 @@ router.post("/:bookingId/charge", requireAuth, async (req, res) => {
   if (booking.passengerId !== req.user.id) {
     return res.status(403).json({ error: "Not permitted." });
   }
+  if (!["AWAITING_PAYMENT", "PAYMENT_PENDING"].includes(booking.status)) {
+    return res.status(400).json({ error: "This booking isn't awaiting payment." });
+  }
 
-  const amount = Number(booking.ride.pricePerSeat) * booking.seatsBooked;
+  const amount = Number(booking.platformFeeAmount);
 
   const order = await razorpay.orders.create({
     amount: Math.round(amount * 100), // paise
@@ -38,6 +44,8 @@ router.post("/:bookingId/charge", requireAuth, async (req, res) => {
     receipt: booking.id,
     notes: { bookingId: booking.id }, // read back by the webhook handler below
   });
+
+  await prisma.booking.update({ where: { id: booking.id }, data: { status: "CHARGE_ATTEMPTED" } });
 
   res.json({ orderId: order.id, amount, keyId: process.env.RAZORPAY_KEY_ID });
 });
@@ -59,24 +67,27 @@ router.post("/webhook/razorpay", async (req, res) => {
   const bookingId = payload?.payment?.entity?.notes?.bookingId;
   if (!bookingId) return res.status(400).json({ error: "Missing booking reference." });
 
-  const booking = await prisma.booking.findUnique({ where: { id: bookingId } });
+  const booking = await prisma.booking.findUnique({ where: { id: bookingId }, include: { ride: true } });
   if (!booking) return res.status(404).json({ error: "Booking not found." });
 
-  // Idempotency guard — a redelivered webhook must not double-credit.
-  if (booking.status === "PAID") {
+  // Idempotency guard — a redelivered webhook must not double-process.
+  if (booking.platformFeePaidAt) {
     return res.json({ success: true, alreadyProcessed: true });
   }
 
   if (event === "payment.captured") {
     const paymentId = payload.payment.entity.id;
+    const now = new Date();
     await prisma.booking.update({
       where: { id: bookingId },
-      data: { status: "PAID", razorpayPaymentId: paymentId },
+      data: { status: "CONFIRMED", platformFeePaidAt: now, razorpayPaymentId: paymentId },
     });
-    await notify(booking.passengerId, "PAYMENT_SUCCESSFUL", "Payment successful",
-      "Your trip payment went through.");
-    // Driver payout only happens here, on confirmed capture — never on
-    // "trip complete" alone, per the plan's payment state machine.
+    // This is also the moment the shared 30-min grace-cancel window
+    // starts for both sides (see bookings.routes.js cancel handlers).
+    await notify(booking.passengerId, "PAYMENT_SUCCESSFUL", "Booking confirmed",
+      "Your platform fee payment went through — your seat is locked in.");
+    await notify(booking.ride.driverId, "BOOKING_CONFIRMED", "Booking confirmed",
+      "The passenger paid the platform fee — booking is locked in.");
   } else if (event === "payment.failed") {
     await prisma.booking.update({ where: { id: bookingId }, data: { status: "PAYMENT_PENDING" } });
     await notify(booking.passengerId, "PAYMENT_FAILED", "Payment failed",
@@ -88,10 +99,12 @@ router.post("/webhook/razorpay", async (req, res) => {
 
 // POST /api/refunds/:bookingId/initiate — actually reverses the captured
 // Razorpay payment, not just a database-only record. Only meaningful once
-// a booking has reached PAID (there's a real razorpayPaymentId to refund).
+// the platform fee has been captured (there's a real razorpayPaymentId
+// to refund).
 router.post("/refunds/:bookingId/initiate", requireAuth, async (req, res) => {
   const { amount } = req.body;
   const now = new Date();
+  const { refundWorkingDays } = await getAppConfig();
 
   const booking = await prisma.booking.findUnique({ where: { id: req.params.bookingId } });
   if (!booking) return res.status(404).json({ error: "Booking not found." });
@@ -104,22 +117,22 @@ router.post("/refunds/:bookingId/initiate", requireAuth, async (req, res) => {
     });
     razorpayRefundId = rzpRefund.id;
   }
-  // If there's no razorpayPaymentId, the booking was never charged (e.g.
-  // driver cancelled before trip-complete) — nothing to reverse on
-  // Razorpay's side, so we still record the Refund row for visibility
-  // but leave razorpayRefundId null.
+  // If there's no razorpayPaymentId, the platform fee was never charged
+  // (e.g. driver cancelled before the passenger paid) — nothing to
+  // reverse on Razorpay's side, so we still record the Refund row for
+  // visibility but leave razorpayRefundId null.
 
   const refund = await prisma.refund.create({
     data: {
       bookingId: req.params.bookingId,
       amount,
-      estimatedCompletionAt: addWorkingDays(now, REFUND_WORKING_DAYS),
+      estimatedCompletionAt: addWorkingDays(now, refundWorkingDays),
       razorpayRefundId,
     },
   });
 
   await notify(booking.passengerId, "REFUND_UPDATE", "Refund initiated",
-    `Your refund of Rs ${amount} will be credited within ${REFUND_WORKING_DAYS} working days.`);
+    `Your refund of Rs ${amount} will be credited within ${refundWorkingDays} working days.`);
 
   res.status(201).json(refund);
 });
@@ -131,17 +144,22 @@ router.get("/:bookingId/status", requireAuth, async (req, res) => {
   res.json({ status: booking.status });
 });
 
-// GET /api/payments/my-history
+// GET /api/payments/my-history — every booking where the passenger
+// actually paid a platform fee in-app (regardless of what happened to
+// the booking afterwards), not the old PAID/PAYMENT_PENDING status pair.
 router.get("/my-history", requireAuth, async (req, res) => {
   const bookings = await prisma.booking.findMany({
-    where: { passengerId: req.user.id, status: { in: ["PAID", "PAYMENT_PENDING"] } },
+    where: {
+      passengerId: req.user.id,
+      OR: [{ platformFeePaidAt: { not: null } }, { status: "PAYMENT_PENDING" }],
+    },
     include: { ride: true, refund: true },
-    orderBy: { tripCompletedAt: "desc" },
+    orderBy: { createdAt: "desc" },
   });
   res.json(bookings);
 });
 
-// POST /api/payments/:bookingId/retry — re-attempts a failed charge
+// POST /api/payments/:bookingId/retry — re-attempts a failed platform-fee charge
 router.post("/:bookingId/retry", requireAuth, async (req, res) => {
   const booking = await prisma.booking.findUnique({
     where: { id: req.params.bookingId },
@@ -154,7 +172,7 @@ router.post("/:bookingId/retry", requireAuth, async (req, res) => {
     return res.status(400).json({ error: "This booking isn't awaiting a retry." });
   }
 
-  const amount = Number(booking.ride.pricePerSeat) * booking.seatsBooked;
+  const amount = Number(booking.platformFeeAmount);
   await prisma.booking.update({ where: { id: booking.id }, data: { status: "CHARGE_ATTEMPTED" } });
 
   const order = await razorpay.orders.create({

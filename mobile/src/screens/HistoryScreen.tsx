@@ -11,7 +11,7 @@ import { Analytics } from "../lib/analytics";
 import { primeLocationIfNeeded } from "../lib/locationPriming";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-const CANCELLABLE_STATUSES = ["BOOKED", "CONFIRMED"];
+const CANCELLABLE_STATUSES = ["BOOKED", "AWAITING_PAYMENT", "CONFIRMED"];
 
 export default function HistoryScreen({ navigation, route }: any) {
   // role is optional — screens that already know it (e.g. a driver-only
@@ -54,9 +54,13 @@ export default function HistoryScreen({ navigation, route }: any) {
         style: "destructive",
         onPress: async () => {
           try {
-            await api.cancelBooking(bookingId);
+            const result = await api.cancelBooking(bookingId);
             Analytics.bookingCancelled(bookingId, "PASSENGER");
-            showSuccess("Booking cancelled");
+            showSuccess(
+              result.refunded === false
+                ? "Booking cancelled — past the free-cancellation window, so the platform fee isn't refunded."
+                : "Booking cancelled"
+            );
             load();
           } catch (err: any) {
             showError(err.message || "Couldn't cancel");
@@ -137,7 +141,7 @@ export default function HistoryScreen({ navigation, route }: any) {
             <Pressable
               style={styles.card}
               onPress={() => {
-                if (item.status === "PAID") {
+                if (item.status === "COMPLETED") {
                   navigation.navigate("RateReview", {
                     bookingId: item.id,
                     toUserId: item.ride.driverId,
@@ -148,11 +152,23 @@ export default function HistoryScreen({ navigation, route }: any) {
             >
               <Text style={styles.route}>{item.ride?.sourceAddress} to {item.ride?.destAddress}</Text>
               <View style={styles.rowBetween}>
-                <Text style={styles.meta}>Rs {Number(item.ride?.pricePerSeat) * item.seatsBooked}</Text>
+                <Text style={styles.meta}>Rs {Number(item.ride?.pricePerSeat) * item.seatsBooked} total</Text>
                 <Text style={styles.status}>{item.status}</Text>
               </View>
-              {(item.status === "CONFIRMED" || item.status === "IN_PROGRESS" || CANCELLABLE_STATUSES.includes(item.status)) && (
+              {(item.status === "AWAITING_PAYMENT" || item.status === "CONFIRMED" || item.status === "IN_PROGRESS" || CANCELLABLE_STATUSES.includes(item.status)) && (
                 <View style={styles.actionRow}>
+                  {item.status === "AWAITING_PAYMENT" && (
+                    <Pressable
+                      style={styles.cancelLink}
+                      onPress={() => navigation.navigate("Payment", {
+                        bookingId: item.id,
+                        amount: Number(item.platformFeeAmount),
+                        description: "Platform fee",
+                      })}
+                    >
+                      <Text style={styles.cancelLinkText}>Pay platform fee</Text>
+                    </Pressable>
+                  )}
                   {item.status === "CONFIRMED" && (
                     <Pressable
                       style={styles.cancelLink}

@@ -3,6 +3,8 @@ import { prisma } from "../lib/prisma.js";
 import { requireAuth, requireRole } from "../middleware/auth.js";
 import { refundIfPaid } from "../lib/refunds.js";
 import { notify } from "../lib/notify.js";
+import { getAppConfig } from "../lib/appConfig.js";
+import { isDriverStrikeBlocked, issueDriverStrike } from "../lib/strikes.js";
 import { validate, isLat, isLng, isNonEmptyString, isFutureDate, isPositiveInt, isPositiveNumber } from "../lib/validate.js";
 
 const router = Router();
@@ -30,15 +32,17 @@ function haversineKm(lat1, lng1, lat2, lng2) {
 // caps pricePerSeat at a generous per-km rate covering fuel, tolls, and
 // wear — not a tight commercial fare, just an upper bound that keeps the
 // "cost-sharing, not profit" framing defensible.
-const FARE_CAP_PER_KM_INR = Number(process.env.FARE_CAP_PER_KM_INR || 12);
-
-function computeFareCap(sourceLat, sourceLng, destLat, destLng) {
+function computeFareCap(sourceLat, sourceLng, destLat, destLng, fareCapPerKmInr) {
   const distanceKm = haversineKm(sourceLat, sourceLng, destLat, destLng);
-  return Math.round(distanceKm * FARE_CAP_PER_KM_INR);
+  return Math.round(distanceKm * fareCapPerKmInr);
 }
 
 // POST /api/rides — driver publishes a ride
 router.post("/", requireAuth, requireRole("DRIVER"), async (req, res) => {
+  if (isDriverStrikeBlocked(req.user)) {
+    return res.status(403).json({ error: "Your account is temporarily blocked from publishing new rides." });
+  }
+
   const {
     sourceLat, sourceLng, sourceAddress,
     destLat, destLng, destAddress,
@@ -60,7 +64,8 @@ router.post("/", requireAuth, requireRole("DRIVER"), async (req, res) => {
   ]);
   if (errors.length) return res.status(400).json({ errors });
 
-  const fareCap = computeFareCap(sourceLat, sourceLng, destLat, destLng);
+  const config = await getAppConfig();
+  const fareCap = computeFareCap(sourceLat, sourceLng, destLat, destLng, config.fareCapPerKmInr);
   if (Number(pricePerSeat) > fareCap) {
     return res.status(400).json({
       error: `Price per seat can't exceed Rs ${fareCap} for this distance — this keeps the ride classified as cost-sharing rather than a commercial fare.`,
@@ -76,7 +81,7 @@ router.post("/", requireAuth, requireRole("DRIVER"), async (req, res) => {
       travelDate: new Date(travelDate),
       seatsAvailable,
       pricePerSeat,
-      maxDetourKm: maxDetourKm ?? Number(process.env.DEFAULT_MAX_DETOUR_KM || 3),
+      maxDetourKm: maxDetourKm ?? config.defaultMaxDetourKm,
       preferences: preferences || {},
     },
   });
@@ -181,7 +186,8 @@ router.put("/:id", requireAuth, requireRole("DRIVER"), async (req, res) => {
   if (errors.length) return res.status(400).json({ errors });
 
   if (pricePerSeat !== undefined) {
-    const fareCap = computeFareCap(ride.sourceLat, ride.sourceLng, ride.destLat, ride.destLng);
+    const config = await getAppConfig();
+    const fareCap = computeFareCap(ride.sourceLat, ride.sourceLng, ride.destLat, ride.destLng, config.fareCapPerKmInr);
     if (Number(pricePerSeat) > fareCap) {
       return res.status(400).json({
         error: `Price per seat can't exceed Rs ${fareCap} for this distance.`,
@@ -203,54 +209,69 @@ router.put("/:id", requireAuth, requireRole("DRIVER"), async (req, res) => {
   res.json(updated);
 });
 
-// DELETE /api/rides/:id — driver cancels; any CONFIRMED bookings need
-// their own cancellation/refund handling, flagged here rather than
+// DELETE /api/rides/:id — driver cancels; any BOOKED/AWAITING_PAYMENT/
+// CONFIRMED bookings need their own cancellation/refund/strike handling
+// (same cancellation-matrix rules as a single-booking driver-cancel —
+// see bookings.routes.js /:id/driver-cancel), flagged here rather than
 // silently orphaned.
 router.delete("/:id", requireAuth, requireRole("DRIVER"), async (req, res) => {
   const ride = await prisma.ride.findUnique({
     where: { id: req.params.id },
-    include: { bookings: { where: { status: { in: ["BOOKED", "CONFIRMED"] } } } },
+    include: { bookings: { where: { status: { in: ["BOOKED", "AWAITING_PAYMENT", "CONFIRMED"] } } } },
   });
   if (!ride || ride.driverId !== req.user.id) {
     return res.status(404).json({ error: "Ride not found." });
   }
 
-  const affectedBookingIds = ride.bookings.map((b) => b.id);
+  const config = await getAppConfig();
+  const now = new Date();
 
-  await prisma.$transaction([
-    prisma.ride.update({ where: { id: req.params.id }, data: { status: "CANCELLED" } }),
-    prisma.booking.updateMany({
-      where: { rideId: req.params.id, status: { in: ["BOOKED", "CONFIRMED"] } },
-      data: { status: "CANCELLED" },
-    }),
-  ]);
+  await prisma.ride.update({ where: { id: req.params.id }, data: { status: "CANCELLED" } });
 
-  // refundIfPaid is a safe no-op for bookings that were never charged —
-  // covers the edge case where a booking reached CHARGE_ATTEMPTED before
-  // the driver cancelled.
-  for (const bookingId of affectedBookingIds) {
-    await refundIfPaid(bookingId).catch((err) =>
-      console.error(`Refund check failed for booking ${bookingId}:`, err.message)
-    );
-    const booking = await prisma.booking.findUnique({ where: { id: bookingId } });
-    if (booking) {
-      await notify(booking.passengerId, "RIDE_CANCELLED", "Ride cancelled",
-        "The driver cancelled this ride. Please search for another one.");
+  let strikeWorthy = false;
+  for (const booking of ride.bookings) {
+    let cancelReason = "DRIVER_WITHDRAWN";
+    if (booking.status === "CONFIRMED" && booking.platformFeePaidAt) {
+      const elapsedMinutes = (now - new Date(booking.platformFeePaidAt)) / 60000;
+      const withinGrace = elapsedMinutes <= config.graceCancelWindowMinutes;
+      cancelReason = withinGrace ? "DRIVER_REQUEST_GRACE" : "DRIVER_REQUEST_LATE";
+      if (!withinGrace) strikeWorthy = true;
     }
+
+    await prisma.booking.update({
+      where: { id: booking.id },
+      data: { status: "CANCELLED", cancelledBy: "DRIVER", cancelReason, cancelledAt: now },
+    });
+    // refundIfPaid is a safe no-op for bookings that never had a platform
+    // fee captured (still BOOKED/AWAITING_PAYMENT).
+    await refundIfPaid(booking.id).catch((err) =>
+      console.error(`Refund check failed for booking ${booking.id}:`, err.message)
+    );
+    await notify(booking.passengerId, "RIDE_CANCELLED", "Ride cancelled",
+      "The driver cancelled this ride. Please search for another one.");
   }
 
-  res.json({ success: true, affectedBookings: affectedBookingIds.length });
+  // One strike for the whole ride cancellation, not one per affected
+  // passenger — consistent with how a no-show is scored.
+  if (strikeWorthy) {
+    await issueDriverStrike(req.user.id, { rideId: req.params.id, reason: "DRIVER_LATE_CANCEL" });
+  }
+
+  res.json({ success: true, affectedBookings: ride.bookings.length });
 });
 
-// GET /api/rides/earnings — driver's earnings summary + recent paid trips
+// GET /api/rides/earnings — driver's earnings summary + recent completed
+// trips. "Earnings" here is the remaining fare (the cash/UPI amount
+// settled directly with the passenger) — the platform fee never reaches
+// the driver, so it's excluded from this total.
 router.get("/earnings", requireAuth, requireRole("DRIVER"), async (req, res) => {
   const startOfMonth = new Date();
   startOfMonth.setDate(1);
   startOfMonth.setHours(0, 0, 0, 0);
 
-  const paidBookings = await prisma.booking.findMany({
+  const completedBookings = await prisma.booking.findMany({
     where: {
-      status: "PAID",
+      status: "COMPLETED",
       tripCompletedAt: { gte: startOfMonth },
       ride: { driverId: req.user.id },
     },
@@ -258,29 +279,24 @@ router.get("/earnings", requireAuth, requireRole("DRIVER"), async (req, res) => 
     orderBy: { tripCompletedAt: "desc" },
   });
 
-  const pendingBookings = await prisma.booking.findMany({
-    where: { status: { in: ["CHARGE_ATTEMPTED", "PAYMENT_PENDING"] }, ride: { driverId: req.user.id } },
-    include: { ride: true },
-  });
-
-  const totalThisMonth = paidBookings.reduce(
-    (sum, b) => sum + Number(b.ride.pricePerSeat) * b.seatsBooked,
+  const totalThisMonth = completedBookings.reduce(
+    (sum, b) => sum + Number(b.remainingFareAmount || 0),
     0
   );
-  const avgPerTrip = paidBookings.length ? totalThisMonth / paidBookings.length : 0;
+  const avgPerTrip = completedBookings.length ? totalThisMonth / completedBookings.length : 0;
 
   res.json({
     totalThisMonth,
-    tripsCompleted: paidBookings.length,
+    tripsCompleted: completedBookings.length,
     avgPerTrip: Math.round(avgPerTrip),
-    recentTrips: [...paidBookings, ...pendingBookings]
-      .sort((a, b) => (b.tripCompletedAt || 0) > (a.tripCompletedAt || 0) ? 1 : -1)
+    recentTrips: completedBookings
       .slice(0, 10)
       .map((b) => ({
         id: b.id,
         route: `${b.ride.sourceAddress} to ${b.ride.destAddress}`,
-        amount: Number(b.ride.pricePerSeat) * b.seatsBooked,
+        amount: Number(b.remainingFareAmount || 0),
         status: b.status,
+        cashCollected: !!b.remainingFareCollectedAt,
       })),
   });
 });

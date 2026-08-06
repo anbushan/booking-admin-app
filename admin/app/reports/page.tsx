@@ -15,13 +15,15 @@ export default async function ReportsPage() {
   startOfMonth.setDate(1);
   startOfMonth.setHours(0, 0, 0, 0);
 
+  // Platform revenue is the fee, not the full fare — the remaining fare
+  // is settled directly between passenger and driver and never reaches
+  // the platform.
   const paidThisMonth = await prisma.booking.findMany({
-    where: { status: "PAID", tripCompletedAt: { gte: startOfMonth } },
-    include: { ride: { select: { pricePerSeat: true } } },
+    where: { platformFeePaidAt: { gte: startOfMonth } },
   });
 
   const revenueThisMonth = paidThisMonth.reduce(
-    (sum, b) => sum + Number(b.ride.pricePerSeat) * b.seatsBooked,
+    (sum, b) => sum + Number(b.platformFeeAmount || 0),
     0
   );
 

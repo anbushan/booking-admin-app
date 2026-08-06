@@ -28,24 +28,24 @@ export default async function DailyReportPage({
     ? new Date(searchParams.from)
     : new Date(to.getTime() - 13 * 24 * 60 * 60 * 1000); // default: last 14 days
 
+  // Platform revenue is the fee captured, not the full fare — the
+  // remaining fare is settled directly between passenger and driver.
   const bookings = await prisma.booking.findMany({
     where: {
-      status: "PAID",
-      tripCompletedAt: { gte: startOfDay(from), lte: to },
+      platformFeePaidAt: { gte: startOfDay(from), lte: to },
     },
-    include: { ride: { select: { pricePerSeat: true } } },
-    orderBy: { tripCompletedAt: "asc" },
+    orderBy: { platformFeePaidAt: "asc" },
   });
 
   const buckets = new Map<string, { revenue: number; trips: number }>();
   for (const b of bookings) {
-    if (!b.tripCompletedAt) continue;
+    if (!b.platformFeePaidAt) continue;
     const key =
       groupBy === "month"
-        ? `${b.tripCompletedAt.getFullYear()}-${String(b.tripCompletedAt.getMonth() + 1).padStart(2, "0")}`
-        : b.tripCompletedAt.toISOString().slice(0, 10);
+        ? `${b.platformFeePaidAt.getFullYear()}-${String(b.platformFeePaidAt.getMonth() + 1).padStart(2, "0")}`
+        : b.platformFeePaidAt.toISOString().slice(0, 10);
     const existing = buckets.get(key) || { revenue: 0, trips: 0 };
-    existing.revenue += Number(b.ride.pricePerSeat) * b.seatsBooked;
+    existing.revenue += Number(b.platformFeeAmount || 0);
     existing.trips += 1;
     buckets.set(key, existing);
   }

@@ -20,8 +20,11 @@ export default async function DashboardPage() {
       prisma.booking.count(),
     ]);
 
+  // "Paid" now means the platform fee was captured — the only amount
+  // ever charged in-app (the remaining fare is settled directly between
+  // passenger and driver).
   const revenueResult = await prisma.booking.aggregate({
-    where: { status: "PAID" },
+    where: { platformFeePaidAt: { not: null } },
     _count: true,
   });
 
@@ -31,7 +34,7 @@ export default async function DashboardPage() {
     { label: "Passengers", value: totalPassengers },
     { label: "Active rides", value: activeRides },
     { label: "Total bookings", value: totalBookings },
-    { label: "Paid trips", value: revenueResult._count },
+    { label: "Fee-paid bookings", value: revenueResult._count },
   ];
 
   return (

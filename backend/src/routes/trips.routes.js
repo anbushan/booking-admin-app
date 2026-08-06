@@ -39,11 +39,14 @@ router.post("/:bookingId/start", requireAuth, requireRole("DRIVER"), async (req,
   res.json({ bookingId: updated.id }); // OTP itself goes to the passenger's own screen, not this response
 });
 
-// POST /api/trips/:bookingId/verify-otp — driver enters what passenger read aloud
+// POST /api/trips/:bookingId/verify-otp — driver enters EITHER what the
+// passenger read aloud (the 4-digit OTP) OR the passenger's Booking ID —
+// either one is enough to start the trip. Accepts `otp` (legacy field
+// name, kept for backward compat) or `code` (either kind of value).
 router.post("/:bookingId/verify-otp", requireAuth, requireRole("DRIVER"), async (req, res) => {
-  const { otp } = req.body;
-  if (!/^\d{4,6}$/.test(otp || "")) {
-    return res.status(400).json({ error: "Enter a valid code." });
+  const code = String(req.body.code ?? req.body.otp ?? "").trim();
+  if (!code) {
+    return res.status(400).json({ error: "Enter the passenger's OTP or Booking ID." });
   }
   const booking = await prisma.booking.findUnique({
     where: { id: req.params.bookingId },
@@ -52,7 +55,13 @@ router.post("/:bookingId/verify-otp", requireAuth, requireRole("DRIVER"), async 
   if (!booking || booking.ride.driverId !== req.user.id) {
     return res.status(404).json({ error: "Booking not found." });
   }
-  if (booking.tripOtp !== otp) {
+  if (booking.status !== "CONFIRMED") {
+    return res.status(400).json({ error: "Booking must be confirmed before starting the trip." });
+  }
+
+  const matchesOtp = booking.tripOtp && code === booking.tripOtp;
+  const matchesBookingId = code.toLowerCase() === booking.id.toLowerCase();
+  if (!matchesOtp && !matchesBookingId) {
     return res.status(400).json({ error: "Incorrect code." });
   }
 
@@ -91,16 +100,55 @@ router.get("/:bookingId/track", requireAuth, async (req, res) => {
     lng: booking.lastLng,
     lastLocationAt: booking.lastLocationAt,
     status: booking.status,
-    // Included so the passenger's client can navigate straight to
-    // PaymentScreen with the right amount the moment status flips to
-    // CHARGE_ATTEMPTED, without a second round trip.
-    amount: Number(booking.ride.pricePerSeat) * booking.seatsBooked,
+    // Under the upfront-fee model the passenger is already paid up by
+    // the time they're on this screen (tracking only happens once
+    // IN_PROGRESS). What they still owe is the cash/UPI amount due to
+    // the driver, set once the trip is marked COMPLETED — included here
+    // so the client can navigate straight to a "pay the driver" summary
+    // without a second round trip.
+    amount: booking.remainingFareAmount != null ? Number(booking.remainingFareAmount) : null,
   });
 });
 
-// POST /api/trips/:bookingId/complete — triggers the (post-trip) charge
-// attempt; actual Razorpay call lives in payments.routes.js and is
-// invoked from here.
+// POST /api/trips/:bookingId/stop — either party can close out a ride
+// that's been abandoned/stopped mid-way, for any reason. This is
+// distinct from a pre-trip cancel: the trip already started, so there's
+// no refund/strike logic here (the platform fee already covered the
+// matching service that was rendered) — it just closes the ride for
+// both sides so the passenger can search and rebook fresh.
+router.post("/:bookingId/stop", requireAuth, async (req, res) => {
+  const booking = await prisma.booking.findUnique({
+    where: { id: req.params.bookingId },
+    include: { ride: true },
+  });
+  if (!booking) return res.status(404).json({ error: "Booking not found." });
+
+  const isPassenger = booking.passengerId === req.user.id;
+  const isDriver = booking.ride.driverId === req.user.id;
+  if (!isPassenger && !isDriver) {
+    return res.status(403).json({ error: "Not permitted." });
+  }
+  if (booking.status !== "IN_PROGRESS") {
+    return res.status(400).json({ error: "Only an in-progress trip can be stopped." });
+  }
+
+  const updated = await prisma.booking.update({
+    where: { id: booking.id },
+    data: { status: "STOPPED", tripStoppedAt: new Date() },
+  });
+
+  const otherPartyId = isPassenger ? booking.ride.driverId : booking.passengerId;
+  await notify(otherPartyId, "RIDE_STOPPED", "Ride closed",
+    "This ride was stopped before reaching the destination. It's been closed — you can search and rebook.");
+
+  res.json(updated);
+});
+
+// POST /api/trips/:bookingId/complete — driver marks the trip done. No
+// in-app charge happens here anymore: the platform fee was already
+// captured up front, and the remaining fare is settled directly between
+// passenger and driver (cash/UPI) — this just records what's owed for
+// display on both sides.
 router.post("/:bookingId/complete", requireAuth, requireRole("DRIVER"), async (req, res) => {
   const booking = await prisma.booking.findUnique({
     where: { id: req.params.bookingId },
@@ -109,15 +157,43 @@ router.post("/:bookingId/complete", requireAuth, requireRole("DRIVER"), async (r
   if (!booking || booking.ride.driverId !== req.user.id) {
     return res.status(404).json({ error: "Booking not found." });
   }
+  if (booking.status !== "IN_PROGRESS") {
+    return res.status(400).json({ error: "Only an in-progress trip can be completed." });
+  }
+
+  const fullFare = Number(booking.ride.pricePerSeat) * booking.seatsBooked;
+  const remainingFareAmount = fullFare - Number(booking.platformFeeAmount || 0);
 
   const updated = await prisma.booking.update({
     where: { id: booking.id },
-    data: { status: "CHARGE_ATTEMPTED", tripCompletedAt: new Date() },
+    data: { status: "COMPLETED", tripCompletedAt: new Date(), remainingFareAmount },
   });
 
-  // See payments.routes.js — /api/payments/:bookingId/charge is called
-  // by the client immediately after this, or triggered server-side here
-  // via a direct function call once the Razorpay order flow is wired up.
+  await notify(booking.passengerId, "TRIP_COMPLETED", "Trip completed",
+    `Please pay Rs ${remainingFareAmount.toFixed(0)} directly to your driver (cash/UPI).`);
+
+  res.json(updated);
+});
+
+// PUT /api/trips/:bookingId/collect-cash — driver's own bookkeeping:
+// confirms the remaining fare was collected directly from the passenger.
+// Purely informational (no payment processing involved).
+router.put("/:bookingId/collect-cash", requireAuth, requireRole("DRIVER"), async (req, res) => {
+  const booking = await prisma.booking.findUnique({
+    where: { id: req.params.bookingId },
+    include: { ride: true },
+  });
+  if (!booking || booking.ride.driverId !== req.user.id) {
+    return res.status(404).json({ error: "Booking not found." });
+  }
+  if (booking.status !== "COMPLETED") {
+    return res.status(400).json({ error: "Trip must be completed first." });
+  }
+
+  const updated = await prisma.booking.update({
+    where: { id: booking.id },
+    data: { remainingFareCollectedAt: new Date() },
+  });
 
   res.json(updated);
 });

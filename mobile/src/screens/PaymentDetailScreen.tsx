@@ -5,7 +5,9 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function PaymentDetailScreen({ route, navigation }: any) {
   const { booking } = route.params;
-  const amount = Number(booking.ride?.pricePerSeat) * booking.seatsBooked;
+  const platformFee = booking.platformFeeAmount != null ? Number(booking.platformFeeAmount) : null;
+  const remainingFare = booking.remainingFareAmount != null ? Number(booking.remainingFareAmount) : null;
+  const isPaid = !!booking.platformFeePaidAt;
 
   return (
     <SafeAreaView style={styles.screen} edges={["top"]}>
@@ -27,17 +29,19 @@ export default function PaymentDetailScreen({ route, navigation }: any) {
             <Text style={styles.label}>Seats</Text>
             <Text style={styles.value}>{booking.seatsBooked}</Text>
           </View>
-          <View style={styles.row}>
-            <Text style={styles.label}>Fare</Text>
-            <Text style={styles.value}>Rs {amount}</Text>
-          </View>
           <View style={[styles.row, { borderBottomWidth: 0 }]}>
-            <Text style={styles.totalLabel}>Total</Text>
-            <Text style={styles.totalValue}>Rs {amount}</Text>
+            <Text style={styles.totalLabel}>Platform fee (paid in-app)</Text>
+            <Text style={styles.totalValue}>{platformFee != null ? `Rs ${platformFee}` : "—"}</Text>
           </View>
+          {remainingFare != null && (
+            <View style={[styles.row, { borderBottomWidth: 0 }]}>
+              <Text style={styles.label}>Remaining fare (cash/UPI to driver)</Text>
+              <Text style={styles.value}>Rs {remainingFare}</Text>
+            </View>
+          )}
 
-          <Text style={[styles.statusTag, booking.status === "PAID" ? styles.paid : styles.pending]}>
-            {booking.status === "PAID" ? "Paid" : booking.status}
+          <Text style={[styles.statusTag, isPaid ? styles.paid : styles.pending]}>
+            {isPaid ? "Fee paid" : booking.status}
           </Text>
         </View>
 

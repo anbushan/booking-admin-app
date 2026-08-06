@@ -5,19 +5,23 @@ import { api } from "../lib/api";
 import { SkeletonBlock } from "../components/Skeleton";
 import { EmptyState } from "../components/EmptyState";
 import { ErrorState } from "../components/ErrorState";
+import { useToast } from "../components/Toast";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 type Earnings = {
   totalThisMonth: number;
   tripsCompleted: number;
   avgPerTrip: number;
-  recentTrips: { id: string; route: string; amount: number; status: string }[];
+  // amount is the remaining fare — the cash/UPI portion settled directly
+  // with the passenger, since the platform fee never reaches the driver.
+  recentTrips: { id: string; route: string; amount: number; status: string; cashCollected: boolean }[];
 };
 
 export default function EarningsScreen({ navigation }: any) {
   const [data, setData] = useState<Earnings | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
+  const { showError } = useToast();
 
   function load() {
     setLoading(true);
@@ -26,6 +30,15 @@ export default function EarningsScreen({ navigation }: any) {
   }
 
   useEffect(load, []);
+
+  async function markCollected(bookingId: string) {
+    try {
+      await api.collectCash(bookingId);
+      load();
+    } catch (err: any) {
+      showError(err.message || "Couldn't update");
+    }
+  }
 
   return (
     <SafeAreaView style={styles.screen} edges={["top"]}>
@@ -66,14 +79,15 @@ export default function EarningsScreen({ navigation }: any) {
             renderItem={({ item }) => (
               <View style={styles.tripRow}>
                 <Text style={styles.tripRoute}>{item.route}</Text>
-                <Text
-                  style={[
-                    styles.tripAmount,
-                    item.status !== "PAID" && { color: colors.warning },
-                  ]}
-                >
-                  {item.status === "PAID" ? `+Rs ${item.amount}` : "Pending"}
-                </Text>
+                {item.cashCollected ? (
+                  <Text style={styles.tripAmount}>+Rs {item.amount}</Text>
+                ) : (
+                  <Pressable onPress={() => markCollected(item.id)}>
+                    <Text style={[styles.tripAmount, { color: colors.warning }]}>
+                      Rs {item.amount} · mark collected
+                    </Text>
+                  </Pressable>
+                )}
               </View>
             )}
             ListEmptyComponent={<EmptyState title="No trips yet this month" />}

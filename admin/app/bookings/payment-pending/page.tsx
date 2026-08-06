@@ -23,7 +23,7 @@ async function sendRetryReminder(formData: FormData) {
       userId: passengerId,
       type: "PAYMENT_FAILED",
       title: "Payment reminder",
-      body: `Your trip payment of Rs ${amount} didn't go through — please retry from your booking to avoid delays.`,
+      body: `Your platform fee payment of Rs ${amount} didn't go through — please retry from your booking before the pay window closes.`,
     },
   });
 
@@ -37,12 +37,12 @@ export default async function PaymentPendingPage() {
   }
 
   const bookings = await prisma.booking.findMany({
-    where: { status: "PAYMENT_PENDING" },
+    where: { status: { in: ["AWAITING_PAYMENT", "CHARGE_ATTEMPTED", "PAYMENT_PENDING"] } },
     include: {
       ride: { include: { driver: { select: { name: true } } } },
       passenger: { select: { name: true, phone: true } },
     },
-    orderBy: { tripCompletedAt: "desc" },
+    orderBy: { expiresAt: "asc" },
   });
 
   return (
@@ -50,13 +50,14 @@ export default async function PaymentPendingPage() {
       <div style={{ padding: 24, fontFamily: "sans-serif" }}>
         <h1 style={{ fontSize: 20, fontWeight: 500 }}>Payment-pending bookings</h1>
         <p style={{ fontSize: 13, color: "#5F5E5A" }}>
-          Trips completed where the post-trip charge failed and hasn't yet
-          succeeded on retry.
+          Driver-accepted bookings where the passenger's platform-fee
+          payment hasn't succeeded yet (still within the pay window, in
+          flight, or failed and awaiting retry).
         </p>
 
         <div style={{ marginTop: 16, display: "flex", flexDirection: "column", gap: 10 }}>
           {bookings.map((b) => {
-            const amount = Number(b.ride.pricePerSeat) * b.seatsBooked;
+            const amount = Number(b.platformFeeAmount || 0);
             return (
               <div
                 key={b.id}
@@ -64,11 +65,11 @@ export default async function PaymentPendingPage() {
               >
                 <div>
                   <div style={{ fontSize: 13, fontWeight: 500 }}>
-                    {b.passenger.name || b.passenger.phone} · Rs {amount}
+                    {b.passenger.name || b.passenger.phone} · Rs {amount} fee · {b.status}
                   </div>
                   <div style={{ fontSize: 12, color: "#888780", marginTop: 4 }}>
-                    Driver {b.ride.driver.name || "—"} · trip completed{" "}
-                    {b.tripCompletedAt?.toLocaleDateString() || "—"}
+                    Driver {b.ride.driver.name || "—"} · pay window expires{" "}
+                    {b.expiresAt?.toLocaleString() || "—"}
                   </div>
                 </div>
                 <form action={sendRetryReminder}>

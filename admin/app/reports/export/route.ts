@@ -17,24 +17,27 @@ export async function GET() {
     return new Response("Not permitted", { status: 403 });
   }
 
+  // Revenue here is the platform fee actually captured, not the full
+  // fare — the remaining fare is settled directly between passenger and
+  // driver and never reaches the platform.
   const bookings = await prisma.booking.findMany({
-    where: { status: "PAID" },
+    where: { platformFeePaidAt: { not: null } },
     include: {
-      ride: { select: { sourceAddress: true, destAddress: true, pricePerSeat: true } },
+      ride: { select: { sourceAddress: true, destAddress: true } },
       passenger: { select: { name: true, phone: true } },
     },
-    orderBy: { tripCompletedAt: "desc" },
+    orderBy: { platformFeePaidAt: "desc" },
     take: 1000,
   });
 
-  const header = ["Booking ID", "Passenger", "Route", "Seats", "Amount (Rs)", "Trip Completed"];
+  const header = ["Booking ID", "Passenger", "Route", "Seats", "Platform Fee (Rs)", "Fee Paid At"];
   const rows = bookings.map((b) => [
     b.id,
     b.passenger.name || b.passenger.phone,
     `${b.ride.sourceAddress} to ${b.ride.destAddress}`,
     String(b.seatsBooked),
-    String(Number(b.ride.pricePerSeat) * b.seatsBooked),
-    b.tripCompletedAt?.toISOString() || "",
+    String(Number(b.platformFeeAmount || 0)),
+    b.platformFeePaidAt?.toISOString() || "",
   ]);
 
   const csv = toCsv([header, ...rows]);

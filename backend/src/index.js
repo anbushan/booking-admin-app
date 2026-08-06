@@ -32,6 +32,7 @@ import reviewsRoutes from "./routes/reviews.routes.js";
 import callsRoutes from "./routes/calls.routes.js";
 import i18nRoutes from "./routes/i18n.routes.js";
 import { expireStaleBookings } from "./cron/expireBookings.js";
+import { checkNoShows } from "./cron/checkNoShows.js";
 import { attachSocketServer } from "./lib/socket.js";
 
 const app = express();
@@ -68,5 +69,10 @@ server.listen(PORT, () => {
   console.log(`Carpool API + Socket.IO listening on port ${PORT} (${process.env.NODE_ENV})`);
 });
 
-// Fallback sweep for booking auto-expiry — every 2 minutes.
+// Fallback sweep for booking auto-expiry (driver-response window and
+// platform-fee payment window) — every 2 minutes.
 setInterval(expireStaleBookings, 2 * 60 * 1000);
+
+// No-show auto-cancel needs tighter tolerance than the expiry sweep
+// since it's keyed off a real-world departure time, not a fixed TTL.
+setInterval(checkNoShows, 60 * 1000);

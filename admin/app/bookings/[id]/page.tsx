@@ -21,7 +21,7 @@ export default async function BookingDetailPage({ params }: { params: { id: stri
   });
   if (!booking) redirect("/bookings");
 
-  const amount = Number(booking.ride.pricePerSeat) * booking.seatsBooked;
+  const fullFare = Number(booking.ride.pricePerSeat) * booking.seatsBooked;
 
   return (
     <AdminShell activeHref="/bookings">
@@ -45,13 +45,37 @@ export default async function BookingDetailPage({ params }: { params: { id: stri
             <div>{booking.ride.sourceAddress} to {booking.ride.destAddress}</div>
           </div>
           <div>
-            <div style={{ color: "#888780" }}>Amount</div>
-            <div>Rs {amount}</div>
+            <div style={{ color: "#888780" }}>Full fare</div>
+            <div>Rs {fullFare}</div>
+          </div>
+          <div>
+            <div style={{ color: "#888780" }}>Platform fee (in-app)</div>
+            <div>{booking.platformFeeAmount != null ? `Rs ${Number(booking.platformFeeAmount)}` : "—"}</div>
+          </div>
+          <div>
+            <div style={{ color: "#888780" }}>Remaining fare (cash/UPI to driver)</div>
+            <div>
+              {booking.remainingFareAmount != null ? `Rs ${Number(booking.remainingFareAmount)}` : "—"}
+              {booking.remainingFareAmount != null && (
+                <span style={{ color: booking.remainingFareCollectedAt ? "#3B6D11" : "#854F0B", marginLeft: 6 }}>
+                  ({booking.remainingFareCollectedAt ? "collected" : "not yet confirmed"})
+                </span>
+              )}
+            </div>
           </div>
           <div>
             <div style={{ color: "#888780" }}>Status</div>
             <div>{booking.status}</div>
           </div>
+          {booking.cancelledBy && (
+            <div>
+              <div style={{ color: "#888780" }}>Cancelled by</div>
+              <div>
+                {booking.cancelledBy} — {booking.cancelReason || "—"}
+                {booking.cancelledAt && <> · {booking.cancelledAt.toLocaleString()}</>}
+              </div>
+            </div>
+          )}
           <div>
             <div style={{ color: "#888780" }}>Trip completed</div>
             <div>{booking.tripCompletedAt?.toLocaleString() || "—"}</div>

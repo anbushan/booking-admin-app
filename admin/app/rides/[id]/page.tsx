@@ -13,8 +13,8 @@ async function cancelRide(formData: FormData) {
   await prisma.$transaction([
     prisma.ride.update({ where: { id: rideId }, data: { status: "CANCELLED" } }),
     prisma.booking.updateMany({
-      where: { rideId, status: { in: ["BOOKED", "CONFIRMED"] } },
-      data: { status: "CANCELLED" },
+      where: { rideId, status: { in: ["BOOKED", "AWAITING_PAYMENT", "CONFIRMED"] } },
+      data: { status: "CANCELLED", cancelledBy: "DRIVER", cancelledAt: new Date() },
     }),
   ]);
   revalidatePath(`/rides/${rideId}`);

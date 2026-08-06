@@ -1,8 +1,7 @@
 import { prisma } from "./prisma.js";
 import { razorpay } from "./razorpay.js";
 import { notify } from "./notify.js";
-
-const REFUND_WORKING_DAYS = Number(process.env.REFUND_WORKING_DAYS || 3);
+import { getAppConfig } from "./appConfig.js";
 
 function addWorkingDays(date, days) {
   const result = new Date(date);
@@ -19,6 +18,10 @@ function addWorkingDays(date, days) {
 // been charged. Safe to call on any booking — it's a no-op if the
 // booking was never paid (nothing to reverse), and only creates a
 // Refund row when there's actually money to give back.
+//
+// Only the platform fee is ever charged in-app (the remaining fare is
+// settled directly between passenger and driver), so that's the only
+// amount there is to refund — never the full fare.
 export async function refundIfPaid(bookingId) {
   const booking = await prisma.booking.findUnique({
     where: { id: bookingId },
@@ -26,12 +29,13 @@ export async function refundIfPaid(bookingId) {
   });
   if (!booking) return null;
   if (booking.refund) return booking.refund; // already refunded, don't double-process
-  if (!["PAID", "CHARGE_ATTEMPTED", "PAYMENT_PENDING"].includes(booking.status)) {
-    return null; // never charged, nothing to refund
+  if (!booking.platformFeePaidAt || !booking.platformFeeAmount) {
+    return null; // fee never charged/captured, nothing to refund
   }
 
-  const amount = Number(booking.ride.pricePerSeat) * booking.seatsBooked;
+  const amount = Number(booking.platformFeeAmount);
   const now = new Date();
+  const { refundWorkingDays } = await getAppConfig();
 
   let razorpayRefundId = null;
   if (booking.razorpayPaymentId) {
@@ -46,7 +50,7 @@ export async function refundIfPaid(bookingId) {
     data: {
       bookingId,
       amount,
-      estimatedCompletionAt: addWorkingDays(now, REFUND_WORKING_DAYS),
+      estimatedCompletionAt: addWorkingDays(now, refundWorkingDays),
       razorpayRefundId,
     },
   });
@@ -55,7 +59,7 @@ export async function refundIfPaid(bookingId) {
     booking.passengerId,
     "REFUND_UPDATE",
     "Refund initiated",
-    `Your trip was cancelled. Rs ${amount} will be credited within ${REFUND_WORKING_DAYS} working days.`
+    `Your trip was cancelled. Rs ${amount} will be credited within ${refundWorkingDays} working days.`
   );
 
   return refund;

@@ -19,6 +19,15 @@ model User {
   fcmToken    String?
   createdAt   DateTime @default(now())
 
+  // Passenger repeat-cancel cooldown (3rd late-cancel in N days -> blocked
+  // from booking for a period). Just a timestamp, so it auto-lifts on its own.
+  bookingCooldownUntil DateTime?
+
+  // Driver strike system (rolling-window count lives on DriverStrike rows,
+  // not a counter here — see issueDriverStrike in lib/strikes.js).
+  strikeFlagged      Boolean   @default(false)
+  strikeBlockedUntil DateTime?
+
   vehicles           Vehicle[]
   ridesAsDriver      Ride[]
   bookingsAsPassenger Booking[]
@@ -27,6 +36,7 @@ model User {
   notifications      Notification[]
   reviewsGiven       Review[] @relation("ReviewsGiven")
   reviewsReceived    Review[] @relation("ReviewsReceived")
+  driverStrikes      DriverStrike[]
 }
 
 model Vehicle {
@@ -80,14 +90,35 @@ model Booking {
   isCustomDrop      Boolean  @default(false)
 
   status            String   @default("BOOKED")
-  // BOOKED, CONFIRMED, REJECTED, EXPIRED, CANCELLED, IN_PROGRESS,
-  // CHARGE_ATTEMPTED, PAID, PAYMENT_PENDING
+  // BOOKED, REJECTED, EXPIRED, AWAITING_PAYMENT, CHARGE_ATTEMPTED,
+  // PAYMENT_PENDING, CONFIRMED, IN_PROGRESS, STOPPED, COMPLETED, CANCELLED
 
   expiresAt         DateTime?
+  // Why a booking in BOOKED or AWAITING_PAYMENT went to EXPIRED —
+  // "NO_DRIVER_RESPONSE" | "PAYMENT_WINDOW" — lets the sweep pick the
+  // right notification copy for each case.
+  expiryReason      String?
+
   tripOtp           String?
   otpVerifiedAt     DateTime?
   tripStartedAt     DateTime?
+  tripStoppedAt     DateTime?
   tripCompletedAt   DateTime?
+
+  // Platform-fee-upfront payment model: the fee is frozen at accept-time
+  // (so a later AppConfig % change never retroactively changes what's
+  // owed), platformFeePaidAt is both "payment succeeded" and the moment
+  // the shared 30-min grace-cancel window starts. The remaining fare is
+  // never charged in-app — settled directly between passenger and driver.
+  platformFeeAmount        Decimal?
+  platformFeePaidAt        DateTime?
+  remainingFareAmount      Decimal?
+  remainingFareCollectedAt DateTime?
+
+  // Cancellation matrix bookkeeping.
+  cancelledBy       String?   // PASSENGER, DRIVER, SYSTEM
+  cancelReason      String?   // PASSENGER_REQUEST, DRIVER_REQUEST, NO_SHOW_DRIVER
+  cancelledAt       DateTime?
 
   lastLocationAt    DateTime?
   lastLat           Float?
@@ -123,6 +154,21 @@ model CallLog {
   durationSec  Int?
   status       String   @default("INITIATED")
   createdAt    DateTime @default(now())
+}
+
+// One row per strike-worthy driver incident (late cancel past the grace
+// window, or a no-show). Strike *count* for tier evaluation is a
+// rolling-window count() query against these rows, not a counter column,
+// so changing AppConfig's rolling-window setting re-evaluates correctly
+// without a backfill. See lib/strikes.js issueDriverStrike().
+model DriverStrike {
+  id        String   @id @default(cuid())
+  driverId  String
+  driver    User     @relation(fields: [driverId], references: [id])
+  bookingId String?
+  rideId    String?
+  reason    String   // DRIVER_LATE_CANCEL, NO_SHOW
+  createdAt DateTime @default(now())
 }
 
 model EmergencyContact {
@@ -181,11 +227,36 @@ model AdminRole {
 
 model AppConfig {
   id                  String   @id @default(cuid())
-  commissionPercent   Float    @default(12)
+  // Renamed from commissionPercent — was unused code-wide, so a free
+  // rename. "Platform fee" matches the upfront-charge role this now
+  // plays (the old name implied a post-trip cut, which no longer exists).
+  platformFeePercent  Float    @default(10)
   fareCapPerKmInr     Float    @default(12)
   defaultMaxDetourKm  Float    @default(3)
   bookingExpiryMinutes Int     @default(20)
   refundWorkingDays   Int      @default(3)
+
+  // Booking accept -> platform-fee payment window.
+  paymentWindowMinutes Int     @default(30)
+  // Shared cancel-free-of-charge window, starting at platformFeePaidAt.
+  graceCancelWindowMinutes Int @default(30)
+  // How far past ride.travelDate before an un-started CONFIRMED booking
+  // auto-cancels as a driver no-show.
+  noShowGraceMinutes  Int      @default(15)
+
+  // Passenger repeat-cancel cooldown: Nth late-cancel (past the grace
+  // window) within a rolling window of days triggers a booking cooldown.
+  passengerCooldownCancelCount Int @default(3)
+  passengerCooldownWindowDays  Int @default(7)
+  passengerCooldownHours       Int @default(24)
+
+  // Driver strike tiers, evaluated over a rolling window of days.
+  strikeWarningThreshold      Int @default(3)
+  strikeFinalWarningThreshold Int @default(5)
+  strikeBlockThreshold        Int @default(7)
+  strikeBlockDays             Int @default(2)
+  strikeRollingWindowDays     Int @default(30)
+
   updatedAt           DateTime @updatedAt
 }
 
