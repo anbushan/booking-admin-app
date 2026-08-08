@@ -37,8 +37,16 @@ export async function refundIfPaid(bookingId) {
   const now = new Date();
   const { refundWorkingDays } = await getAppConfig();
 
+  // A booking paid via the dev-only mock-confirm endpoint (see
+  // payments.routes.js) has a fake razorpayPaymentId ("mock_...") —
+  // calling the real refund API with that throws (not a real Razorpay
+  // payment), which used to abort this whole function before the Refund
+  // row below ever got created. Skip the real call for those so the
+  // dev/test flow still closes the loop (refund record + notification),
+  // just without an actual razorpayRefundId.
   let razorpayRefundId = null;
-  if (booking.razorpayPaymentId) {
+  const isMockPayment = booking.razorpayPaymentId?.startsWith("mock_");
+  if (booking.razorpayPaymentId && !isMockPayment) {
     const rzpRefund = await razorpay.payments.refund(booking.razorpayPaymentId, {
       amount: Math.round(amount * 100),
       notes: { bookingId: booking.id, reason: "cancellation" },
@@ -59,7 +67,8 @@ export async function refundIfPaid(bookingId) {
     booking.passengerId,
     "REFUND_UPDATE",
     "Refund initiated",
-    `Your trip was cancelled. Rs ${amount} will be credited within ${refundWorkingDays} working days.`
+    `Your trip was cancelled. Rs ${amount} will be credited within ${refundWorkingDays} working days.`,
+    bookingId
   );
 
   return refund;

@@ -1,8 +1,10 @@
 import React, { useState } from "react";
 import { View, Text, Pressable, StyleSheet } from "react-native";
 import MapView, { Marker, PROVIDER_GOOGLE, Region } from "react-native-maps";
+import { Ionicons } from "@expo/vector-icons";
 import { colors, spacing, radius, typography } from "../theme/theme";
 import { api } from "../lib/api";
+import { AppHeader } from "../components/AppHeader";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function MapPinConfirmScreen({ route, navigation }: any) {
@@ -34,6 +36,7 @@ export default function MapPinConfirmScreen({ route, navigation }: any) {
 
   return (
     <SafeAreaView style={styles.screen} edges={["top"]}>
+      <AppHeader title="Confirm location" onBack={() => navigation.goBack()} />
       <View style={styles.mapContainer}>
         <MapView
           style={{ flex: 1 }}
@@ -62,10 +65,21 @@ export default function MapPinConfirmScreen({ route, navigation }: any) {
         </MapView>
       </View>
       <View style={styles.body}>
-        <Text style={styles.addressLabel}>Pickup location</Text>
-        <Text style={styles.address}>{currentAddress}</Text>
-        <Text style={styles.hint}>Drag the pin to fine-tune the exact spot</Text>
+        <View style={styles.addressRow}>
+          <View style={styles.pinBadge}>
+            <Ionicons name="location" size={16} color={colors.marigold} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.addressLabel}>Pickup location</Text>
+            <Text style={styles.address}>{currentAddress}</Text>
+          </View>
+        </View>
+        <View style={styles.hintRow}>
+          <Ionicons name="hand-left-outline" size={13} color={colors.textMuted} />
+          <Text style={styles.hint}>Drag the pin to fine-tune the exact spot</Text>
+        </View>
         <Pressable style={styles.confirmButton} onPress={handleConfirm} disabled={confirming}>
+          <Ionicons name="checkmark-circle-outline" size={18} color="#FFFFFF" />
           <Text style={styles.confirmButtonText}>Confirm location</Text>
         </Pressable>
       </View>
@@ -77,11 +91,16 @@ const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.bg },
   mapContainer: { height: 300 },
   body: { padding: spacing.lg },
+  addressRow: { flexDirection: "row", alignItems: "flex-start", gap: spacing.sm },
+  pinBadge: { width: 32, height: 32, borderRadius: 16, backgroundColor: colors.marigoldBg, alignItems: "center", justifyContent: "center" },
   addressLabel: { ...typography.caption, color: colors.textSecondary },
   address: { ...typography.title, marginTop: 4 },
-  hint: { ...typography.small, color: colors.textMuted, marginTop: spacing.sm },
+  hintRow: { flexDirection: "row", alignItems: "center", gap: 5, marginTop: spacing.sm },
+  hint: { ...typography.small, color: colors.textMuted },
   confirmButton: {
-    backgroundColor: colors.textPrimary,
+    flexDirection: "row",
+    gap: spacing.xs,
+    backgroundColor: colors.accent,
     height: 46,
     borderRadius: radius.sm,
     alignItems: "center",

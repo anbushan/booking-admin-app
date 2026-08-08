@@ -1,11 +1,16 @@
-import React, { useEffect, useState } from "react";
+import React, { useState, useCallback } from "react";
 import { View, Text, Pressable, StyleSheet } from "react-native";
+import { useFocusEffect } from "@react-navigation/native";
+import { Ionicons } from "@expo/vector-icons";
 import { showAlert } from "../lib/alert";
 import { colors, spacing, radius, typography } from "../theme/theme";
 import { api } from "../lib/api";
 import { Analytics } from "../lib/analytics";
 import { SkeletonBlock } from "../components/Skeleton";
 import { ErrorState } from "../components/ErrorState";
+import { RouteTimeline } from "../components/RouteTimeline";
+import { RouteStopsList } from "../components/RouteStopsList";
+import { AppHeader } from "../components/AppHeader";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 type RideDetails = {
@@ -17,6 +22,10 @@ type RideDetails = {
   pricePerSeat: string;
   seatsAvailable: number;
   driver?: { name: string };
+  travelDate: string;
+  estimatedArrivalAt: string;
+  estimatedDurationMinutes: number;
+  routeStops?: { lat: number; lng: number; placeName: string; distanceKm: number; durationMinutes: number }[] | null;
 };
 
 export default function BookingConfirmScreen({ route, navigation }: any) {
@@ -42,7 +51,7 @@ export default function BookingConfirmScreen({ route, navigation }: any) {
       .finally(() => setLoading(false));
   }
 
-  useEffect(load, [rideId]);
+  useFocusEffect(useCallback(load, [rideId]));
 
   const full = !!ride && ride.seatsAvailable <= 0;
   const fare = ride ? Number(ride.pricePerSeat) * seats : 0;
@@ -78,12 +87,7 @@ export default function BookingConfirmScreen({ route, navigation }: any) {
 
   return (
     <SafeAreaView style={styles.screen} edges={["top"]}>
-      <View style={styles.header}>
-        <Pressable onPress={() => navigation.goBack()}>
-          <Text style={styles.back}>{"<"}</Text>
-        </Pressable>
-        <Text style={styles.title}>Confirm booking</Text>
-      </View>
+      <AppHeader title="Confirm booking" onBack={() => navigation.goBack()} />
 
       {loading ? (
         <View style={{ padding: spacing.lg, gap: spacing.md }}>
@@ -94,11 +98,41 @@ export default function BookingConfirmScreen({ route, navigation }: any) {
         <ErrorState message="Couldn't load this ride." onRetry={load} />
       ) : (
         <View style={styles.body}>
-          <Text style={styles.route}>{ride.sourceAddress} to {ride.destAddress}</Text>
-          {ride.driver?.name && <Text style={styles.driverName}>Driver: {ride.driver.name}</Text>}
+          <View style={styles.routeRow}>
+            <Ionicons name="navigate-outline" size={14} color={colors.textMuted} />
+            <Text style={styles.route}>{ride.sourceAddress} to {ride.destAddress}</Text>
+          </View>
+          {ride.driver?.name && (
+            <View style={styles.driverRow}>
+              <View style={styles.driverAvatar}>
+                <Text style={styles.driverAvatarText}>{ride.driver.name.charAt(0).toUpperCase()}</Text>
+              </View>
+              <Text style={styles.driverName}>{ride.driver.name}</Text>
+            </View>
+          )}
+
+          <View style={styles.timelineCard}>
+            {ride.routeStops && ride.routeStops.length > 0 ? (
+              // The full step-by-step route (like a train app's stop
+              // list) — only available once a route's been computed for
+              // this ride (see lib/directions.js on the backend).
+              <RouteStopsList stops={ride.routeStops} departAt={ride.travelDate} />
+            ) : (
+              <RouteTimeline
+                departAt={ride.travelDate}
+                arriveAt={ride.estimatedArrivalAt}
+                durationMinutes={ride.estimatedDurationMinutes}
+                sourceAddress={ride.sourceAddress}
+                destAddress={ride.destAddress}
+              />
+            )}
+          </View>
 
           <View style={styles.row}>
-            <Text style={styles.label}>Seats</Text>
+            <View style={styles.labelRow}>
+              <Ionicons name="people-outline" size={15} color={colors.textSecondary} />
+              <Text style={styles.label}>Seats</Text>
+            </View>
             {full ? (
               <Text style={[styles.value, { color: colors.danger }]}>Full</Text>
             ) : (
@@ -108,7 +142,7 @@ export default function BookingConfirmScreen({ route, navigation }: any) {
                   disabled={seats <= 1}
                   onPress={() => adjustSeats(-1)}
                 >
-                  <Text style={styles.stepperButtonText}>−</Text>
+                  <Ionicons name="remove" size={16} color={colors.textPrimary} />
                 </Pressable>
                 <Text style={styles.value}>{seats}</Text>
                 <Pressable
@@ -119,7 +153,7 @@ export default function BookingConfirmScreen({ route, navigation }: any) {
                   disabled={seats >= Math.min(ride.seatsAvailable, 8)}
                   onPress={() => adjustSeats(1)}
                 >
-                  <Text style={styles.stepperButtonText}>+</Text>
+                  <Ionicons name="add" size={16} color={colors.textPrimary} />
                 </Pressable>
               </View>
             )}
@@ -129,13 +163,18 @@ export default function BookingConfirmScreen({ route, navigation }: any) {
           </Text>
 
           <View style={styles.row}>
-            <Text style={styles.label}>Fare</Text>
+            <View style={styles.labelRow}>
+              <Ionicons name="cash-outline" size={15} color={colors.textSecondary} />
+              <Text style={styles.label}>Fare</Text>
+            </View>
             <Text style={styles.value}>Rs {fare}</Text>
           </View>
 
           <View style={styles.notice}>
+            <Ionicons name="information-circle-outline" size={16} color={colors.accentText} />
             <Text style={styles.noticeText}>
-              Pay after your trip completes. No charge until then.
+              If the driver accepts, you'll need to pay a platform fee to confirm your seat.
+              The rest of the fare is paid directly to the driver after the trip.
             </Text>
           </View>
 
@@ -144,6 +183,7 @@ export default function BookingConfirmScreen({ route, navigation }: any) {
             onPress={handleRequestBooking}
             disabled={submitting || full}
           >
+            {!full && !submitting && <Ionicons name="paper-plane-outline" size={16} color="#FFFFFF" />}
             <Text style={styles.buttonText}>
               {full ? "Ride is full" : submitting ? "Sending request..." : "Request booking"}
             </Text>
@@ -156,20 +196,14 @@ export default function BookingConfirmScreen({ route, navigation }: any) {
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.bg },
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.md,
-    padding: spacing.lg,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-    backgroundColor: colors.surface,
-  },
-  back: { fontSize: 18 },
-  title: typography.title,
   body: { padding: spacing.lg },
+  routeRow: { flexDirection: "row", alignItems: "center", gap: spacing.xs },
   route: { ...typography.title, fontSize: 15 },
-  driverName: { ...typography.caption, color: colors.textSecondary, marginTop: 4 },
+  driverRow: { flexDirection: "row", alignItems: "center", gap: spacing.xs, marginTop: spacing.sm },
+  driverAvatar: { width: 24, height: 24, borderRadius: 12, backgroundColor: colors.accentBg, alignItems: "center", justifyContent: "center" },
+  driverAvatarText: { fontSize: 11, fontWeight: "700", color: colors.accentText },
+  driverName: { ...typography.caption, color: colors.textSecondary },
+  timelineCard: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: radius.md, padding: spacing.md, marginTop: spacing.md },
   row: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -179,8 +213,9 @@ const styles = StyleSheet.create({
     borderBottomColor: colors.border,
     marginTop: spacing.md,
   },
+  labelRow: { flexDirection: "row", alignItems: "center", gap: 6 },
   label: { ...typography.caption, color: colors.textSecondary },
-  value: typography.title,
+  value: { ...typography.title, fontVariant: ["tabular-nums"] },
   availabilityHint: { ...typography.small, color: colors.textMuted, marginTop: 4 },
   stepper: { flexDirection: "row", alignItems: "center", gap: spacing.md },
   stepperButton: {
@@ -193,16 +228,19 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   stepperButtonDisabled: { opacity: 0.4 },
-  stepperButtonText: { fontSize: 16, color: colors.textPrimary },
   notice: {
+    flexDirection: "row",
+    gap: spacing.sm,
     backgroundColor: colors.accentBg,
     borderRadius: radius.sm,
     padding: spacing.md,
     marginTop: spacing.md,
   },
-  noticeText: { ...typography.small, color: colors.accentText },
+  noticeText: { ...typography.small, color: colors.accentText, flex: 1 },
   button: {
-    backgroundColor: colors.textPrimary,
+    flexDirection: "row",
+    gap: spacing.xs,
+    backgroundColor: colors.marigold,
     height: 46,
     borderRadius: radius.sm,
     alignItems: "center",

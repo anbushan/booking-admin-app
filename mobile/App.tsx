@@ -15,6 +15,7 @@ import LiveTrackingScreen from "./src/screens/LiveTrackingScreen";
 
 import AddVehicleScreen from "./src/screens/AddVehicleScreen";
 import OfferRideScreen from "./src/screens/OfferRideScreen";
+import RouteOptionsScreen from "./src/screens/RouteOptionsScreen";
 import BookingRequestsScreen from "./src/screens/BookingRequestsScreen";
 import StartTripScreen from "./src/screens/StartTripScreen";
 import UpcomingTripsScreen from "./src/screens/UpcomingTripsScreen";
@@ -50,6 +51,9 @@ import PaymentHistoryScreen from "./src/screens/PaymentHistoryScreen";
 import PaymentDetailScreen from "./src/screens/PaymentDetailScreen";
 import RefundStatusScreen from "./src/screens/RefundStatusScreen";
 import BookingDetailScreen from "./src/screens/BookingDetailScreen";
+import PaymentQueueScreen from "./src/screens/PaymentQueueScreen";
+import MyRequestsScreen from "./src/screens/MyRequestsScreen";
+import AlertModalHost from "./src/components/AlertModalHost";
 
 const Stack = createNativeStackNavigator();
 
@@ -59,6 +63,7 @@ export default function App() {
     <ToastProvider>
     <NavigationContainer>
       <StatusBar style="dark" />
+      <AlertModalHost />
       <Stack.Navigator initialRouteName="Splash" screenOptions={{ headerShown: false }}>
         {/* Launch */}
         <Stack.Screen name="Splash" component={SplashScreen} />
@@ -79,6 +84,7 @@ export default function App() {
         {/* Driver */}
         <Stack.Screen name="DriverOnboarding" component={AddVehicleScreen} />
         <Stack.Screen name="OfferRide" component={OfferRideScreen} />
+        <Stack.Screen name="RouteOptions" component={RouteOptionsScreen} />
         <Stack.Screen name="BookingRequests" component={BookingRequestsScreen} />
         <Stack.Screen name="StartTrip" component={StartTripScreen} />
         <Stack.Screen name="UpcomingTrips" component={UpcomingTripsScreen} />
@@ -88,9 +94,11 @@ export default function App() {
         <Stack.Screen name="Earnings" component={EarningsScreen} />
         <Stack.Screen name="DocumentUpload" component={DocumentUploadScreen} />
         <Stack.Screen name="EditRide" component={EditRideScreen} />
+        <Stack.Screen name="PaymentQueue" component={PaymentQueueScreen} />
 
         {/* Payments */}
         <Stack.Screen name="Payment" component={PaymentScreen} />
+        <Stack.Screen name="MyRequests" component={MyRequestsScreen} />
 
         {/* Location picker + permission priming */}
         <Stack.Screen name="LocationSearch" component={LocationSearchScreen} />

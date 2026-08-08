@@ -56,6 +56,19 @@ export default async function RideDetailPage({ params }: { params: { id: string 
           </form>
         )}
 
+        {Array.isArray(ride.routeStops) && ride.routeStops.length > 0 && (
+          <>
+            <h2 style={{ fontSize: 15, fontWeight: 500, marginTop: 24 }}>
+              Route ({ride.routeDistanceKm} km · {ride.routeDurationMinutes} min)
+            </h2>
+            {(ride.routeStops as any[]).map((stop, i) => (
+              <div key={i} style={{ fontSize: 13, padding: "6px 0", borderBottom: "1px solid #E3E1D8" }}>
+                {stop.placeName} — {stop.distanceKm} km / {stop.durationMinutes} min from source
+              </div>
+            ))}
+          </>
+        )}
+
         <h2 style={{ fontSize: 15, fontWeight: 500, marginTop: 24 }}>Bookings on this ride</h2>
         {ride.bookings.map((b) => (
           <div key={b.id} style={{ fontSize: 13, padding: "8px 0", borderBottom: "1px solid #E3E1D8" }}>

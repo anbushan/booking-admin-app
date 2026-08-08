@@ -1,6 +1,20 @@
 import * as Notifications from "expo-notifications";
 import { Platform } from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { api } from "./api";
+
+// Persists across logout/login — this is what actually stops the OS
+// permission dialog from reappearing. requestPermissionsAsync() is
+// normally safe to call repeatedly (the OS itself won't re-prompt once
+// the user has made a real choice), but this app calls
+// setupPushNotifications() on every login, and a developer/tester who
+// logs out and back in repeatedly hits it far more often than a real
+// user ever would — surfacing any OS-level quirk (Android in
+// particular can be inconsistent about honoring a prior "deny" as
+// final) as what reads like being asked "every time". Gating the
+// request itself on a flag makes the answer permanent from this app's
+// side regardless of platform behavior.
+const ASKED_KEY = "pushPermissionRequested";
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -24,8 +38,12 @@ export async function setupPushNotifications(): Promise<{ granted: boolean }> {
   let finalStatus = existingStatus;
 
   if (existingStatus !== "granted") {
-    const { status } = await Notifications.requestPermissionsAsync();
-    finalStatus = status;
+    const alreadyAsked = await AsyncStorage.getItem(ASKED_KEY);
+    if (!alreadyAsked) {
+      const { status } = await Notifications.requestPermissionsAsync();
+      finalStatus = status;
+      await AsyncStorage.setItem(ASKED_KEY, "1");
+    }
   }
 
   if (finalStatus !== "granted") {

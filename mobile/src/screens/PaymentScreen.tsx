@@ -6,6 +6,16 @@ import { colors, spacing, radius, typography } from "../theme/theme";
 import { api } from "../lib/api";
 import { Analytics } from "../lib/analytics";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { BackButton } from "../components/BackButton";
+
+// Hardcoded true rather than gated on `__DEV__` — that global isn't
+// reliably true across every way this app gets previewed (e.g. Expo
+// web), and this button is harmless either way: the backend endpoint it
+// calls (POST /api/payments/:bookingId/mock-confirm) 404s outside
+// NODE_ENV=development on its own, so that's the real gate. Flip this
+// to false once you no longer need to test payments without a native
+// Razorpay build.
+const SHOW_MOCK_PAYMENT_BUTTON = true;
 
 export default function PaymentScreen({ route, navigation }: any) {
   // `description` is what shows in the Razorpay sheet and the header —
@@ -14,6 +24,7 @@ export default function PaymentScreen({ route, navigation }: any) {
   // callers should pass "Platform fee", but default to it too.
   const { bookingId, amount, description = "Platform fee" } = route.params;
   const [paying, setPaying] = useState(false);
+  const [mocking, setMocking] = useState(false);
 
   async function handlePay() {
     setPaying(true);
@@ -68,12 +79,29 @@ export default function PaymentScreen({ route, navigation }: any) {
     }
   }
 
+  // Dev-only fallback for Expo Go / web, where the native Razorpay
+  // Checkout module isn't available (same constraint as react-native-maps
+  // elsewhere in this app) — skips straight to what the real webhook
+  // would do, via the same reusable backend logic (see
+  // payments.routes.js confirmPlatformFeePayment). Backend 404s this
+  // outside NODE_ENV=development, so it's a no-op button in production.
+  async function handleMockPay() {
+    setMocking(true);
+    try {
+      await api.mockConfirmPayment(bookingId);
+      Analytics.paymentSuccess(bookingId, amount);
+      navigation.replace("History", { role: "PASSENGER" });
+    } catch (err: any) {
+      showAlert("Couldn't simulate payment", err.message);
+    } finally {
+      setMocking(false);
+    }
+  }
+
   return (
     <SafeAreaView style={styles.screen} edges={["top"]}>
       <View style={styles.header}>
-        <Pressable onPress={() => navigation.goBack()}>
-          <Text style={styles.back}>{"<"}</Text>
-        </Pressable>
+        <BackButton onPress={() => navigation.goBack()} />
         <Text style={styles.title}>{description}</Text>
       </View>
 
@@ -93,6 +121,14 @@ export default function PaymentScreen({ route, navigation }: any) {
           <Text style={styles.payButtonText}>{paying ? "Processing..." : `Pay Rs ${amount}`}</Text>
         </Pressable>
         <Text style={styles.securedBy}>Secured by Razorpay</Text>
+
+        {SHOW_MOCK_PAYMENT_BUTTON && (
+          <Pressable style={styles.mockButton} onPress={handleMockPay} disabled={mocking}>
+            <Text style={styles.mockButtonText}>
+              {mocking ? "Simulating..." : "Simulate payment (dev)"}
+            </Text>
+          </Pressable>
+        )}
       </View>
     </SafeAreaView>
   );
@@ -128,4 +164,14 @@ const styles = StyleSheet.create({
   },
   payButtonText: { color: "#FFFFFF", ...typography.title },
   securedBy: { textAlign: "center", ...typography.small, color: colors.textMuted, marginTop: spacing.sm },
+  mockButton: {
+    borderWidth: 1,
+    borderColor: colors.warning,
+    height: 44,
+    borderRadius: radius.sm,
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: spacing.lg,
+  },
+  mockButtonText: { color: colors.warning, ...typography.caption, fontWeight: "500" },
 });

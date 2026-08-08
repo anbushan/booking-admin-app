@@ -1,5 +1,6 @@
 import { prisma } from "../lib/prisma.js";
 import { notify } from "../lib/notify.js";
+import { clearChatForBooking } from "../lib/chat.js";
 
 // Runs on an interval from index.js. Redis TTL is the fast path for
 // expiring an unanswered booking request or a lapsed payment window;
@@ -25,13 +26,14 @@ export async function expireStaleBookings() {
         data: { seatsAvailable: { increment: booking.seatsBooked } },
       }),
     ]);
+    await clearChatForBooking(booking.id);
 
     if (expiryReason === "PAYMENT_WINDOW") {
       await notify(booking.passengerId, "BOOKING_EXPIRED", "You didn't pay in time",
-        "Your booking request expired because the platform fee wasn't paid in time. Search again for another ride.");
+        "Your booking request expired because the platform fee wasn't paid in time. Search again for another ride.", booking.id);
     } else {
       await notify(booking.passengerId, "BOOKING_EXPIRED", "Driver didn't respond",
-        "Your booking request expired. Search again for another ride.");
+        "Your booking request expired. Search again for another ride.", booking.id);
     }
   }
 

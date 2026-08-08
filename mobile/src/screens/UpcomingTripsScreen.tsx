@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { View, Text, Pressable, FlatList, StyleSheet, RefreshControl } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
 import { colors, spacing, radius, typography } from "../theme/theme";
@@ -7,7 +7,10 @@ import { SkeletonList } from "../components/Skeleton";
 import { EmptyState } from "../components/EmptyState";
 import { ErrorState } from "../components/ErrorState";
 import { primeLocationIfNeeded } from "../lib/locationPriming";
+import { UnreadBadge } from "../components/UnreadBadge";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { AppHeader } from "../components/AppHeader";
+import { AppBottomNav } from "../components/AppBottomNav";
 
 // The driver-side counterpart to "Booking requests" — once a request is
 // accepted it disappears from that pending list, but nothing anywhere
@@ -23,13 +26,19 @@ type Trip = {
   seatsBooked: number;
   passenger?: { name: string };
   ride?: { sourceAddress: string; destAddress: string };
+  unreadMessageCount?: number;
 };
 
 export default function UpcomingTripsScreen({ navigation }: any) {
   const [trips, setTrips] = useState<Trip[]>([]);
+  const [profile, setProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(false);
+
+  useEffect(() => {
+    api.getMyProfile().then(setProfile).catch(() => {});
+  }, []);
 
   function load(isRefresh = false) {
     if (isRefresh) setRefreshing(true);
@@ -37,7 +46,7 @@ export default function UpcomingTripsScreen({ navigation }: any) {
     setError(false);
     api
       .getDriverActiveBookings()
-      .then((data: Trip[]) => setTrips(data.filter((t) => ["CONFIRMED", "IN_PROGRESS"].includes(t.status))))
+      .then((data: Trip[]) => setTrips(data.filter((t) => ["AWAITING_PAYMENT", "CONFIRMED", "IN_PROGRESS"].includes(t.status))))
       .catch(() => setError(true))
       .finally(() => { setLoading(false); setRefreshing(false); });
   }
@@ -54,12 +63,7 @@ export default function UpcomingTripsScreen({ navigation }: any) {
 
   return (
     <SafeAreaView style={styles.screen} edges={["top"]}>
-      <View style={styles.header}>
-        <Pressable onPress={() => navigation.goBack()}>
-          <Text style={styles.back}>{"<"}</Text>
-        </Pressable>
-        <Text style={styles.title}>Upcoming trips</Text>
-      </View>
+      <AppHeader title="Upcoming trips" />
 
       {loading ? (
         <SkeletonList count={3} />
@@ -76,40 +80,64 @@ export default function UpcomingTripsScreen({ navigation }: any) {
               <Text style={styles.route}>{item.ride?.sourceAddress} to {item.ride?.destAddress}</Text>
               <View style={styles.rowBetween}>
                 <Text style={styles.meta}>{item.passenger?.name || "Passenger"} · {item.seatsBooked} seat(s)</Text>
-                <Text style={item.status === "IN_PROGRESS" ? styles.statusActive : styles.statusConfirmed}>
-                  {item.status === "IN_PROGRESS" ? "In progress" : "Confirmed"}
+                <Text style={item.status === "IN_PROGRESS" ? styles.statusActive : item.status === "AWAITING_PAYMENT" ? styles.statusPending : styles.statusConfirmed}>
+                  {item.status === "IN_PROGRESS" ? "In progress" : item.status === "AWAITING_PAYMENT" ? "Awaiting payment" : "Confirmed"}
                 </Text>
               </View>
-              <Pressable style={styles.actionButton} onPress={() => handleAction(item)}>
-                <Text style={styles.actionButtonText}>
-                  {item.status === "IN_PROGRESS" ? "Continue trip" : "Start trip"}
-                </Text>
-              </Pressable>
+              {item.status === "AWAITING_PAYMENT" ? (
+                // Not actionable yet — the passenger hasn't paid the
+                // platform fee, so there's nothing to start. Accepting a
+                // request doesn't mean confirmed; this state makes that
+                // visible instead of the booking just disappearing until
+                // payment (or the pay window expiring) happens silently.
+                <Text style={styles.pendingCaption}>Waiting for the passenger to pay the platform fee.</Text>
+              ) : (
+                <View style={styles.actionRow}>
+                  <Pressable style={[styles.actionButton, { flex: 1 }]} onPress={() => handleAction(item)}>
+                    <Text style={styles.actionButtonText}>
+                      {item.status === "IN_PROGRESS" ? "Continue trip" : "Start trip"}
+                    </Text>
+                  </Pressable>
+                  {item.status === "CONFIRMED" && (
+                    <Pressable
+                      style={[styles.actionButton, styles.chatButton, { flexDirection: "row", alignItems: "center" }]}
+                      onPress={() => navigation.navigate("ChatDetail", { bookingId: item.id, calleeRole: "PASSENGER" })}
+                    >
+                      <Text style={styles.chatButtonText}>Chat</Text>
+                      <UnreadBadge count={item.unreadMessageCount} />
+                    </Pressable>
+                  )}
+                </View>
+              )}
             </View>
           )}
           ListEmptyComponent={
             <EmptyState
+              icon="navigate-outline"
               title="No upcoming trips"
               subtitle="Accepted booking requests will show up here, ready to start."
             />
           }
         />
       )}
+      <AppBottomNav navigation={navigation} profile={profile} active="menu" />
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.bg },
-  header: { flexDirection: "row", alignItems: "center", gap: spacing.md, padding: spacing.lg, borderBottomWidth: 1, borderBottomColor: colors.border, backgroundColor: colors.surface },
-  back: { fontSize: 18 },
-  title: typography.title,
   card: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: radius.md, padding: spacing.md },
   route: { ...typography.title, fontSize: 14 },
   rowBetween: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginTop: spacing.xs },
   meta: { ...typography.small, color: colors.textMuted },
   statusConfirmed: { ...typography.small, color: colors.accentText, backgroundColor: colors.accentBg, paddingVertical: 2, paddingHorizontal: 6, borderRadius: 6 },
   statusActive: { ...typography.small, color: colors.success, backgroundColor: colors.successBg, paddingVertical: 2, paddingHorizontal: 6, borderRadius: 6 },
-  actionButton: { backgroundColor: colors.textPrimary, height: 40, borderRadius: radius.sm, alignItems: "center", justifyContent: "center", marginTop: spacing.sm },
+  statusPending: { ...typography.small, color: colors.warning, backgroundColor: colors.warningBg, paddingVertical: 2, paddingHorizontal: 6, borderRadius: 6 },
+  pendingCaption: { ...typography.small, color: colors.textMuted, marginTop: spacing.sm },
+  actionRow: { flexDirection: "row", gap: spacing.sm, marginTop: spacing.sm },
+  actionButton: { backgroundColor: colors.textPrimary, height: 40, borderRadius: radius.sm, alignItems: "center", justifyContent: "center" },
   actionButtonText: { color: "#FFFFFF", ...typography.caption, fontWeight: "500" },
+  chatButton: { flex: 0, paddingHorizontal: spacing.md, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
+  chatButtonText: { color: colors.accentText, ...typography.caption, fontWeight: "500" },
 });

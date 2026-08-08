@@ -6,9 +6,42 @@ import { notify } from "../lib/notify.js";
 import { refundIfPaid } from "../lib/refunds.js";
 import { getAppConfig } from "../lib/appConfig.js";
 import { issueDriverStrike, isDriverStrikeBlocked } from "../lib/strikes.js";
+import { clearChatForBooking } from "../lib/chat.js";
+import { isWithinIndia } from "../lib/geo.js";
 import { validate, isNonEmptyString, isLat, isLng, isPositiveInt } from "../lib/validate.js";
 
 const router = Router();
+
+// Attaches unreadMessageCount to each booking — a message counts as
+// unread for the caller if it was sent by the *other* party after the
+// caller's own lastReadAt column (see chat.routes.js PUT /:bookingId/read).
+// One batched query for the whole list rather than a per-booking round
+// trip; volume is naturally small since chat only exists during the
+// CONFIRMED window and gets wiped at both ends of it (see lib/chat.js),
+// so there's rarely more than a handful of live messages across all of a
+// user's active bookings at once.
+async function attachUnreadCounts(bookings, userId, readAtField) {
+  const bookingIds = bookings.map((b) => b.id);
+  if (!bookingIds.length) return bookings;
+
+  const messages = await prisma.chatMessage.findMany({
+    where: { bookingId: { in: bookingIds }, senderId: { not: userId } },
+    select: { bookingId: true, createdAt: true },
+  });
+  const messagesByBooking = new Map();
+  for (const m of messages) {
+    if (!messagesByBooking.has(m.bookingId)) messagesByBooking.set(m.bookingId, []);
+    messagesByBooking.get(m.bookingId).push(m.createdAt);
+  }
+
+  return bookings.map((b) => {
+    const lastReadAt = b[readAtField];
+    const unreadMessageCount = (messagesByBooking.get(b.id) || []).filter(
+      (createdAt) => !lastReadAt || createdAt > lastReadAt
+    ).length;
+    return { ...b, unreadMessageCount };
+  });
+}
 
 // POST /api/bookings — passenger books a seat.
 // Wrapped in a distributed lock keyed by rideId so two simultaneous
@@ -31,6 +64,13 @@ router.post("/", requireAuth, requireRole("PASSENGER"), async (req, res) => {
     { field: "pickupAddress", check: (v) => isNonEmptyString(v, 300), message: "Pickup address is required." },
   ]);
   if (errors.length) return res.status(400).json({ errors });
+
+  // The ride's own source/destination were already checked at publish
+  // time, but a custom pickup point (isCustomPickup) is passenger-picked
+  // and could in principle be dropped anywhere, so it's worth its own check.
+  if (!(await isWithinIndia(pickupLat, pickupLng))) {
+    return res.status(400).json({ error: "Pickup location must be within India." });
+  }
 
   const release = await acquireLock(`ride-seats:${rideId}`, 5000);
   if (!release) {
@@ -71,7 +111,7 @@ router.post("/", requireAuth, requireRole("PASSENGER"), async (req, res) => {
     await redis.set(`booking-expiry:${booking.id}`, "1", "PX", bookingExpiryMinutes * 60 * 1000);
 
     await notify(ride.driverId, "NEW_BOOKING_REQUEST", "New booking request",
-      `A passenger requested ${seatsBooked} seat(s) on your ride.`);
+      `A passenger requested ${seatsBooked} seat(s) on your ride.`, booking.id);
 
     res.status(201).json(booking);
   } finally {
@@ -112,7 +152,7 @@ router.put("/:id/accept", requireAuth, requireRole("DRIVER"), async (req, res) =
   await redis.set(`payment-window:${booking.id}`, "1", "PX", config.paymentWindowMinutes * 60 * 1000);
 
   await notify(booking.passengerId, "BOOKING_ACCEPTED", "Booking accepted — pay to confirm",
-    `The driver accepted your request. Pay the platform fee (Rs ${platformFeeAmount.toFixed(0)}) within ${config.paymentWindowMinutes} minutes to lock your seat.`);
+    `The driver accepted your request. Pay the platform fee (Rs ${platformFeeAmount.toFixed(0)}) within ${config.paymentWindowMinutes} minutes to lock your seat.`, booking.id);
 
   res.json(updated);
 });
@@ -135,8 +175,10 @@ router.put("/:id/reject", requireAuth, requireRole("DRIVER"), async (req, res) =
     }),
   ]);
 
+  await clearChatForBooking(booking.id);
+
   await notify(booking.passengerId, "BOOKING_REJECTED", "Booking rejected",
-    "The driver couldn't accept your request. Search again for another ride.");
+    "The driver couldn't accept your request. Search again for another ride.", booking.id);
 
   res.json({ success: true });
 });
@@ -146,69 +188,52 @@ router.put("/:id/reject", requireAuth, requireRole("DRIVER"), async (req, res) =
 // this isn't the right endpoint; a dispute/refund request would be the
 // equivalent for a trip that already happened.
 //
-// Cancellation matrix:
+// Cancellation rule (deliberately simple — no grace window on the
+// passenger side): the platform fee is either paid or it isn't.
 //  - AWAITING_PAYMENT (fee never charged): free withdrawal, no penalty.
-//  - CONFIRMED, within the grace window (graceCancelWindowMinutes of
-//    platformFeePaidAt): full refund, no penalty.
-//  - CONFIRMED, past the grace window: no refund, and counts toward the
-//    passenger's repeat-cancel cooldown.
+//  - CONFIRMED (fee already paid): no refund, period — and it always
+//    counts toward the passenger's repeat-cancel cooldown, no matter how
+//    soon after paying they cancel.
+//
+// Driver-initiated cancellation (see /:id/driver-cancel) is unrelated —
+// the passenger didn't do anything wrong when the driver cancels, so
+// that path still refunds in full regardless of timing.
+// PUT /api/bookings/:id/cancel — passenger-initiated, self-service. Only
+// valid pre-payment (AWAITING_PAYMENT) now — once the fee is actually
+// paid (CONFIRMED), a passenger can no longer back out of this on their
+// own. That used to be allowed (forfeiting the fee, no refund, counting
+// toward the repeat-cancel cooldown), but offering a "cancel" button
+// that never refunds anything and only ever hurts the passenger's own
+// standing wasn't doing anyone a favor — once paid, the seat is locked
+// in for real.
 router.put("/:id/cancel", requireAuth, requireRole("PASSENGER"), async (req, res) => {
   const booking = await prisma.booking.findUnique({ where: { id: req.params.id } });
   if (!booking || booking.passengerId !== req.user.id) {
     return res.status(404).json({ error: "Booking not found." });
   }
-  if (!["AWAITING_PAYMENT", "CONFIRMED"].includes(booking.status)) {
+  if (booking.status !== "AWAITING_PAYMENT") {
     return res.status(400).json({ error: `Cannot cancel a booking in status ${booking.status}.` });
   }
 
-  const config = await getAppConfig();
   const now = new Date();
-  let cancelReason = "PASSENGER_WITHDRAWN";
-  let withinGrace = true;
-
-  if (booking.status === "CONFIRMED" && booking.platformFeePaidAt) {
-    const elapsedMinutes = (now - new Date(booking.platformFeePaidAt)) / 60000;
-    withinGrace = elapsedMinutes <= config.graceCancelWindowMinutes;
-    cancelReason = withinGrace ? "PASSENGER_REQUEST_GRACE" : "PASSENGER_REQUEST_LATE";
-  }
 
   await prisma.$transaction([
     prisma.booking.update({
       where: { id: booking.id },
-      data: { status: "CANCELLED", cancelledBy: "PASSENGER", cancelReason, cancelledAt: now },
+      data: { status: "CANCELLED", cancelledBy: "PASSENGER", cancelReason: "PASSENGER_WITHDRAWN", cancelledAt: now },
     }),
     prisma.ride.update({
       where: { id: booking.rideId },
       data: { seatsAvailable: { increment: booking.seatsBooked } },
     }),
   ]);
+  await clearChatForBooking(booking.id);
+  // Safe no-op — nothing was ever charged at this stage.
+  await refundIfPaid(booking.id).catch((err) =>
+    console.error(`Refund check failed for booking ${booking.id}:`, err.message)
+  );
 
-  if (withinGrace) {
-    // Safe no-op if nothing was ever charged (e.g. still AWAITING_PAYMENT).
-    await refundIfPaid(booking.id).catch((err) =>
-      console.error(`Refund check failed for booking ${booking.id}:`, err.message)
-    );
-  } else {
-    // Past the grace window: no refund. Count late cancels in the rolling
-    // cooldown window and apply the cooldown once the threshold is hit.
-    const cutoff = new Date(now.getTime() - config.passengerCooldownWindowDays * 24 * 60 * 60 * 1000);
-    const lateCancelCount = await prisma.booking.count({
-      where: {
-        passengerId: req.user.id,
-        cancelledBy: "PASSENGER",
-        cancelReason: "PASSENGER_REQUEST_LATE",
-        cancelledAt: { gte: cutoff },
-      },
-    });
-    if (lateCancelCount >= config.passengerCooldownCancelCount) {
-      const cooldownUntil = new Date(now.getTime() + config.passengerCooldownHours * 60 * 60 * 1000);
-      await prisma.user.update({ where: { id: req.user.id }, data: { bookingCooldownUntil: cooldownUntil } });
-      await notify(req.user.id, "PASSENGER_COOLDOWN_APPLIED", "Booking cooldown applied",
-        `Repeated late cancellations have paused your ability to book for ${config.passengerCooldownHours} hours.`);
-    }
-  }
-
-  res.json({ success: true, refunded: withinGrace });
+  res.json({ success: true, refunded: true });
 });
 
 // PUT /api/bookings/:id/driver-cancel — driver-initiated. Mirrors the
@@ -250,6 +275,7 @@ router.put("/:id/driver-cancel", requireAuth, requireRole("DRIVER"), async (req,
       data: { seatsAvailable: { increment: booking.seatsBooked } },
     }),
   ]);
+  await clearChatForBooking(booking.id);
 
   // Full refund regardless of timing once a fee was actually charged —
   // safe no-op if the booking was still AWAITING_PAYMENT.
@@ -262,7 +288,7 @@ router.put("/:id/driver-cancel", requireAuth, requireRole("DRIVER"), async (req,
   }
 
   await notify(booking.passengerId, "BOOKING_CANCELLED_BY_DRIVER", "Driver cancelled your booking",
-    "The driver cancelled this booking. Any platform fee you paid has been refunded.");
+    "The driver cancelled this booking. Any platform fee you paid has been refunded.", booking.id);
 
   res.json({ success: true });
 });
@@ -274,7 +300,7 @@ router.get("/my", requireAuth, requireRole("PASSENGER"), async (req, res) => {
     include: { ride: { include: { driver: { select: { name: true, ratingAvg: true } } } } },
     orderBy: { createdAt: "desc" },
   });
-  res.json(bookings);
+  res.json(await attachUnreadCounts(bookings, req.user.id, "passengerLastReadAt"));
 });
 
 // GET /api/bookings/driver-pending — every pending (BOOKED, awaiting
@@ -295,12 +321,15 @@ router.get("/driver-pending", requireAuth, requireRole("DRIVER"), async (req, re
 });
 
 // GET /api/bookings/driver-active — every active-ish booking across all
-// of a driver's rides, used to populate the driver's chat conversation
-// list (the passenger side already has this via /bookings/my).
+// of a driver's rides. Used for the driver's chat conversation list and
+// the payment-queue screen (PAYMENT_PENDING/CHARGE_ATTEMPTED are a
+// passenger's fee payment failing/in-flight after acceptance — still
+// worth the driver seeing, same as AWAITING_PAYMENT) (the passenger side
+// already has the equivalent via /bookings/my).
 router.get("/driver-active", requireAuth, requireRole("DRIVER"), async (req, res) => {
   const bookings = await prisma.booking.findMany({
     where: {
-      status: { in: ["AWAITING_PAYMENT", "CONFIRMED", "IN_PROGRESS", "COMPLETED"] },
+      status: { in: ["AWAITING_PAYMENT", "CHARGE_ATTEMPTED", "PAYMENT_PENDING", "CONFIRMED", "IN_PROGRESS", "COMPLETED"] },
       ride: { driverId: req.user.id },
     },
     include: {
@@ -309,7 +338,27 @@ router.get("/driver-active", requireAuth, requireRole("DRIVER"), async (req, res
     },
     orderBy: { createdAt: "desc" },
   });
-  res.json(bookings);
+  res.json(await attachUnreadCounts(bookings, req.user.id, "driverLastReadAt"));
+});
+
+// GET /api/bookings/active-trip — the caller's own current IN_PROGRESS
+// booking, whichever side of it they're on. Used right after app launch
+// (see HomeScreen) to resume straight into live tracking if the trip is
+// still going — a crash, force-quit, or reinstall while IN_PROGRESS
+// otherwise loses track of it entirely, since nothing else brings the
+// user back to that screen on its own.
+router.get("/active-trip", requireAuth, async (req, res) => {
+  const booking = await prisma.booking.findFirst({
+    where: {
+      status: "IN_PROGRESS",
+      OR: [{ passengerId: req.user.id }, { ride: { driverId: req.user.id } }],
+    },
+    include: { ride: { select: { driverId: true } } },
+  });
+  if (!booking) return res.json(null);
+
+  const role = booking.passengerId === req.user.id ? "PASSENGER" : "DRIVER";
+  res.json({ bookingId: booking.id, role });
 });
 
 // GET /api/bookings/:id — single booking detail, scoped to the

@@ -1,5 +1,7 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { View, Text, FlatList, Pressable, StyleSheet, RefreshControl } from "react-native";
+import { useFocusEffect } from "@react-navigation/native";
+import { Ionicons } from "@expo/vector-icons";
 import { showAlert } from "../lib/alert";
 import { colors, spacing, radius, typography } from "../theme/theme";
 import { api } from "../lib/api";
@@ -9,9 +11,25 @@ import { ErrorState } from "../components/ErrorState";
 import { useToast } from "../components/Toast";
 import { Analytics } from "../lib/analytics";
 import { primeLocationIfNeeded } from "../lib/locationPriming";
+import { UnreadBadge } from "../components/UnreadBadge";
+import { StatusBadge } from "../components/StatusBadge";
+import { StepTracker, bookingJourneySteps } from "../components/StepTracker";
+import { AppHeader } from "../components/AppHeader";
+import { AppBottomNav } from "../components/AppBottomNav";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-const CANCELLABLE_STATUSES = ["BOOKED", "AWAITING_PAYMENT", "CONFIRMED"];
+// CONFIRMED deliberately excluded — once the platform fee's paid, the
+// seat is locked in for real; self-cancelling never refunded it anyway
+// (see backend bookings.routes.js /:id/cancel), so the option is gone
+// rather than offering a button that only ever hurt the passenger.
+const CANCELLABLE_STATUSES = ["BOOKED", "AWAITING_PAYMENT"];
+
+// This screen shows the active trip(s) only, not a running history —
+// full history lives in admin. COMPLETED is deliberately excluded here
+// too: rating the driver now happens right when the trip ends (see
+// LiveTrackingScreen), not by digging through this list afterward.
+const ACTIVE_BOOKING_STATUSES = ["BOOKED", "AWAITING_PAYMENT", "CHARGE_ATTEMPTED", "PAYMENT_PENDING", "CONFIRMED", "IN_PROGRESS"];
+const ACTIVE_RIDE_STATUSES = ["PUBLISHED", "IN_PROGRESS"];
 
 export default function HistoryScreen({ navigation, route }: any) {
   // role is optional — screens that already know it (e.g. a driver-only
@@ -20,6 +38,7 @@ export default function HistoryScreen({ navigation, route }: any) {
   // own profile rather than assuming a param that may not be there.
   const { role: paramRole } = route.params || {};
   const [role, setRole] = useState<string | undefined>(paramRole);
+  const [profile, setProfile] = useState<any>(null);
   const [items, setItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -31,21 +50,34 @@ export default function HistoryScreen({ navigation, route }: any) {
     else setLoading(true);
     setError(false);
     const loadFn = role === "DRIVER" ? api.getMyRides : api.getMyBookings;
+    const activeStatuses = role === "DRIVER" ? ACTIVE_RIDE_STATUSES : ACTIVE_BOOKING_STATUSES;
     loadFn()
-      .then(setItems)
+      .then((data: any[]) => setItems(data.filter((item) => activeStatuses.includes(item.status))))
       .catch(() => setError(true))
       .finally(() => { setLoading(false); setRefreshing(false); });
   }
 
   useEffect(() => {
-    if (paramRole) return;
-    api.getMyProfile().then((p) => setRole(p.role)).catch(() => setError(true));
+    // Always fetched (not just when `role` is missing) — AppBottomNav
+    // needs the full profile object too (name for the side menu avatar).
+    api.getMyProfile().then((p) => { setProfile(p); if (!paramRole) setRole(p.role); }).catch(() => { if (!paramRole) setError(true); });
   }, []);
 
-  useEffect(() => {
-    if (role) load();
-  }, [role]);
+  // useFocusEffect (not useEffect) — this screen stays mounted in the
+  // stack when you navigate away from it (e.g. into a trip, a payment,
+  // a chat), so a plain mount-only effect would keep showing whatever
+  // status was true the last time it loaded. Refetching on every return
+  // to this screen is what actually keeps "Cancel booking"/status text
+  // in sync with what happened elsewhere.
+  useFocusEffect(
+    useCallback(() => {
+      if (role) load();
+    }, [role])
+  );
 
+  // Only reachable pre-payment now (CONFIRMED is no longer in
+  // CANCELLABLE_STATUSES) — always a free withdrawal, nothing to warn
+  // about forfeiting.
   function confirmCancel(bookingId: string) {
     showAlert("Cancel booking", "Are you sure you want to cancel this booking?", [
       { text: "Keep booking", style: "cancel" },
@@ -54,13 +86,9 @@ export default function HistoryScreen({ navigation, route }: any) {
         style: "destructive",
         onPress: async () => {
           try {
-            const result = await api.cancelBooking(bookingId);
+            await api.cancelBooking(bookingId);
             Analytics.bookingCancelled(bookingId, "PASSENGER");
-            showSuccess(
-              result.refunded === false
-                ? "Booking cancelled — past the free-cancellation window, so the platform fee isn't refunded."
-                : "Booking cancelled"
-            );
+            showSuccess("Booking cancelled");
             load();
           } catch (err: any) {
             showError(err.message || "Couldn't cancel");
@@ -96,12 +124,7 @@ export default function HistoryScreen({ navigation, route }: any) {
 
   return (
     <SafeAreaView style={styles.screen} edges={["top"]}>
-      <View style={styles.header}>
-        <Pressable onPress={() => navigation.goBack()}>
-          <Text style={styles.back}>{"<"}</Text>
-        </Pressable>
-        <Text style={styles.title}>{role === "DRIVER" ? "Your rides" : "Your bookings"}</Text>
-      </View>
+      <AppHeader title={role === "DRIVER" ? "Your rides" : "Your bookings"} />
       {loading ? (
         <SkeletonList count={4} />
       ) : error ? (
@@ -111,115 +134,144 @@ export default function HistoryScreen({ navigation, route }: any) {
         data={items}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => load(true)} colors={[colors.accent]} tintColor={colors.accent} />}
         keyExtractor={(item) => item.id}
-        contentContainerStyle={{ padding: spacing.md, gap: spacing.sm }}
+        contentContainerStyle={{ padding: spacing.md, gap: spacing.md }}
         renderItem={({ item }) =>
           role === "DRIVER" ? (
             <View style={styles.card}>
-              <Text style={styles.route}>{item.sourceAddress} to {item.destAddress}</Text>
+              <View style={styles.routeRow}>
+                <Ionicons name="navigate-outline" size={13} color={colors.textMuted} />
+                <Text style={styles.route}>{item.sourceAddress} to {item.destAddress}</Text>
+              </View>
               <View style={styles.rowBetween}>
                 <Text style={styles.meta}>{new Date(item.travelDate).toLocaleDateString()}</Text>
-                <Text style={styles.status}>{item.status}</Text>
+                <StatusBadge status={item.status} size="sm" />
               </View>
               {item.status === "PUBLISHED" && (
                 <View style={styles.actionRow}>
-                  <Pressable
-                    style={styles.cancelLink}
+                  <ActionChip
+                    icon="mail-unread-outline"
+                    label="Booking requests"
                     onPress={() => navigation.navigate("BookingRequests", { rideId: item.id })}
-                  >
-                    <Text style={styles.cancelLinkText}>Booking requests</Text>
-                  </Pressable>
-                  <Pressable style={styles.cancelLink} onPress={() => navigation.navigate("EditRide", { ride: item })}>
-                    <Text style={styles.cancelLinkText}>Edit ride</Text>
-                  </Pressable>
-                  <Pressable style={styles.cancelLink} onPress={() => confirmCancelRide(item.id)}>
-                    <Text style={styles.dangerLinkText}>Cancel ride</Text>
-                  </Pressable>
+                  />
+                  <ActionChip icon="create-outline" label="Edit ride" onPress={() => navigation.navigate("EditRide", { ride: item })} />
+                  {/* Once a passenger has actually paid, the ride can only
+                      be edited, not cancelled outright — see DELETE /:id's
+                      own guard, which enforces this regardless of what's
+                      shown here. */}
+                  {!item.hasConfirmedBooking && (
+                    <ActionChip icon="close-circle-outline" label="Cancel ride" danger onPress={() => confirmCancelRide(item.id)} />
+                  )}
                 </View>
               )}
             </View>
           ) : (
-            <Pressable
-              style={styles.card}
-              onPress={() => {
-                if (item.status === "COMPLETED") {
-                  navigation.navigate("RateReview", {
-                    bookingId: item.id,
-                    toUserId: item.ride.driverId,
-                    toUserName: item.ride.driver?.name || "Driver",
-                  });
-                }
-              }}
-            >
-              <Text style={styles.route}>{item.ride?.sourceAddress} to {item.ride?.destAddress}</Text>
-              <View style={styles.rowBetween}>
-                <Text style={styles.meta}>Rs {Number(item.ride?.pricePerSeat) * item.seatsBooked} total</Text>
-                <Text style={styles.status}>{item.status}</Text>
+            <View style={styles.card}>
+              <View style={styles.routeRow}>
+                <Ionicons name="navigate-outline" size={13} color={colors.textMuted} />
+                <Text style={styles.route}>{item.ride?.sourceAddress} to {item.ride?.destAddress}</Text>
               </View>
+              <Text style={styles.fare}>Rs {Number(item.ride?.pricePerSeat) * item.seatsBooked} total</Text>
+
+              <View style={styles.trackerWrap}>
+                <StepTracker steps={bookingJourneySteps(item.status)} />
+              </View>
+
               {(item.status === "AWAITING_PAYMENT" || item.status === "CONFIRMED" || item.status === "IN_PROGRESS" || CANCELLABLE_STATUSES.includes(item.status)) && (
                 <View style={styles.actionRow}>
                   {item.status === "AWAITING_PAYMENT" && (
-                    <Pressable
-                      style={styles.cancelLink}
+                    <ActionChip
+                      icon="wallet-outline"
+                      label="Pay platform fee"
+                      primary
                       onPress={() => navigation.navigate("Payment", {
                         bookingId: item.id,
                         amount: Number(item.platformFeeAmount),
                         description: "Platform fee",
                       })}
-                    >
-                      <Text style={styles.cancelLinkText}>Pay platform fee</Text>
-                    </Pressable>
+                    />
                   )}
                   {item.status === "CONFIRMED" && (
-                    <Pressable
-                      style={styles.cancelLink}
-                      onPress={() => navigation.navigate("TripOtp", { bookingId: item.id })}
-                    >
-                      <Text style={styles.cancelLinkText}>View trip code</Text>
-                    </Pressable>
+                    <>
+                      <ActionChip icon="key-outline" label="Trip code" onPress={() => navigation.navigate("TripOtp", { bookingId: item.id })} />
+                      <ActionChip
+                        icon="chatbubble-outline"
+                        label="Chat"
+                        badge={item.unreadMessageCount}
+                        onPress={() => navigation.navigate("ChatDetail", { bookingId: item.id, calleeRole: "DRIVER" })}
+                      />
+                    </>
                   )}
                   {item.status === "IN_PROGRESS" && (
-                    <Pressable
-                      style={styles.cancelLink}
+                    <ActionChip
+                      icon="locate-outline"
+                      label="Track trip"
+                      primary
                       onPress={() => primeLocationIfNeeded(navigation, "LiveTracking", { bookingId: item.id, role: "PASSENGER" })}
-                    >
-                      <Text style={styles.cancelLinkText}>Track trip</Text>
-                    </Pressable>
+                    />
                   )}
                   {CANCELLABLE_STATUSES.includes(item.status) && (
-                    <Pressable style={styles.cancelLink} onPress={() => confirmCancel(item.id)}>
-                      <Text style={styles.dangerLinkText}>Cancel booking</Text>
-                    </Pressable>
+                    <ActionChip icon="close-circle-outline" label="Cancel booking" danger onPress={() => confirmCancel(item.id)} />
                   )}
                 </View>
               )}
-            </Pressable>
+            </View>
           )
         }
         ListEmptyComponent={
           <EmptyState
-            title={role === "DRIVER" ? "No rides yet" : "No bookings yet"}
+            icon={role === "DRIVER" ? "car-outline" : "receipt-outline"}
+            title={role === "DRIVER" ? "No active rides" : "No active bookings"}
             subtitle={role === "DRIVER" ? "Offer a ride to see it here." : "Book a ride to see it here."}
           />
         }
       />
       )}
+      <AppBottomNav navigation={navigation} profile={profile} active={role === "DRIVER" ? "menu" : "bookings"} />
     </SafeAreaView>
+  );
+}
+
+function ActionChip({
+  icon, label, onPress, primary, danger, badge,
+}: {
+  icon: string; label: string; onPress: () => void; primary?: boolean; danger?: boolean; badge?: number;
+}) {
+  return (
+    <Pressable
+      style={[styles.chip, primary && styles.chipPrimary, danger && styles.chipDanger]}
+      onPress={onPress}
+    >
+      <Ionicons
+        name={icon as any}
+        size={14}
+        color={primary ? "#FFFFFF" : danger ? colors.danger : colors.accentText}
+      />
+      <Text style={[styles.chipText, primary && styles.chipTextPrimary, danger && styles.chipTextDanger]}>
+        {label}
+      </Text>
+      <UnreadBadge count={badge || 0} />
+    </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.bg },
-  header: { flexDirection: "row", alignItems: "center", gap: spacing.md, padding: spacing.lg, borderBottomWidth: 1, borderBottomColor: colors.border, backgroundColor: colors.surface },
-  back: { fontSize: 18 },
-  title: typography.title,
   card: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: radius.md, padding: spacing.md },
+  routeRow: { flexDirection: "row", alignItems: "center", gap: spacing.xs },
   route: { ...typography.title, fontSize: 13 },
-  rowBetween: { flexDirection: "row", justifyContent: "space-between", marginTop: spacing.xs },
+  rowBetween: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginTop: spacing.xs },
   meta: { ...typography.small, color: colors.textMuted },
-  status: { ...typography.small, color: colors.accentText },
-  cancelLink: { marginTop: spacing.sm },
-  cancelLinkText: { ...typography.small, color: colors.accentText },
-  dangerLinkText: { ...typography.small, color: colors.danger },
-  actionRow: { flexDirection: "row", flexWrap: "wrap", gap: spacing.md },
-  empty: { textAlign: "center", marginTop: spacing.xl, color: colors.textMuted },
+  fare: { ...typography.small, color: colors.textMuted, marginTop: 2, marginBottom: spacing.md },
+  trackerWrap: { marginBottom: spacing.xs },
+  actionRow: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm, marginTop: spacing.sm, paddingTop: spacing.sm, borderTopWidth: 1, borderTopColor: colors.border },
+  chip: {
+    flexDirection: "row", alignItems: "center", gap: 5,
+    backgroundColor: colors.accentBg, borderRadius: radius.sm,
+    paddingVertical: 7, paddingHorizontal: 10,
+  },
+  chipPrimary: { backgroundColor: colors.marigold },
+  chipDanger: { backgroundColor: colors.dangerBg },
+  chipText: { ...typography.small, color: colors.accentText, fontWeight: "700" },
+  chipTextPrimary: { color: "#FFFFFF" },
+  chipTextDanger: { color: colors.danger },
 });

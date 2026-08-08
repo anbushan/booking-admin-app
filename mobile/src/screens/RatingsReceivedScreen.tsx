@@ -1,15 +1,19 @@
-import React, { useEffect, useState } from "react";
-import { View, Text, Pressable, FlatList, StyleSheet, RefreshControl } from "react-native";
+import React, { useState, useCallback } from "react";
+import { View, Text, FlatList, StyleSheet, RefreshControl } from "react-native";
+import { useFocusEffect } from "@react-navigation/native";
 import { colors, spacing, radius, typography } from "../theme/theme";
 import { api } from "../lib/api";
 import { SkeletonList } from "../components/Skeleton";
 import { EmptyState } from "../components/EmptyState";
 import { ErrorState } from "../components/ErrorState";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { AppHeader } from "../components/AppHeader";
+import { AppBottomNav } from "../components/AppBottomNav";
 
 export default function RatingsReceivedScreen({ navigation }: any) {
   const [reviews, setReviews] = useState<any[]>([]);
   const [avgRating, setAvgRating] = useState<number | null>(null);
+  const [profile, setProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(false);
@@ -21,6 +25,7 @@ export default function RatingsReceivedScreen({ navigation }: any) {
     api
       .getMyProfile()
       .then((profile) => {
+        setProfile(profile);
         setAvgRating(profile.ratingAvg);
         return api.getReviewsForUser(profile.id);
       })
@@ -29,16 +34,11 @@ export default function RatingsReceivedScreen({ navigation }: any) {
       .finally(() => { setLoading(false); setRefreshing(false); });
   }
 
-  useEffect(load, []);
+  useFocusEffect(useCallback(load, []));
 
   return (
     <SafeAreaView style={styles.screen} edges={["top"]}>
-      <View style={styles.header}>
-        <Pressable onPress={() => navigation.goBack()}>
-          <Text style={styles.back}>{"<"}</Text>
-        </Pressable>
-        <Text style={styles.title}>Your ratings</Text>
-      </View>
+      <AppHeader title="Your ratings" />
 
       {loading ? (
         <SkeletonList count={3} />
@@ -63,19 +63,17 @@ export default function RatingsReceivedScreen({ navigation }: any) {
                 <Text style={styles.from}>{item.fromUser?.name || "Rider"}</Text>
               </View>
             )}
-            ListEmptyComponent={<EmptyState title="No reviews yet" />}
+            ListEmptyComponent={<EmptyState icon="star-outline" title="No reviews yet" />}
           />
         </>
       )}
+      <AppBottomNav navigation={navigation} profile={profile} active="menu" />
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.bg },
-  header: { flexDirection: "row", alignItems: "center", gap: spacing.md, padding: spacing.lg, borderBottomWidth: 1, borderBottomColor: colors.border, backgroundColor: colors.surface },
-  back: { fontSize: 18 },
-  title: typography.title,
   summary: { alignItems: "center", padding: spacing.lg },
   summaryValue: { fontSize: 32, fontWeight: "500", color: colors.warning },
   summaryLabel: { ...typography.caption, color: colors.textMuted, marginTop: 4 },

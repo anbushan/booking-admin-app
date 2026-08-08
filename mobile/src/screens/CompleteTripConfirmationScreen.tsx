@@ -15,7 +15,13 @@ export default function CompleteTripConfirmationScreen({ route, navigation }: an
     try {
       await api.completeTrip(bookingId);
       Analytics.tripCompleted(bookingId);
-      navigation.replace("Earnings");
+      // replace() only swaps this screen — LiveTracking (ActiveTrip),
+      // which navigated here via navigate() rather than replace(), was
+      // still sitting underneath in the stack with its "Complete trip"/
+      // "Stop ride"/SOS controls all still live. Going back from Earnings
+      // landed right back on that now-stale live-trip screen for an
+      // already-completed trip. reset() clears the whole stack instead.
+      navigation.reset({ index: 0, routes: [{ name: "Earnings" }] });
     } catch (err: any) {
       showAlert("Couldn't complete trip", err.message);
     } finally {

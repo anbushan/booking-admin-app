@@ -1,6 +1,8 @@
 import React, { useState } from "react";
 import { View, Text, Pressable, StyleSheet } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import { colors, spacing, radius, typography } from "../theme/theme";
+import { AppHeader } from "../components/AppHeader";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 // Web build of MapPinConfirmScreen — see LiveTrackingScreen.web.tsx for why
@@ -20,15 +22,25 @@ export default function MapPinConfirmScreen({ route, navigation }: any) {
 
   return (
     <SafeAreaView style={styles.screen} edges={["top"]}>
+      <AppHeader title="Confirm location" onBack={() => navigation.goBack()} />
       <View style={styles.mapPlaceholder}>
+        <Ionicons name="map-outline" size={28} color={colors.accentText} />
         <Text style={styles.mapPlaceholderText}>Map preview isn't available on web</Text>
         <Text style={styles.mapPlaceholderHint}>Open this in the mobile app to drag-adjust the pin.</Text>
       </View>
       <View style={styles.body}>
-        <Text style={styles.addressLabel}>Pickup location</Text>
-        <Text style={styles.address}>{address}</Text>
-        <Text style={styles.hint}>{lat.toFixed(5)}, {lng.toFixed(5)}</Text>
+        <View style={styles.addressRow}>
+          <View style={styles.pinBadge}>
+            <Ionicons name="location" size={16} color={colors.marigold} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.addressLabel}>Pickup location</Text>
+            <Text style={styles.address}>{address}</Text>
+            <Text style={styles.hint}>{lat.toFixed(5)}, {lng.toFixed(5)}</Text>
+          </View>
+        </View>
         <Pressable style={styles.confirmButton} onPress={handleConfirm} disabled={confirming}>
+          <Ionicons name="checkmark-circle-outline" size={18} color="#FFFFFF" />
           <Text style={styles.confirmButtonText}>Confirm location</Text>
         </Pressable>
       </View>
@@ -38,15 +50,19 @@ export default function MapPinConfirmScreen({ route, navigation }: any) {
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.bg },
-  mapPlaceholder: { height: 300, backgroundColor: colors.accentBg, alignItems: "center", justifyContent: "center", padding: spacing.lg },
+  mapPlaceholder: { height: 300, backgroundColor: colors.accentBg, alignItems: "center", justifyContent: "center", padding: spacing.lg, gap: spacing.xs },
   mapPlaceholderText: { ...typography.body, color: colors.accentText, textAlign: "center" },
   mapPlaceholderHint: { ...typography.small, color: colors.textMuted, textAlign: "center", marginTop: spacing.sm },
   body: { padding: spacing.lg },
+  addressRow: { flexDirection: "row", alignItems: "flex-start", gap: spacing.sm },
+  pinBadge: { width: 32, height: 32, borderRadius: 16, backgroundColor: colors.marigoldBg, alignItems: "center", justifyContent: "center" },
   addressLabel: { ...typography.caption, color: colors.textSecondary },
   address: { ...typography.title, marginTop: 4 },
   hint: { ...typography.small, color: colors.textMuted, marginTop: spacing.sm },
   confirmButton: {
-    backgroundColor: colors.textPrimary,
+    flexDirection: "row",
+    gap: spacing.xs,
+    backgroundColor: colors.accent,
     height: 46,
     borderRadius: radius.sm,
     alignItems: "center",

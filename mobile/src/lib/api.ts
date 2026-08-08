@@ -1,21 +1,38 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Location from "expo-location";
+import { reportNetworkError } from "./networkStatus";
 
 // Point this at your local backend during development (see backend/.env.example).
 // Use your machine's LAN IP, not localhost, when testing on a physical device.
-const API_BASE_URL = "http://192.168.1.3:4000";
+// Run `ipconfig getifaddr en0` (or check System Settings > Wi-Fi) to find
+// this if your machine's IP changes — it isn't static on most networks.
+// Exported so lib/socket.ts and LanguageSelectionScreen.tsx share this one
+// value instead of keeping their own copies in sync by hand (they used to,
+// and drifted — a stuck-on-"Sending..." OTP screen was one symptom).
+export const API_BASE_URL = "http://10.164.176.64:4000";
 
 async function request(path: string, options: RequestInit = {}) {
   const token = await AsyncStorage.getItem("authToken");
 
-  const res = await fetch(`${API_BASE_URL}${path}`, {
-    ...options,
-    headers: {
-      "Content-Type": "application/json",
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...(options.headers || {}),
-    },
-  });
+  let res: Response;
+  try {
+    res = await fetch(`${API_BASE_URL}${path}`, {
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...(options.headers || {}),
+      },
+    });
+  } catch (err) {
+    // fetch() itself rejecting means the request never reached a server
+    // at all (offline, DNS failure, server down) — a different failure
+    // mode than a normal 4xx/5xx response, and worth a clear, consistent
+    // "no connection" modal rather than whatever raw message fetch()
+    // throws surfacing wherever a given screen happens to render errors.
+    reportNetworkError();
+    throw err;
+  }
 
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(data.error || `Request failed: ${res.status}`);
@@ -32,7 +49,7 @@ export const api = {
   updateProfile: (payload: { name: string; email?: string; role: "PASSENGER" | "DRIVER" }) =>
     request("/api/users/me", { method: "PUT", body: JSON.stringify(payload) }),
 
-  addVehicle: (payload: { make: string; model: string; regNumber: string; color?: string }) =>
+  addVehicle: (payload: { make: string; model: string; regNumber: string; color?: string; seatCapacity?: number }) =>
     request("/api/vehicles", { method: "POST", body: JSON.stringify(payload) }),
 
   createRide: (payload: {
@@ -40,11 +57,29 @@ export const api = {
     destLat: number; destLng: number; destAddress: string;
     travelDate: string; seatsAvailable: number; pricePerSeat: number;
     preferences: Record<string, boolean>;
+    vehicleId?: string;
+    // Whichever alternative the driver picked on RouteOptionsScreen —
+    // omitted entirely falls back to today's straight-line behavior
+    // server-side (see backend rides.routes.js).
+    routePolyline?: string;
+    routeStops?: { lat: number; lng: number; placeName: string; distanceKm: number; durationMinutes: number }[];
+    routeDistanceKm?: number;
+    routeDurationMinutes?: number;
   }) => request("/api/rides", { method: "POST", body: JSON.stringify(payload) }),
 
-  searchRides: (params: { sourceLat: number; sourceLng: number; date: string; seats: number }) =>
+  getRouteOptions: (sourceLat: number, sourceLng: number, sourceAddress: string, destLat: number, destLng: number, destAddress: string) =>
+    request("/api/rides/route-options", {
+      method: "POST",
+      body: JSON.stringify({ sourceLat, sourceLng, sourceAddress, destLat, destLng, destAddress }),
+    }),
+
+  searchRides: (params: { sourceLat: number; sourceLng: number; destLat?: number; destLng?: number; date: string; seats: number; startTime?: string; endTime?: string }) =>
     request(
-      `/api/rides/search?sourceLat=${params.sourceLat}&sourceLng=${params.sourceLng}&date=${params.date}&seats=${params.seats}`
+      `/api/rides/search?sourceLat=${params.sourceLat}&sourceLng=${params.sourceLng}&date=${params.date}&seats=${params.seats}` +
+      (params.destLat != null ? `&destLat=${params.destLat}` : "") +
+      (params.destLng != null ? `&destLng=${params.destLng}` : "") +
+      (params.startTime ? `&startTime=${params.startTime}` : "") +
+      (params.endTime ? `&endTime=${params.endTime}` : "")
     ),
 
   getRideBookings: (rideId: string) => request(`/api/rides/${rideId}/bookings`),
@@ -111,6 +146,13 @@ export const api = {
   chargeBooking: (bookingId: string) =>
     request(`/api/payments/${bookingId}/charge`, { method: "POST" }),
 
+  // Dev-only — stands in for a real Razorpay Checkout + webhook round
+  // trip so the booking flow can be tested end-to-end in Expo Go/web,
+  // where the native react-native-razorpay module isn't available. The
+  // backend 404s this outside NODE_ENV=development.
+  mockConfirmPayment: (bookingId: string) =>
+    request(`/api/payments/${bookingId}/mock-confirm`, { method: "POST" }),
+
   getPaymentStatus: (bookingId: string) =>
     request(`/api/payments/${bookingId}/status`),
 
@@ -162,6 +204,14 @@ export const api = {
 
   getChatMessages: (bookingId: string) => request(`/api/chats/${bookingId}/messages`),
 
+  markChatRead: (bookingId: string) => request(`/api/chats/${bookingId}/read`, { method: "PUT" }),
+
+  // Bridges a masked call between driver and passenger — see
+  // calls.routes.js. In dev (CALL_PROXY_ENABLED=false) this returns a
+  // mock proxy number instead of placing a real call.
+  initiateCall: (bookingId: string, calleeRole: "DRIVER" | "PASSENGER") =>
+    request("/api/calls/initiate", { method: "POST", body: JSON.stringify({ bookingId, calleeRole }) }),
+
   getNotifications: () => request("/api/notifications"),
 
   markNotificationRead: (id: string) =>
@@ -179,6 +229,11 @@ export const api = {
 
   getBookingDetail: (bookingId: string) => request(`/api/bookings/${bookingId}`),
 
+  // Returns { bookingId, role } if the caller has a trip in progress
+  // right now, or null. Used on launch to resume into live tracking
+  // after a crash/reinstall instead of losing track of an active trip.
+  getActiveTrip: () => request("/api/bookings/active-trip"),
+
   getDriverActiveBookings: () => request("/api/bookings/driver-active"),
 
   getDriverPendingRequests: () => request("/api/bookings/driver-pending"),
@@ -194,7 +249,7 @@ export const api = {
 
   getVehicles: () => request("/api/vehicles"),
 
-  updateVehicle: (id: string, payload: Record<string, string>) =>
+  updateVehicle: (id: string, payload: Record<string, string | number>) =>
     request(`/api/vehicles/${id}`, { method: "PUT", body: JSON.stringify(payload) }),
 
   deleteVehicle: (id: string) => request(`/api/vehicles/${id}`, { method: "DELETE" }),

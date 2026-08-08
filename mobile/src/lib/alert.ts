@@ -1,35 +1,12 @@
-import { Alert, Platform } from "react-native";
+import { pushAlert, AlertButton } from "./alertStore";
 
-type AlertButton = {
-  text: string;
-  style?: "default" | "cancel" | "destructive";
-  onPress?: () => void;
-};
-
-// react-native-web's Alert.alert() is a complete no-op (verified in
-// node_modules/react-native-web: `static alert() {}`) — every confirmation
-// dialog and every error alert in this app would silently do nothing on
-// web, including destructive-action confirmations like logout, cancel
-// booking, and remove vehicle. This shims it with window.confirm()/
-// window.alert() on web and defers to the real native Alert everywhere
-// else. Drop-in replacement for Alert.alert(title, message, buttons).
+// Every confirmation dialog and error alert in this app used to go
+// through the OS's own Alert.alert (and, on web, a window.confirm/alert
+// shim — react-native-web's Alert.alert() is a complete no-op). Now they
+// all render through AlertModalHost instead, in the app's own visual
+// language on every platform — same drop-in signature
+// (showAlert(title, message, buttons)) so none of the ~40 call sites
+// needed to change.
 export function showAlert(title: string, message?: string, buttons?: AlertButton[]) {
-  if (Platform.OS !== "web") {
-    Alert.alert(title, message, buttons as any);
-    return;
-  }
-
-  const text = [title, message].filter(Boolean).join("\n\n");
-
-  if (!buttons || buttons.length <= 1) {
-    window.alert(text);
-    buttons?.[0]?.onPress?.();
-    return;
-  }
-
-  const cancelButton = buttons.find((b) => b.style === "cancel");
-  const confirmButton = buttons.find((b) => b !== cancelButton) || buttons[buttons.length - 1];
-
-  if (window.confirm(text)) confirmButton?.onPress?.();
-  else cancelButton?.onPress?.();
+  pushAlert({ title, message, buttons: buttons?.length ? buttons : [{ text: "OK" }] });
 }

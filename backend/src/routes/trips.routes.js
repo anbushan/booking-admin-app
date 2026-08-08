@@ -3,6 +3,8 @@ import { prisma } from "../lib/prisma.js";
 import { requireAuth, requireRole } from "../middleware/auth.js";
 import { notify } from "../lib/notify.js";
 import { sendSmsViaMsg91 } from "../lib/msg91.js";
+import { clearChatForBooking } from "../lib/chat.js";
+import { closeRideIfNoActiveBookings } from "../lib/rideLifecycle.js";
 import { validate, isLat, isLng } from "../lib/validate.js";
 
 const router = Router();
@@ -34,7 +36,7 @@ router.post("/:bookingId/start", requireAuth, requireRole("DRIVER"), async (req,
   });
 
   await notify(booking.passengerId, "DRIVER_ARRIVED", "Your driver has arrived",
-    "Share the pickup code shown in the app to start your trip.");
+    "Share the pickup code shown in the app to start your trip.", booking.id);
 
   res.json({ bookingId: updated.id }); // OTP itself goes to the passenger's own screen, not this response
 });
@@ -70,6 +72,19 @@ router.post("/:bookingId/verify-otp", requireAuth, requireRole("DRIVER"), async 
     data: { status: "IN_PROGRESS", otpVerifiedAt: new Date(), tripStartedAt: new Date() },
   });
 
+  // Chat's job was pre-trip coordination (finding each other at pickup)
+  // — once the trip is actually under way they're together in the same
+  // vehicle, so the conversation closes here too, not just at the end.
+  await clearChatForBooking(booking.id);
+
+  // The ride itself stops being PUBLISHED the moment any trip on it
+  // starts — otherwise it stays searchable/bookable by new passengers,
+  // and the driver's "Edit ride"/"Cancel ride" (gated on PUBLISHED)
+  // stay available for a ride that's literally already underway.
+  if (booking.ride.status === "PUBLISHED") {
+    await prisma.ride.update({ where: { id: booking.rideId }, data: { status: "IN_PROGRESS" } });
+  }
+
   res.json(updated);
 });
 
@@ -91,7 +106,7 @@ router.put("/:bookingId/location", requireAuth, requireRole("DRIVER"), async (re
 router.get("/:bookingId/track", requireAuth, async (req, res) => {
   const booking = await prisma.booking.findUnique({
     where: { id: req.params.bookingId },
-    include: { ride: true },
+    include: { ride: { include: { driver: { select: { id: true, name: true } } } } },
   });
   if (!booking) return res.status(404).json({ error: "Booking not found." });
 
@@ -107,6 +122,11 @@ router.get("/:bookingId/track", requireAuth, async (req, res) => {
     // so the client can navigate straight to a "pay the driver" summary
     // without a second round trip.
     amount: booking.remainingFareAmount != null ? Number(booking.remainingFareAmount) : null,
+    // Included so the passenger's client can go straight from "trip
+    // completed" into rating the driver, without a second round trip at
+    // exactly the moment the trip just ended.
+    driverId: booking.ride.driver.id,
+    driverName: booking.ride.driver.name,
   });
 });
 
@@ -136,10 +156,14 @@ router.post("/:bookingId/stop", requireAuth, async (req, res) => {
     where: { id: booking.id },
     data: { status: "STOPPED", tripStoppedAt: new Date() },
   });
+  await clearChatForBooking(booking.id);
+  // Abnormal end — if nothing else is still active on this ride, close
+  // it as CANCELLED (not COMPLETED; the trip didn't finish normally).
+  await closeRideIfNoActiveBookings(booking.rideId, "CANCELLED");
 
   const otherPartyId = isPassenger ? booking.ride.driverId : booking.passengerId;
   await notify(otherPartyId, "RIDE_STOPPED", "Ride closed",
-    "This ride was stopped before reaching the destination. It's been closed — you can search and rebook.");
+    "This ride was stopped before reaching the destination. It's been closed — you can search and rebook.", booking.id);
 
   res.json(updated);
 });
@@ -168,9 +192,11 @@ router.post("/:bookingId/complete", requireAuth, requireRole("DRIVER"), async (r
     where: { id: booking.id },
     data: { status: "COMPLETED", tripCompletedAt: new Date(), remainingFareAmount },
   });
+  await clearChatForBooking(booking.id);
+  await closeRideIfNoActiveBookings(booking.rideId, "COMPLETED");
 
   await notify(booking.passengerId, "TRIP_COMPLETED", "Trip completed",
-    `Please pay Rs ${remainingFareAmount.toFixed(0)} directly to your driver (cash/UPI).`);
+    `Please pay Rs ${remainingFareAmount.toFixed(0)} directly to your driver (cash/UPI).`, booking.id);
 
   res.json(updated);
 });

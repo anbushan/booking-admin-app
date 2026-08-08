@@ -16,7 +16,11 @@ export default async function DashboardPage() {
       prisma.user.count(),
       prisma.user.count({ where: { role: "DRIVER" } }),
       prisma.user.count({ where: { role: "PASSENGER" } }),
-      prisma.ride.count({ where: { status: "PUBLISHED" } }),
+      // "Active" = still open for booking OR a trip is currently
+      // underway on it — PUBLISHED alone under-counts once a ride's
+      // trip has started (it moves to IN_PROGRESS and stops being
+      // publicly bookable, but it's still very much active).
+      prisma.ride.count({ where: { status: { in: ["PUBLISHED", "IN_PROGRESS"] } } }),
       prisma.booking.count(),
     ]);
 

@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { View, Text, TextInput, Pressable, FlatList, StyleSheet, RefreshControl } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
 import { showAlert } from "../lib/alert";
@@ -12,15 +12,23 @@ import { Analytics } from "../lib/analytics";
 import { validateEmergencyContact } from "../lib/validators";
 import { FieldError } from "../components/FieldError";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { BackButton } from "../components/BackButton";
+import { AppHeader } from "../components/AppHeader";
+import { AppBottomNav } from "../components/AppBottomNav";
 
 type Contact = { id: string; name: string; phone: string; isPrimary: boolean };
 
 export function EmergencyContactsScreen({ navigation }: any) {
   const [contacts, setContacts] = useState<Contact[]>([]);
+  const [profile, setProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(false);
   const { showSuccess, showError } = useToast();
+
+  useEffect(() => {
+    api.getMyProfile().then(setProfile).catch(() => {});
+  }, []);
 
   function load(isRefresh = false) {
     if (isRefresh) setRefreshing(true);
@@ -46,12 +54,7 @@ export function EmergencyContactsScreen({ navigation }: any) {
 
   return (
     <SafeAreaView style={styles.screen} edges={["top"]}>
-      <View style={styles.header}>
-        <Pressable onPress={() => navigation.goBack()}>
-          <Text style={styles.back}>{"<"}</Text>
-        </Pressable>
-        <Text style={styles.title}>Emergency contacts</Text>
-      </View>
+      <AppHeader title="Emergency contacts" />
 
       {loading ? (
         <SkeletonList count={2} />
@@ -78,6 +81,7 @@ export function EmergencyContactsScreen({ navigation }: any) {
         )}
         ListEmptyComponent={
           <EmptyState
+            icon="shield-checkmark-outline"
             title="No emergency contacts yet"
             subtitle="Add a contact so we can reach someone for you in an emergency."
           />
@@ -88,6 +92,7 @@ export function EmergencyContactsScreen({ navigation }: any) {
       <Pressable style={styles.addButton} onPress={() => navigation.navigate("AddEmergencyContact")}>
         <Text style={styles.addButtonText}>Add contact</Text>
       </Pressable>
+      <AppBottomNav navigation={navigation} profile={profile} active="menu" />
     </SafeAreaView>
   );
 }
@@ -122,9 +127,7 @@ export function AddEmergencyContactScreen({ navigation }: any) {
   return (
     <SafeAreaView style={styles.screen} edges={["top"]}>
       <View style={styles.header}>
-        <Pressable onPress={() => navigation.goBack()}>
-          <Text style={styles.back}>{"<"}</Text>
-        </Pressable>
+        <BackButton onPress={() => navigation.goBack()} />
         <Text style={styles.title}>Add emergency contact</Text>
       </View>
 

@@ -45,40 +45,67 @@ export function formatSearchDate(date: Date) {
   return `${dayLabel}, ${hour12}:${String(minutes).padStart(2, "0")}${ampm}`;
 }
 
+function timeToText(date: Date) {
+  const h = date.getHours();
+  const m = date.getMinutes();
+  const ampm = h >= 12 ? "PM" : "AM";
+  const h12 = h % 12 === 0 ? 12 : h % 12;
+  return `${h12}:${String(m).padStart(2, "0")} ${ampm}`;
+}
+
+function parseTimeText(text: string): { hours: number; minutes: number } | null {
+  const match = text.trim().match(/^(\d{1,2}):(\d{2})\s*(AM|PM|am|pm)$/);
+  if (!match) return null;
+  let hours = Number(match[1]);
+  const minutes = Number(match[2]);
+  if (hours < 1 || hours > 12 || minutes > 59) return null;
+  const ampm = match[3].toUpperCase();
+  if (ampm === "PM" && hours !== 12) hours += 12;
+  if (ampm === "AM" && hours === 12) hours = 0;
+  return { hours, minutes };
+}
+
+function toHHmm({ hours, minutes }: { hours: number; minutes: number }) {
+  return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`;
+}
+
 type Props = {
   visible: boolean;
   initialDate: Date;
   initialSeats: number;
   onClose: () => void;
-  onConfirm: (date: Date, seats: number) => void;
+  // rangeMode=false (default, used when publishing a ride): a single
+  // departure time, onConfirm(date-with-time-set, seats) — unchanged.
+  // rangeMode=true (used when searching): a start/end departure window
+  // instead of one exact time, onConfirm(dateAtMidnight, seats,
+  // startTimeHHmm, endTimeHHmm).
+  rangeMode?: boolean;
+  onConfirm: (date: Date, seats: number, startTime?: string, endTime?: string) => void;
 };
 
-export default function SearchOptionsModal({ visible, initialDate, initialSeats, onClose, onConfirm }: Props) {
+export default function SearchOptionsModal({ visible, initialDate, initialSeats, onClose, onConfirm, rangeMode = false }: Props) {
   const dateOptions = useState(buildDateOptions)[0];
   const [selectedDate, setSelectedDate] = useState(initialDate);
-  const [timeText, setTimeText] = useState(() => {
-    const h = initialDate.getHours();
-    const m = initialDate.getMinutes();
-    const ampm = h >= 12 ? "PM" : "AM";
-    const h12 = h % 12 === 0 ? 12 : h % 12;
-    return `${h12}:${String(m).padStart(2, "0")} ${ampm}`;
-  });
+  const [timeText, setTimeText] = useState(() => timeToText(initialDate));
+  const [startTimeText, setStartTimeText] = useState(() => timeToText(initialDate));
+  const [endTimeText, setEndTimeText] = useState("11:59 PM");
   const [seats, setSeats] = useState(initialSeats);
   const [timeError, setTimeError] = useState("");
 
-  function parseTimeText(text: string): { hours: number; minutes: number } | null {
-    const match = text.trim().match(/^(\d{1,2}):(\d{2})\s*(AM|PM|am|pm)$/);
-    if (!match) return null;
-    let hours = Number(match[1]);
-    const minutes = Number(match[2]);
-    if (hours < 1 || hours > 12 || minutes > 59) return null;
-    const ampm = match[3].toUpperCase();
-    if (ampm === "PM" && hours !== 12) hours += 12;
-    if (ampm === "AM" && hours === 12) hours = 0;
-    return { hours, minutes };
-  }
-
   function handleConfirm() {
+    if (rangeMode) {
+      const start = parseTimeText(startTimeText);
+      const end = parseTimeText(endTimeText);
+      if (!start || !end) {
+        setTimeError("Enter times like 9:00 AM and 6:00 PM.");
+        return;
+      }
+      const dayOnly = new Date(selectedDate);
+      dayOnly.setHours(0, 0, 0, 0);
+      onConfirm(dayOnly, seats, toHHmm(start), toHHmm(end));
+      return;
+    }
+
     const parsed = parseTimeText(timeText);
     if (!parsed) {
       setTimeError("Enter a time like 6:30 PM.");
@@ -112,14 +139,39 @@ export default function SearchOptionsModal({ visible, initialDate, initialSeats,
             })}
           </ScrollView>
 
-          <Text style={styles.label}>Time</Text>
-          <TextInput
-            style={styles.timeInput}
-            value={timeText}
-            onChangeText={(t) => { setTimeText(t); setTimeError(""); }}
-            placeholder="6:30 PM"
-            placeholderTextColor={colors.textMuted}
-          />
+          {rangeMode ? (
+            <>
+              <Text style={styles.label}>Departing between</Text>
+              <View style={styles.timeRangeRow}>
+                <TextInput
+                  style={[styles.timeInput, styles.timeRangeInput]}
+                  value={startTimeText}
+                  onChangeText={(t) => { setStartTimeText(t); setTimeError(""); }}
+                  placeholder="9:00 AM"
+                  placeholderTextColor={colors.textMuted}
+                />
+                <Text style={styles.timeRangeSeparator}>to</Text>
+                <TextInput
+                  style={[styles.timeInput, styles.timeRangeInput]}
+                  value={endTimeText}
+                  onChangeText={(t) => { setEndTimeText(t); setTimeError(""); }}
+                  placeholder="6:00 PM"
+                  placeholderTextColor={colors.textMuted}
+                />
+              </View>
+            </>
+          ) : (
+            <>
+              <Text style={styles.label}>Time</Text>
+              <TextInput
+                style={styles.timeInput}
+                value={timeText}
+                onChangeText={(t) => { setTimeText(t); setTimeError(""); }}
+                placeholder="6:30 PM"
+                placeholderTextColor={colors.textMuted}
+              />
+            </>
+          )}
           {timeError ? <Text style={styles.errorText}>{timeError}</Text> : null}
 
           <Text style={styles.label}>Seats</Text>
@@ -181,6 +233,9 @@ const styles = StyleSheet.create({
     padding: spacing.sm,
     marginBottom: spacing.md,
   },
+  timeRangeRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
+  timeRangeInput: { flex: 1 },
+  timeRangeSeparator: { ...typography.caption, color: colors.textSecondary, marginBottom: spacing.md },
   errorText: { ...typography.small, color: colors.danger, marginTop: -spacing.sm, marginBottom: spacing.sm },
   seatRow: { flexDirection: "row", alignItems: "center", gap: spacing.md, marginBottom: spacing.lg },
   seatButton: {

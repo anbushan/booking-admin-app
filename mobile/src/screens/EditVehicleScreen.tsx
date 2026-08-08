@@ -6,6 +6,9 @@ import { api } from "../lib/api";
 import { validateVehicle } from "../lib/validators";
 import { FieldError } from "../components/FieldError";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { BackButton } from "../components/BackButton";
+
+const SEAT_OPTIONS = [4, 5, 6, 7];
 
 export default function EditVehicleScreen({ route, navigation }: any) {
   const { vehicle } = route.params;
@@ -13,6 +16,7 @@ export default function EditVehicleScreen({ route, navigation }: any) {
   const [model, setModel] = useState(vehicle.model);
   const [regNumber, setRegNumber] = useState(vehicle.regNumber);
   const [color, setColor] = useState(vehicle.color || "");
+  const [seatCapacity, setSeatCapacity] = useState(vehicle.seatCapacity || 4);
   const [submitting, setSubmitting] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
@@ -23,7 +27,7 @@ export default function EditVehicleScreen({ route, navigation }: any) {
 
     setSubmitting(true);
     try {
-      await api.updateVehicle(vehicle.id, { make, model, regNumber: regNumber.toUpperCase(), color });
+      await api.updateVehicle(vehicle.id, { make, model, regNumber: regNumber.toUpperCase(), color, seatCapacity });
       navigation.goBack();
     } catch (err: any) {
       showAlert("Couldn't save", err.message);
@@ -35,9 +39,7 @@ export default function EditVehicleScreen({ route, navigation }: any) {
   return (
     <SafeAreaView style={styles.screen} edges={["top"]}>
       <View style={styles.header}>
-        <Pressable onPress={() => navigation.goBack()}>
-          <Text style={styles.back}>{"<"}</Text>
-        </Pressable>
+        <BackButton onPress={() => navigation.goBack()} />
         <Text style={styles.title}>Edit vehicle</Text>
       </View>
 
@@ -70,6 +72,19 @@ export default function EditVehicleScreen({ route, navigation }: any) {
         <Text style={styles.label}>Color</Text>
         <TextInput style={styles.input} value={color} onChangeText={setColor} />
 
+        <Text style={styles.label}>Seats</Text>
+        <View style={styles.chipRow}>
+          {SEAT_OPTIONS.map((n) => (
+            <Pressable
+              key={n}
+              style={[styles.seatChip, seatCapacity === n && styles.seatChipActive]}
+              onPress={() => setSeatCapacity(n)}
+            >
+              <Text style={[styles.seatChipText, seatCapacity === n && styles.seatChipTextActive]}>{n}-seater</Text>
+            </Pressable>
+          ))}
+        </View>
+
         <Pressable style={styles.button} onPress={handleSave} disabled={submitting}>
           <Text style={styles.buttonText}>{submitting ? "Saving..." : "Save vehicle"}</Text>
         </Pressable>
@@ -87,6 +102,11 @@ const styles = StyleSheet.create({
   label: { ...typography.caption, color: colors.textSecondary, marginBottom: spacing.xs, marginTop: spacing.md },
   input: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: radius.sm, height: 44, paddingHorizontal: spacing.md },
   inputError: { borderColor: colors.danger },
+  chipRow: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm },
+  seatChip: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: radius.sm, paddingVertical: spacing.xs, paddingHorizontal: spacing.md },
+  seatChipActive: { backgroundColor: colors.successBg, borderColor: colors.success },
+  seatChipText: { ...typography.caption, color: colors.textSecondary },
+  seatChipTextActive: { color: colors.success, fontWeight: "500" },
   button: { backgroundColor: colors.textPrimary, height: 46, borderRadius: radius.sm, alignItems: "center", justifyContent: "center", marginTop: spacing.xl },
   buttonText: { color: "#FFFFFF", ...typography.title },
 });

@@ -1,16 +1,35 @@
 import { Router } from "express";
 import { prisma } from "../lib/prisma.js";
 import { requireAuth } from "../middleware/auth.js";
+import { NON_TERMINAL_BOOKING_STATUSES } from "../lib/rideLifecycle.js";
 
 const router = Router();
 
+// Active-trip-only: a notification tied to a booking (almost all of
+// them are) only shows while that booking is still active — once it's
+// completed/cancelled/expired/etc., the notification about it is no
+// longer relevant and drops out of the list. Account-level notices
+// (driver strikes, passenger cooldown) have no bookingId and always
+// show. Nothing gets deleted here, just filtered out of what this
+// endpoint returns — admin's own view of the data is untouched.
 router.get("/", requireAuth, async (req, res) => {
   const notifications = await prisma.notification.findMany({
     where: { userId: req.user.id },
     orderBy: { createdAt: "desc" },
     take: 50,
   });
-  res.json(notifications);
+
+  const bookingIds = [...new Set(notifications.map((n) => n.bookingId).filter(Boolean))];
+  const activeBookings = bookingIds.length
+    ? await prisma.booking.findMany({
+        where: { id: { in: bookingIds }, status: { in: NON_TERMINAL_BOOKING_STATUSES } },
+        select: { id: true },
+      })
+    : [];
+  const activeBookingIds = new Set(activeBookings.map((b) => b.id));
+
+  const active = notifications.filter((n) => !n.bookingId || activeBookingIds.has(n.bookingId));
+  res.json(active);
 });
 
 router.put("/:id/read", requireAuth, async (req, res) => {

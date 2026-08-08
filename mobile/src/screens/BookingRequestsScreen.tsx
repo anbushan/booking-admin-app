@@ -1,5 +1,7 @@
-import React, { useEffect, useState } from "react";
-import { View, Text, Pressable, FlatList, StyleSheet, Alert, RefreshControl } from "react-native";
+import React, { useEffect, useState, useCallback } from "react";
+import { View, Text, Pressable, FlatList, StyleSheet, RefreshControl } from "react-native";
+import { useFocusEffect } from "@react-navigation/native";
+import { Ionicons } from "@expo/vector-icons";
 import { colors, spacing, radius, typography } from "../theme/theme";
 import { api } from "../lib/api";
 import { SkeletonList } from "../components/Skeleton";
@@ -7,6 +9,9 @@ import { EmptyState } from "../components/EmptyState";
 import { ErrorState } from "../components/ErrorState";
 import { useToast } from "../components/Toast";
 import { Analytics } from "../lib/analytics";
+import { StepTracker, bookingJourneySteps } from "../components/StepTracker";
+import { AppHeader } from "../components/AppHeader";
+import { AppBottomNav } from "../components/AppBottomNav";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 type BookingRequest = {
@@ -25,18 +30,18 @@ function minutesLeft(expiresAt: string) {
 }
 
 export default function BookingRequestsScreen({ route, navigation }: any) {
-  // With a rideId (opened from a specific ride's card): requests for that
-  // ride only. Without one (opened from the side menu / driver Home): the
-  // aggregate inbox across every ride this driver has published, so
-  // there's one place to approve/reject everything rather than having to
-  // open each ride individually.
   const { rideId } = route.params || {};
   const [requests, setRequests] = useState<BookingRequest[]>([]);
+  const [profile, setProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(false);
   const [, forceTick] = useState(0);
   const { showSuccess, showError } = useToast();
+
+  useEffect(() => {
+    api.getMyProfile().then(setProfile).catch(() => {});
+  }, []);
 
   function load(isRefresh = false) {
     if (isRefresh) setRefreshing(true);
@@ -47,11 +52,15 @@ export default function BookingRequestsScreen({ route, navigation }: any) {
   }
 
   useEffect(() => {
-    load();
-    // re-render every 30s so the countdown labels stay roughly current
     const interval = setInterval(() => forceTick((n) => n + 1), 30000);
     return () => clearInterval(interval);
-  }, [rideId]);
+  }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      load();
+    }, [rideId])
+  );
 
   async function respond(bookingId: string, action: "accept" | "reject") {
     try {
@@ -66,12 +75,7 @@ export default function BookingRequestsScreen({ route, navigation }: any) {
 
   return (
     <SafeAreaView style={styles.screen} edges={["top"]}>
-      <View style={styles.header}>
-        <Pressable onPress={() => navigation.goBack()}>
-          <Text style={styles.back}>{"<"}</Text>
-        </Pressable>
-        <Text style={styles.title}>{rideId ? "Booking requests" : "All booking requests"}</Text>
-      </View>
+      <AppHeader title={rideId ? "Booking requests" : "All booking requests"} />
 
       {loading ? (
         <SkeletonList count={3} />
@@ -82,50 +86,70 @@ export default function BookingRequestsScreen({ route, navigation }: any) {
         data={requests}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => load(true)} colors={[colors.accent]} tintColor={colors.accent} />}
         keyExtractor={(item) => item.id}
-        contentContainerStyle={{ padding: spacing.md, gap: spacing.sm }}
+        contentContainerStyle={{ padding: spacing.md, gap: spacing.md }}
         renderItem={({ item }) => (
           <View style={styles.card}>
             <Pressable onPress={() => navigation.navigate("BookingRequestDetail", { request: item })}>
               {item.ride && (
-                <Text style={styles.rideRoute}>{item.ride.sourceAddress} to {item.ride.destAddress}</Text>
+                <View style={styles.rideRouteRow}>
+                  <Ionicons name="navigate-outline" size={12} color={colors.textMuted} />
+                  <Text style={styles.rideRoute}>{item.ride.sourceAddress} to {item.ride.destAddress}</Text>
+                </View>
               )}
               <View style={styles.cardTop}>
-                <View>
+                <View style={styles.avatar}>
+                  <Text style={styles.avatarText}>{(item.passenger?.name || "?").charAt(0).toUpperCase()}</Text>
+                </View>
+                <View style={{ flex: 1 }}>
                   <Text style={styles.passengerName}>{item.passenger?.name || "Passenger"}</Text>
                   <Text style={styles.meta}>
-                    {(item.passenger?.ratingAvg ?? 0).toFixed(1)} rating · {item.seatsBooked} seat(s)
+                    <Ionicons name="star" size={10} color={colors.marigold} /> {(item.passenger?.ratingAvg ?? 0).toFixed(1)} · {item.seatsBooked} seat(s)
                   </Text>
                 </View>
-                <Text style={styles.countdown}>{minutesLeft(item.expiresAt)}m left</Text>
+                <View style={styles.countdown}>
+                  <Ionicons name="time-outline" size={11} color={colors.warning} />
+                  <Text style={styles.countdownText}>{minutesLeft(item.expiresAt)}m left</Text>
+                </View>
               </View>
-              <Text style={styles.pickup}>
-                {item.isCustomPickup ? `Custom pickup: ${item.pickupAddress}` : "Default pickup point"}
-              </Text>
+              <View style={styles.pickupRow}>
+                <Ionicons name="location-outline" size={12} color={colors.textMuted} />
+                <Text style={styles.pickup}>
+                  {item.isCustomPickup ? `Custom pickup: ${item.pickupAddress}` : "Default pickup point"}
+                </Text>
+              </View>
+
+              {/* Same journey view as the passenger sees on "My bookings"
+                  — a request just sits at step one, but seeing it as the
+                  start of the same line (not a standalone card) makes
+                  what accepting actually does obvious. */}
+              <View style={styles.trackerWrap}>
+                <StepTracker steps={bookingJourneySteps("BOOKED")} />
+              </View>
             </Pressable>
             <View style={styles.actionRow}>
               <Pressable style={styles.acceptButton} onPress={() => respond(item.id, "accept")}>
+                <Ionicons name="checkmark" size={16} color="#FFFFFF" />
                 <Text style={styles.acceptText}>Accept</Text>
               </Pressable>
               <Pressable style={styles.declineButton} onPress={() => respond(item.id, "reject")}>
+                <Ionicons name="close" size={16} color={colors.textSecondary} />
                 <Text style={styles.declineText}>Decline</Text>
               </Pressable>
             </View>
           </View>
         )}
         ListEmptyComponent={
-          <EmptyState title="No pending requests" subtitle="New booking requests will show up here." />
+          <EmptyState icon="mail-open-outline" title="No pending requests" subtitle="New booking requests will show up here." />
         }
       />
       )}
+      <AppBottomNav navigation={navigation} profile={profile} active="requests" />
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.bg },
-  header: { flexDirection: "row", alignItems: "center", gap: spacing.md, padding: spacing.lg, borderBottomWidth: 1, borderBottomColor: colors.border, backgroundColor: colors.surface },
-  back: { fontSize: 18 },
-  title: typography.title,
   card: {
     backgroundColor: colors.surface,
     borderWidth: 1,
@@ -133,16 +157,21 @@ const styles = StyleSheet.create({
     borderRadius: radius.md,
     padding: spacing.md,
   },
-  rideRoute: { ...typography.small, color: colors.textMuted, marginBottom: spacing.xs },
-  cardTop: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" },
+  rideRouteRow: { flexDirection: "row", alignItems: "center", gap: 4, marginBottom: spacing.xs },
+  rideRoute: { ...typography.small, color: colors.textMuted },
+  cardTop: { flexDirection: "row", gap: spacing.sm, alignItems: "center" },
+  avatar: { width: 32, height: 32, borderRadius: 16, backgroundColor: colors.accentBg, alignItems: "center", justifyContent: "center" },
+  avatarText: { ...typography.title, fontSize: 13, color: colors.accentText },
   passengerName: { ...typography.title, fontSize: 14 },
-  meta: { ...typography.small, color: colors.textMuted, marginTop: 2 },
-  countdown: { ...typography.small, color: colors.warning, backgroundColor: colors.warningBg, paddingVertical: 2, paddingHorizontal: 6, borderRadius: 6 },
-  pickup: { ...typography.small, color: colors.textSecondary, marginTop: spacing.sm },
-  actionRow: { flexDirection: "row", gap: spacing.sm, marginTop: spacing.sm },
-  acceptButton: { flex: 1, backgroundColor: colors.textPrimary, height: 36, borderRadius: radius.sm, alignItems: "center", justifyContent: "center" },
-  acceptText: { color: "#FFFFFF", ...typography.caption, fontWeight: "500" },
-  declineButton: { flex: 1, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, height: 36, borderRadius: radius.sm, alignItems: "center", justifyContent: "center" },
-  declineText: { ...typography.caption, color: colors.textSecondary },
-  empty: { textAlign: "center", marginTop: spacing.xl, color: colors.textMuted },
+  meta: { ...typography.small, color: colors.textMuted },
+  countdown: { flexDirection: "row", alignItems: "center", gap: 3, backgroundColor: colors.warningBg, paddingVertical: 3, paddingHorizontal: 7, borderRadius: 999 },
+  countdownText: { ...typography.small, color: colors.warning, fontWeight: "700" },
+  pickupRow: { flexDirection: "row", alignItems: "center", gap: 4, marginTop: spacing.sm },
+  pickup: { ...typography.small, color: colors.textSecondary },
+  trackerWrap: { marginTop: spacing.md, paddingTop: spacing.md, borderTopWidth: 1, borderTopColor: colors.border },
+  actionRow: { flexDirection: "row", gap: spacing.sm, marginTop: spacing.md },
+  acceptButton: { flex: 1, flexDirection: "row", gap: 6, backgroundColor: colors.accent, height: 40, borderRadius: radius.sm, alignItems: "center", justifyContent: "center" },
+  acceptText: { color: "#FFFFFF", ...typography.caption, fontWeight: "700" },
+  declineButton: { flex: 1, flexDirection: "row", gap: 6, backgroundColor: colors.bg, borderWidth: 1, borderColor: colors.border, height: 40, borderRadius: radius.sm, alignItems: "center", justifyContent: "center" },
+  declineText: { ...typography.caption, color: colors.textSecondary, fontWeight: "600" },
 });

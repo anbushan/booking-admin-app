@@ -27,9 +27,11 @@ export function attachSocketServer(httpServer) {
       socket.join(`booking:${bookingId}`);
     });
 
-    socket.on("message:send", async ({ bookingId, text }) => {
+    // type: "TEXT" (default) | "LOCATION" — for a LOCATION message, text
+    // is "lat,lng" rather than a chat string (see lib/chat.js).
+    socket.on("message:send", async ({ bookingId, text, type }) => {
       const message = await prisma.chatMessage.create({
-        data: { bookingId, senderId: socket.userId, text },
+        data: { bookingId, senderId: socket.userId, text, type: type || "TEXT" },
       });
       io.to(`booking:${bookingId}`).emit("message:receive", message);
     });

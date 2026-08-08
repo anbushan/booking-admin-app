@@ -3,14 +3,14 @@ import { View, Text, Pressable, FlatList, StyleSheet } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { colors, spacing, radius, typography } from "../theme/theme";
 import { Analytics } from "../lib/analytics";
+import { API_BASE_URL } from "../lib/api";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { BackButton } from "../components/BackButton";
 
 const LOCALE_LABELS: Record<string, string> = {
   en: "English",
   hi: "\u0939\u093F\u0928\u094D\u0926\u0940 (Hindi)",
 };
-
-const API_BASE_URL = "http://192.168.1.3:4000";
 
 export default function LanguageSelectionScreen({ navigation }: any) {
   const [locales, setLocales] = useState<string[]>([]);
@@ -38,9 +38,7 @@ export default function LanguageSelectionScreen({ navigation }: any) {
   return (
     <SafeAreaView style={styles.screen} edges={["top"]}>
       <View style={styles.header}>
-        <Pressable onPress={() => navigation.goBack()}>
-          <Text style={styles.back}>{"<"}</Text>
-        </Pressable>
+        <BackButton onPress={() => navigation.goBack()} />
         <Text style={styles.title}>Language</Text>
       </View>
 

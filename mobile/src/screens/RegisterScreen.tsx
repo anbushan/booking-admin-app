@@ -1,5 +1,6 @@
 import React, { useState } from "react";
-import { View, Text, TextInput, Pressable, StyleSheet } from "react-native";
+import { View, Text, TextInput, Pressable, ScrollView, KeyboardAvoidingView, Platform, StyleSheet } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import { showAlert } from "../lib/alert";
 import { colors, spacing, radius, typography } from "../theme/theme";
 import { api } from "../lib/api";
@@ -9,6 +10,11 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
+// Reached once, right after a brand-new phone number verifies its OTP
+// (see OtpScreens.tsx's navigation.reset) — no previous screen to go
+// back to, same as PhoneEntryScreen. This is where "am I a driver or a
+// passenger" actually gets decided; everything else in the app assumes
+// it's already been answered.
 export default function RegisterScreen({ navigation }: any) {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -45,63 +51,90 @@ export default function RegisterScreen({ navigation }: any) {
 
   return (
     <SafeAreaView style={styles.screen} edges={["top"]}>
-      <Text style={styles.title}>Tell us about you</Text>
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
+        <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
+          <View style={styles.brandIcon}>
+            <Ionicons name="person-add-outline" size={26} color={colors.accentText} />
+          </View>
+          <Text style={styles.title}>Tell us about you</Text>
+          <Text style={styles.subtitle}>Just a couple of details before you get going.</Text>
 
-      <Text style={styles.label}>Name</Text>
-      <TextInput
-        style={[styles.input, errors.name && styles.inputError]}
-        placeholder="Your full name"
-        placeholderTextColor={colors.textMuted}
-        value={name}
-        onChangeText={(v) => { setName(v); if (errors.name) setErrors((e) => ({ ...e, name: undefined })); }}
-      />
-      <FieldError message={errors.name} />
+          <Text style={styles.label}>Name</Text>
+          <TextInput
+            style={[styles.input, errors.name && styles.inputError]}
+            placeholder="Your full name"
+            placeholderTextColor={colors.textMuted}
+            value={name}
+            onChangeText={(v) => { setName(v); if (errors.name) setErrors((e) => ({ ...e, name: undefined })); }}
+          />
+          <FieldError message={errors.name} />
 
-      <Text style={styles.label}>Email (optional)</Text>
-      <TextInput
-        style={[styles.input, errors.email && styles.inputError]}
-        placeholder="you@example.com"
-        placeholderTextColor={colors.textMuted}
-        keyboardType="email-address"
-        autoCapitalize="none"
-        value={email}
-        onChangeText={(v) => { setEmail(v); if (errors.email) setErrors((e) => ({ ...e, email: undefined })); }}
-      />
-      <FieldError message={errors.email} />
+          <Text style={styles.label}>Email (optional)</Text>
+          <TextInput
+            style={[styles.input, errors.email && styles.inputError]}
+            placeholder="you@example.com"
+            placeholderTextColor={colors.textMuted}
+            keyboardType="email-address"
+            autoCapitalize="none"
+            value={email}
+            onChangeText={(v) => { setEmail(v); if (errors.email) setErrors((e) => ({ ...e, email: undefined })); }}
+          />
+          <FieldError message={errors.email} />
 
-      <Text style={styles.label}>I want to</Text>
-      <View style={styles.roleRow}>
-        <Pressable
-          style={[styles.roleCard, role === "PASSENGER" && styles.roleCardActive]}
-          onPress={() => { setRole("PASSENGER"); setErrors((e) => ({ ...e, role: undefined })); }}
-        >
-          <Text style={[styles.roleText, role === "PASSENGER" && styles.roleTextActive]}>
-            Book rides
-          </Text>
-          <Text style={styles.roleSub}>Passenger</Text>
-        </Pressable>
-        <Pressable
-          style={[styles.roleCard, role === "DRIVER" && styles.roleCardActive]}
-          onPress={() => { setRole("DRIVER"); setErrors((e) => ({ ...e, role: undefined })); }}
-        >
-          <Text style={[styles.roleText, role === "DRIVER" && styles.roleTextActive]}>
-            Offer rides
-          </Text>
-          <Text style={styles.roleSub}>Driver</Text>
-        </Pressable>
-      </View>
-      <FieldError message={errors.role} />
+          <Text style={styles.label}>I want to</Text>
+          <View style={styles.roleRow}>
+            <Pressable
+              style={[styles.roleCard, role === "PASSENGER" && styles.roleCardActive]}
+              onPress={() => { setRole("PASSENGER"); setErrors((e) => ({ ...e, role: undefined })); }}
+            >
+              {role === "PASSENGER" && (
+                <View style={styles.checkBadge}>
+                  <Ionicons name="checkmark" size={11} color="#FFFFFF" />
+                </View>
+              )}
+              <View style={[styles.roleIconWrap, role === "PASSENGER" && styles.roleIconWrapActive]}>
+                <Ionicons name="person" size={24} color={role === "PASSENGER" ? "#FFFFFF" : colors.accentText} />
+              </View>
+              <Text style={[styles.roleText, role === "PASSENGER" && styles.roleTextActive]}>Passenger</Text>
+              <Text style={styles.roleSub}>Search and book rides</Text>
+            </Pressable>
+            <Pressable
+              style={[styles.roleCard, role === "DRIVER" && styles.roleCardActive]}
+              onPress={() => { setRole("DRIVER"); setErrors((e) => ({ ...e, role: undefined })); }}
+            >
+              {role === "DRIVER" && (
+                <View style={styles.checkBadge}>
+                  <Ionicons name="checkmark" size={11} color="#FFFFFF" />
+                </View>
+              )}
+              <View style={[styles.roleIconWrap, role === "DRIVER" && styles.roleIconWrapActive]}>
+                <Ionicons name="car-sport" size={24} color={role === "DRIVER" ? "#FFFFFF" : colors.accentText} />
+              </View>
+              <Text style={[styles.roleText, role === "DRIVER" && styles.roleTextActive]}>Driver</Text>
+              <Text style={styles.roleSub}>Offer rides, earn money</Text>
+            </Pressable>
+          </View>
+          <FieldError message={errors.role} />
 
-      <Pressable style={styles.button} onPress={handleSubmit} disabled={submitting}>
-        <Text style={styles.buttonText}>{submitting ? "Saving..." : "Continue"}</Text>
-      </Pressable>
+          <Pressable style={styles.button} onPress={handleSubmit} disabled={submitting}>
+            {!submitting && <Ionicons name="arrow-forward-circle-outline" size={18} color="#FFFFFF" />}
+            <Text style={styles.buttonText}>{submitting ? "Saving..." : "Continue"}</Text>
+          </Pressable>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.bg, padding: spacing.lg, justifyContent: "center" },
-  title: { ...typography.title, fontSize: 18, marginBottom: spacing.lg },
+  screen: { flex: 1, backgroundColor: colors.bg },
+  scroll: { padding: spacing.lg, flexGrow: 1, justifyContent: "center" },
+  brandIcon: {
+    width: 56, height: 56, borderRadius: 28, backgroundColor: colors.accentBg,
+    alignItems: "center", justifyContent: "center", alignSelf: "center", marginBottom: spacing.md,
+  },
+  title: { ...typography.title, fontSize: 18, textAlign: "center" },
+  subtitle: { ...typography.small, color: colors.textMuted, textAlign: "center", marginTop: 4, marginBottom: spacing.lg },
   label: { ...typography.caption, color: colors.textSecondary, marginBottom: spacing.xs, marginTop: spacing.md },
   input: {
     backgroundColor: colors.surface,
@@ -120,14 +153,27 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     borderRadius: radius.md,
     padding: spacing.md,
+    alignItems: "center",
   },
   roleCardActive: { borderColor: colors.accent, backgroundColor: colors.accentBg },
+  checkBadge: {
+    position: "absolute", top: spacing.sm, right: spacing.sm,
+    width: 18, height: 18, borderRadius: 9, backgroundColor: colors.accent,
+    alignItems: "center", justifyContent: "center",
+  },
+  roleIconWrap: {
+    width: 48, height: 48, borderRadius: 24, backgroundColor: colors.bg,
+    alignItems: "center", justifyContent: "center", marginBottom: spacing.sm,
+  },
+  roleIconWrapActive: { backgroundColor: colors.accent },
   roleText: { ...typography.title, fontSize: 14 },
   roleTextActive: { color: colors.accentText },
-  roleSub: { ...typography.small, color: colors.textMuted, marginTop: 2 },
+  roleSub: { ...typography.small, color: colors.textMuted, marginTop: 2, textAlign: "center" },
   button: {
-    backgroundColor: colors.textPrimary,
-    height: 46,
+    flexDirection: "row",
+    gap: spacing.xs,
+    backgroundColor: colors.accent,
+    height: 48,
     borderRadius: radius.sm,
     alignItems: "center",
     justifyContent: "center",

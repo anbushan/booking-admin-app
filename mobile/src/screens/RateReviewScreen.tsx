@@ -24,7 +24,12 @@ export default function RateReviewScreen({ route, navigation }: any) {
       await api.submitReview({ bookingId, toUserId, rating, comment });
       Analytics.reviewSubmitted(rating);
       showSuccess("Review submitted");
-      navigation.goBack();
+      // Not goBack() — this screen is reached via navigation.replace()
+      // from a just-ended trip (see LiveTrackingScreen), so "back" is
+      // whatever happened to precede that, not a predictable place.
+      // Resetting straight to Home is the reliable landing spot either
+      // way, for both the passenger and driver rate-review flows.
+      navigation.reset({ index: 0, routes: [{ name: "Home" }] });
     } catch (err: any) {
       showAlert("Couldn't submit review", err.message);
     } finally {

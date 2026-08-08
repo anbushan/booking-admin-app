@@ -47,13 +47,23 @@ model Vehicle {
   model         String
   regNumber     String
   color         String?
+  // Total seats in the vehicle (driver's own seat included) — used to
+  // cap Ride.seatsAvailable and shown to passengers in search ("5-seater").
+  seatCapacity  Int?
   createdAt     DateTime @default(now())
+
+  rides         Ride[]
 }
 
 model Ride {
   id              String   @id @default(cuid())
   driverId        String
   driver          User     @relation(fields: [driverId], references: [id])
+  // Which of the driver's vehicles this specific ride uses — set at
+  // publish time (auto-picked if the driver only has one). Lets search
+  // show the real vehicle instead of guessing when a driver owns several.
+  vehicleId       String?
+  vehicle         Vehicle? @relation(fields: [vehicleId], references: [id])
   sourceLat       Float
   sourceLng       Float
   sourceAddress   String
@@ -61,6 +71,15 @@ model Ride {
   destLng         Float
   destAddress     String
   routePolyline   String?
+  // Ordered source -> dest: [{ lat, lng, placeName, distanceKm, durationMinutes }, ...],
+  // distanceKm/durationMinutes cumulative from source. Set once, at publish
+  // time, from whichever Directions API alternative the driver picked (see
+  // lib/directions.js) — null for rides published before this existed, or
+  // where Directions couldn't resolve a route. Search/detour checks fall
+  // back to a straight-line source-point check when this is null.
+  routeStops      Json?
+  routeDistanceKm Float?
+  routeDurationMinutes Int?
   maxDetourKm     Float    @default(3)
   travelDate      DateTime
   seatsAvailable  Int
@@ -124,6 +143,16 @@ model Booking {
   lastLat           Float?
   lastLng           Float?
   razorpayPaymentId String?
+
+  // Unread-chat-badge bookkeeping — when each side last opened this
+  // booking's conversation. A message is "unread" for a given party if
+  // it was sent by the other party after that party's own timestamp
+  // here. Two plain columns rather than a generic per-user read-state
+  // table since a booking only ever has exactly two participants
+  // (passenger, driver) — same lightweight-field style as cancelledBy/
+  // cancelReason above rather than a relation for something this small.
+  passengerLastReadAt DateTime?
+  driverLastReadAt    DateTime?
 
   createdAt         DateTime @default(now())
 
@@ -215,6 +244,13 @@ model Notification {
   body        String
   read        Boolean  @default(false)
   pushSent    Boolean  @default(false)
+  // Which booking this notice is about, when it's about one at all — no
+  // relation (just a plain id, matching this schema's existing style for
+  // lightweight optional references) since a handful of notification
+  // types are account-level, not tied to any single trip. Lets the
+  // notifications list filter out ones whose booking has since gone
+  // terminal, showing only what's still relevant right now.
+  bookingId   String?
   createdAt   DateTime @default(now())
 }
 
@@ -273,6 +309,9 @@ model ChatMessage {
   bookingId  String
   senderId   String
   text       String
+  // "TEXT" | "LOCATION" — for a LOCATION message, text holds "lat,lng"
+  // rather than a new lat/lng column pair.
+  type       String   @default("TEXT")
   createdAt  DateTime @default(now())
 }
 

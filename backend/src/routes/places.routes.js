@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { redis } from "../lib/redis.js";
 import { requireAuth } from "../middleware/auth.js";
+import { reverseGeocode } from "../lib/geo.js";
 
 const router = Router();
 
@@ -75,17 +76,12 @@ router.get("/details", requireAuth, async (req, res) => {
 // GET /api/geocode/reverse?lat=&lng=
 router.get("/reverse", requireAuth, async (req, res) => {
   const { lat, lng } = req.query;
-
-  const response = await fetch(
-    `https://maps.googleapis.com/maps/api/geocode/json?latlng=${lat},${lng}&key=${process.env.GOOGLE_MAPS_API_KEY}`
-  ).catch(() => null);
-
-  if (!response || !response.ok) {
-    return res.status(502).json({ error: "Couldn't resolve that location." });
-  }
-
-  const data = await response.json();
-  const address = data.results?.[0]?.formatted_address || "Unknown location";
+  const { address } = await reverseGeocode(lat, lng);
+  // A real failure (API unreachable, no result at all) stays a non-ok
+  // response — the mobile client's map-pin screen deliberately keeps
+  // showing the previous address label on a thrown error rather than
+  // overwriting it with a placeholder, which a 200 here would defeat.
+  if (!address) return res.status(502).json({ error: "Couldn't resolve that location." });
   res.json({ address });
 });
 

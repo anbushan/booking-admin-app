@@ -7,6 +7,7 @@ import { validateRidePricing } from "../lib/validators";
 import { computeFareCap } from "../lib/fareCap";
 import { FieldError } from "../components/FieldError";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { BackButton } from "../components/BackButton";
 
 export default function EditRideScreen({ route, navigation }: any) {
   const { ride } = route.params;
@@ -60,9 +61,7 @@ export default function EditRideScreen({ route, navigation }: any) {
   return (
     <SafeAreaView style={styles.screen} edges={["top"]}>
       <View style={styles.header}>
-        <Pressable onPress={() => navigation.goBack()}>
-          <Text style={styles.back}>{"<"}</Text>
-        </Pressable>
+        <BackButton onPress={() => navigation.goBack()} />
         <Text style={styles.title}>Edit ride</Text>
       </View>
 

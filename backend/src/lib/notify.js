@@ -4,9 +4,15 @@ import { sendPush } from "./fcm.js";
 // The Notification row is the source of truth — it's written whether or
 // not FCM push succeeds, so a user who denied push permission still sees
 // every update in-app (see plan section 11L).
-export async function notify(userId, type, title, body) {
+//
+// bookingId is optional — pass it for anything about a specific trip
+// (almost everything) so the notifications list can hide it once that
+// booking is no longer active. Leave it out only for account-level
+// notices (driver strikes, passenger cooldown) that aren't about any
+// one booking and should always show.
+export async function notify(userId, type, title, body, bookingId = null) {
   const record = await prisma.notification.create({
-    data: { userId, type, title, body },
+    data: { userId, type, title, body, bookingId },
   });
 
   const user = await prisma.user.findUnique({ where: { id: userId } });

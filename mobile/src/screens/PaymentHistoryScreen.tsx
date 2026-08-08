@@ -1,17 +1,25 @@
-import React, { useEffect, useState } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { View, Text, FlatList, Pressable, StyleSheet, RefreshControl } from "react-native";
+import { useFocusEffect } from "@react-navigation/native";
 import { colors, spacing, radius, typography } from "../theme/theme";
 import { api } from "../lib/api";
 import { SkeletonList } from "../components/Skeleton";
 import { EmptyState } from "../components/EmptyState";
 import { ErrorState } from "../components/ErrorState";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { AppHeader } from "../components/AppHeader";
+import { AppBottomNav } from "../components/AppBottomNav";
 
 export default function PaymentHistoryScreen({ navigation }: any) {
   const [payments, setPayments] = useState<any[]>([]);
+  const [profile, setProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(false);
+
+  useEffect(() => {
+    api.getMyProfile().then(setProfile).catch(() => {});
+  }, []);
 
   function load(isRefresh = false) {
     if (isRefresh) setRefreshing(true);
@@ -20,16 +28,11 @@ export default function PaymentHistoryScreen({ navigation }: any) {
     api.getPaymentHistory().then(setPayments).catch(() => setError(true)).finally(() => { setLoading(false); setRefreshing(false); });
   }
 
-  useEffect(load, []);
+  useFocusEffect(useCallback(load, []));
 
   return (
     <SafeAreaView style={styles.screen} edges={["top"]}>
-      <View style={styles.header}>
-        <Pressable onPress={() => navigation.goBack()}>
-          <Text style={styles.back}>{"<"}</Text>
-        </Pressable>
-        <Text style={styles.title}>Payment history</Text>
-      </View>
+      <AppHeader title="Payment history" />
       {loading ? (
         <SkeletonList count={4} />
       ) : error ? (
@@ -57,18 +60,16 @@ export default function PaymentHistoryScreen({ navigation }: any) {
             </View>
           </Pressable>
         )}
-        ListEmptyComponent={<EmptyState title="No payments yet" subtitle="Completed trips will show up here." />}
+        ListEmptyComponent={<EmptyState icon="receipt-outline" title="No payments yet" subtitle="Completed trips will show up here." />}
       />
       )}
+      <AppBottomNav navigation={navigation} profile={profile} active="menu" />
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.bg },
-  header: { flexDirection: "row", alignItems: "center", gap: spacing.md, padding: spacing.lg, borderBottomWidth: 1, borderBottomColor: colors.border, backgroundColor: colors.surface },
-  back: { fontSize: 18 },
-  title: typography.title,
   row: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: radius.md, padding: spacing.md },
   route: { ...typography.title, fontSize: 13 },
   date: { ...typography.small, color: colors.textMuted, marginTop: 2 },

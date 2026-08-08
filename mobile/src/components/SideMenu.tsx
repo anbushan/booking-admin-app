@@ -1,5 +1,6 @@
-import React from "react";
-import { View, Text, Pressable, Modal, StyleSheet } from "react-native";
+import React, { useEffect, useRef, useState } from "react";
+import { View, Text, Pressable, Modal, Animated, Easing, Dimensions, StyleSheet } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import { showAlert } from "../lib/alert";
 import { colors, spacing, radius, typography } from "../theme/theme";
 import { logout } from "../lib/api";
@@ -8,8 +9,16 @@ import { Analytics } from "../lib/analytics";
 // Home never had any way into the rest of the app — Profile, History,
 // Chat, Notifications, and the driver tools were all built and
 // registered in the navigator but reachable from nowhere. This is the
-// single entry point for all of it, opened from a hamburger icon on
-// Home's header.
+// single entry point for all of it, opened from the "Menu" tab in the
+// bottom nav.
+//
+// Opens from the right edge (Rapido/BlaBlaCar style, not a left drawer)
+// with a hand-rolled slide — RN's Modal `animationType="slide"` only
+// ever slides up from the bottom, so getting a horizontal slide-in
+// means keeping the modal mounted through the close animation ourselves
+// (`mounted` state) rather than letting `visible` unmount it instantly.
+
+const SCREEN_WIDTH = Dimensions.get("window").width;
 
 type Props = {
   visible: boolean;
@@ -19,6 +28,27 @@ type Props = {
 };
 
 export default function SideMenu({ visible, onClose, navigation, profile }: Props) {
+  const [mounted, setMounted] = useState(visible);
+  const translateX = useRef(new Animated.Value(SCREEN_WIDTH)).current;
+  const backdropOpacity = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    if (visible) {
+      setMounted(true);
+      translateX.setValue(SCREEN_WIDTH);
+      backdropOpacity.setValue(0);
+      Animated.parallel([
+        Animated.timing(translateX, { toValue: 0, duration: 300, easing: Easing.out(Easing.cubic), useNativeDriver: true }),
+        Animated.timing(backdropOpacity, { toValue: 1, duration: 300, easing: Easing.out(Easing.cubic), useNativeDriver: true }),
+      ]).start();
+    } else {
+      Animated.parallel([
+        Animated.timing(translateX, { toValue: SCREEN_WIDTH, duration: 240, easing: Easing.in(Easing.cubic), useNativeDriver: true }),
+        Animated.timing(backdropOpacity, { toValue: 0, duration: 240, easing: Easing.in(Easing.cubic), useNativeDriver: true }),
+      ]).start(({ finished }) => { if (finished) setMounted(false); });
+    }
+  }, [visible]);
+
   function go(route: string, params?: Record<string, any>) {
     onClose();
     navigation.navigate(route, params);
@@ -40,61 +70,87 @@ export default function SideMenu({ visible, onClose, navigation, profile }: Prop
     ]);
   }
 
+  if (!mounted) return null;
+
   const isDriver = profile?.role === "DRIVER";
 
   return (
-    <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
-      <Pressable style={styles.backdrop} onPress={onClose}>
-        <Pressable style={styles.panel} onPress={(e) => e.stopPropagation()}>
+    <Modal visible transparent animationType="none" onRequestClose={onClose}>
+      <View style={styles.container}>
+        <Animated.View style={[styles.backdrop, { opacity: backdropOpacity }]}>
+          <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
+        </Animated.View>
+
+        <Animated.View style={[styles.panel, { transform: [{ translateX }] }]}>
+          <Pressable style={styles.closeButton} onPress={onClose} hitSlop={8}>
+            <Ionicons name="close" size={18} color={colors.textPrimary} />
+          </Pressable>
+
           <View style={styles.profileBlock}>
             <View style={styles.avatar}>
               <Text style={styles.avatarText}>{(profile?.name || "?").charAt(0).toUpperCase()}</Text>
             </View>
             <Text style={styles.name}>{profile?.name || "Your profile"}</Text>
-            <Text style={styles.role}>{isDriver ? "Driver" : "Passenger"}</Text>
+            <View style={styles.roleBadge}>
+              <Ionicons name={isDriver ? "car-sport" : "person"} size={11} color={colors.accentText} />
+              <Text style={styles.role}>{isDriver ? "Driver" : "Passenger"}</Text>
+            </View>
           </View>
 
-          <MenuRow label="Home" onPress={() => go("Home")} />
-          <MenuRow label="My bookings" onPress={() => go("History", { role: profile?.role })} />
-          <MenuRow
-            label="Chat"
-            onPress={() => go("ChatList", { currentUserId: profile?.id, role: profile?.role })}
-          />
-          <MenuRow label="Notifications" onPress={() => go("Notifications")} />
+          <MenuRow icon="home-outline" label="Home" onPress={() => go("Home")} />
+          {/* No standalone "Chat" entry — chat only exists for a booking
+              that's currently CONFIRMED (paid, pre-trip), so it's reached
+              from that booking's own card (My bookings for passengers,
+              Upcoming trips for drivers) rather than a generic list that
+              would mostly be empty. */}
+          <MenuRow icon="receipt-outline" label="My bookings" onPress={() => go("History", { role: profile?.role })} />
+          <MenuRow icon="notifications-outline" label="Notifications" onPress={() => go("Notifications")} />
 
-          {isDriver && (
+          {isDriver ? (
             <>
               <Text style={styles.sectionLabel}>Driver</Text>
-              <MenuRow label="Offer a ride" onPress={() => go("OfferRide")} />
-              <MenuRow label="Booking requests" onPress={() => go("BookingRequests")} />
-              <MenuRow label="Upcoming trips" onPress={() => go("UpcomingTrips")} />
-              <MenuRow label="My vehicles" onPress={() => go("VehicleList")} />
-              <MenuRow label="Earnings" onPress={() => go("Earnings")} />
+              <MenuRow icon="add-circle-outline" label="Offer a ride" onPress={() => go("OfferRide")} />
+              <MenuRow icon="mail-unread-outline" label="Booking requests" onPress={() => go("BookingRequests")} />
+              <MenuRow icon="hourglass-outline" label="Payment queue" onPress={() => go("PaymentQueue")} />
+              <MenuRow icon="navigate-outline" label="Upcoming trips" onPress={() => go("UpcomingTrips")} />
+              <MenuRow icon="car-sport-outline" label="My vehicles" onPress={() => go("VehicleList")} />
+              <MenuRow icon="wallet-outline" label="Earnings" onPress={() => go("Earnings")} />
+            </>
+          ) : (
+            <>
+              <Text style={styles.sectionLabel}>Passenger</Text>
+              <MenuRow icon="list-outline" label="My requests" onPress={() => go("MyRequests")} />
             </>
           )}
 
           <Text style={styles.sectionLabel}>Account</Text>
-          <MenuRow label="Settings" onPress={() => go("Settings")} />
+          <MenuRow icon="settings-outline" label="Settings" onPress={() => go("Settings")} />
 
           <Pressable style={styles.logoutRow} onPress={handleLogout}>
+            <Ionicons name="log-out-outline" size={17} color={colors.danger} />
             <Text style={styles.logoutText}>Log out</Text>
           </Pressable>
-        </Pressable>
-      </Pressable>
+        </Animated.View>
+      </View>
     </Modal>
   );
 }
 
-function MenuRow({ label, onPress }: { label: string; onPress: () => void }) {
+function MenuRow({ icon, label, onPress }: { icon: string; label: string; onPress: () => void }) {
   return (
     <Pressable style={styles.row} onPress={onPress}>
+      <View style={styles.rowIconWrap}>
+        <Ionicons name={icon as any} size={17} color={colors.accentText} />
+      </View>
       <Text style={styles.rowText}>{label}</Text>
+      <Ionicons name="chevron-forward" size={15} color={colors.textMuted} />
     </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
-  backdrop: { flex: 1, flexDirection: "row", backgroundColor: "rgba(0,0,0,0.4)" },
+  container: { flex: 1, flexDirection: "row", justifyContent: "flex-end" },
+  backdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: "rgba(22,33,58,0.45)" },
   panel: {
     width: "78%",
     maxWidth: 320,
@@ -102,6 +158,23 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     paddingTop: spacing.xl,
     paddingHorizontal: spacing.lg,
+    shadowColor: "#000",
+    shadowOffset: { width: -2, height: 0 },
+    shadowOpacity: 0.15,
+    shadowRadius: 10,
+    elevation: 12,
+  },
+  closeButton: {
+    position: "absolute",
+    top: spacing.md,
+    right: spacing.md,
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: colors.bg,
+    alignItems: "center",
+    justifyContent: "center",
+    zIndex: 1,
   },
   profileBlock: { marginBottom: spacing.lg, paddingBottom: spacing.lg, borderBottomWidth: 1, borderBottomColor: colors.border },
   avatar: {
@@ -115,16 +188,19 @@ const styles = StyleSheet.create({
   },
   avatarText: { ...typography.title, color: colors.accentText },
   name: { ...typography.title },
-  role: { ...typography.small, color: colors.textMuted, marginTop: 2 },
+  roleBadge: { flexDirection: "row", alignItems: "center", gap: 4, marginTop: 4 },
+  role: { ...typography.small, color: colors.accentText, fontWeight: "700" },
   sectionLabel: {
     ...typography.small,
     color: colors.textMuted,
     marginTop: spacing.md,
     marginBottom: spacing.xs,
     textTransform: "uppercase",
+    letterSpacing: 0.5,
   },
-  row: { paddingVertical: spacing.sm },
-  rowText: { ...typography.body, color: colors.textPrimary },
-  logoutRow: { marginTop: spacing.xl, paddingVertical: spacing.sm, borderTopWidth: 1, borderTopColor: colors.border, paddingTop: spacing.md },
-  logoutText: { ...typography.body, color: colors.danger },
+  row: { flexDirection: "row", alignItems: "center", gap: spacing.sm, paddingVertical: 9 },
+  rowIconWrap: { width: 30, height: 30, borderRadius: 9, backgroundColor: colors.accentBg, alignItems: "center", justifyContent: "center" },
+  rowText: { ...typography.body, color: colors.textPrimary, flex: 1 },
+  logoutRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm, marginTop: spacing.xl, paddingVertical: spacing.sm, borderTopWidth: 1, borderTopColor: colors.border, paddingTop: spacing.md },
+  logoutText: { ...typography.body, color: colors.danger, fontWeight: "600" },
 });

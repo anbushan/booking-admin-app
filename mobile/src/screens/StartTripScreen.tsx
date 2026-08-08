@@ -1,11 +1,13 @@
 import React, { useEffect, useState } from "react";
-import { View, Text, TextInput, Pressable, StyleSheet, ActivityIndicator } from "react-native";
+import { View, Text, TextInput, Pressable, StyleSheet } from "react-native";
 import { showAlert } from "../lib/alert";
 import { colors, spacing, radius, typography } from "../theme/theme";
 import { api } from "../lib/api";
 import { primeLocationIfNeeded } from "../lib/locationPriming";
 import { Analytics } from "../lib/analytics";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { BackButton } from "../components/BackButton";
+import { CarLoader } from "../components/CarLoader";
 
 export default function StartTripScreen({ route, navigation }: any) {
   const { bookingId } = route.params;
@@ -47,13 +49,13 @@ export default function StartTripScreen({ route, navigation }: any) {
 
   return (
     <SafeAreaView style={styles.screen} edges={["top"]}>
-      <Pressable onPress={() => navigation.goBack()} style={styles.backButton}>
-        <Text style={styles.back}>{"<"}</Text>
-      </Pressable>
+      <View style={styles.backButton}>
+        <BackButton onPress={() => navigation.goBack()} />
+      </View>
       <View style={styles.centerContent}>
         {arriving ? (
           <>
-            <ActivityIndicator size="small" color={colors.accent} />
+            <CarLoader size="md" />
             <Text style={[styles.title, { marginTop: spacing.md }]}>Letting {passengerName} know you've arrived...</Text>
           </>
         ) : (

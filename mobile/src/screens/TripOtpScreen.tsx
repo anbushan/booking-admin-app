@@ -1,9 +1,12 @@
 import React, { useEffect, useState } from "react";
-import { View, Text, Pressable, StyleSheet } from "react-native";
+import { View, Text, Pressable, Linking, StyleSheet } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import { colors, spacing, radius, typography } from "../theme/theme";
 import { api } from "../lib/api";
 import { primeLocationIfNeeded } from "../lib/locationPriming";
+import { useToast } from "../components/Toast";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { AppHeader } from "../components/AppHeader";
 
 const OTP_LENGTH = 4;
 
@@ -13,6 +16,8 @@ export default function TripOtpScreen({ route, navigation }: any) {
   const [driverName, setDriverName] = useState("your driver");
   const [driverRating, setDriverRating] = useState<number | null>(null);
   const [routeLabel, setRouteLabel] = useState<string | null>(null);
+  const [calling, setCalling] = useState(false);
+  const { showError } = useToast();
 
   useEffect(() => {
     // The OTP is generated server-side when the driver taps "Start trip"
@@ -29,29 +34,50 @@ export default function TripOtpScreen({ route, navigation }: any) {
       .catch(() => {});
   }, [bookingId]);
 
+  async function handleCall() {
+    setCalling(true);
+    try {
+      const { proxyNumber } = await api.initiateCall(bookingId, "DRIVER");
+      await Linking.openURL(`tel:${proxyNumber}`);
+    } catch (err: any) {
+      showError(err.message || "Couldn't start the call");
+    } finally {
+      setCalling(false);
+    }
+  }
+
   const digits = (otp || "").padEnd(OTP_LENGTH, " ").slice(0, OTP_LENGTH).split("");
 
   return (
     <SafeAreaView style={styles.screen} edges={["top"]}>
-      <View style={styles.header}>
-        <Pressable onPress={() => navigation.goBack()}>
-          <Text style={styles.back}>{"x"}</Text>
-        </Pressable>
-        <Text style={styles.title}>Your driver has arrived</Text>
-      </View>
+      <AppHeader title="Your driver has arrived" variant="close" onBack={() => navigation.goBack()} />
 
       <View style={styles.body}>
-        <Text style={styles.instruction}>Share this code with {driverName}</Text>
-        <View style={styles.otpRow}>
-          {digits.map((d, i) => (
-            <View key={i} style={styles.otpBox}>
-              <Text style={styles.otpDigit}>{otp ? d : ""}</Text>
-            </View>
-          ))}
+        <View style={styles.codeCard}>
+          <Text style={styles.instruction}>Share this code with {driverName}</Text>
+          <View style={styles.otpRow}>
+            {digits.map((d, i) => (
+              <View key={i} style={styles.otpBox}>
+                <Text style={styles.otpDigit}>{otp ? d : ""}</Text>
+              </View>
+            ))}
+          </View>
         </View>
-        <Text style={styles.hint}>Confirms it's your ride — only share it once the driver asks</Text>
-        <Text style={styles.altHint}>Trouble with the code? Your driver can also start the trip with your Booking ID: {bookingId}</Text>
-        {routeLabel && <Text style={styles.routeLabel}>{routeLabel}</Text>}
+
+        <View style={styles.infoRow}>
+          <Ionicons name="shield-checkmark-outline" size={15} color={colors.textMuted} />
+          <Text style={styles.hint}>Confirms it's your ride — only share it once the driver asks</Text>
+        </View>
+        <View style={styles.infoRow}>
+          <Ionicons name="information-circle-outline" size={15} color={colors.textMuted} />
+          <Text style={styles.altHint}>Trouble with the code? Your driver can also start the trip with your Booking ID: {bookingId}</Text>
+        </View>
+        {routeLabel && (
+          <View style={styles.infoRow}>
+            <Ionicons name="navigate-outline" size={15} color={colors.textMuted} />
+            <Text style={styles.routeLabel}>{routeLabel}</Text>
+          </View>
+        )}
       </View>
 
       <View style={styles.driverBar}>
@@ -60,14 +86,30 @@ export default function TripOtpScreen({ route, navigation }: any) {
         </View>
         <View style={{ flex: 1 }}>
           <Text style={styles.driverName}>{driverName}</Text>
-          {driverRating != null && <Text style={styles.driverMeta}>{driverRating.toFixed(1)} rating</Text>}
+          {driverRating != null && (
+            <View style={styles.ratingRow}>
+              <Ionicons name="star" size={11} color={colors.warning} />
+              <Text style={styles.driverMeta}>{driverRating.toFixed(1)}</Text>
+            </View>
+          )}
         </View>
+        <Pressable style={styles.iconButton} onPress={handleCall} disabled={calling} hitSlop={4}>
+          <Ionicons name="call-outline" size={17} color={colors.accentText} />
+        </Pressable>
+        <Pressable
+          style={styles.iconButton}
+          onPress={() => navigation.navigate("ChatDetail", { bookingId, calleeRole: "DRIVER" })}
+          hitSlop={4}
+        >
+          <Ionicons name="chatbubble-outline" size={17} color={colors.accentText} />
+        </Pressable>
       </View>
 
       <Pressable
         style={styles.trackButton}
         onPress={() => primeLocationIfNeeded(navigation, "LiveTracking", { bookingId, role: "PASSENGER" })}
       >
+        <Ionicons name="locate-outline" size={18} color="#FFFFFF" />
         <Text style={styles.trackButtonText}>Track this trip</Text>
       </Pressable>
     </SafeAreaView>
@@ -76,10 +118,15 @@ export default function TripOtpScreen({ route, navigation }: any) {
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.bg },
-  header: { flexDirection: "row", alignItems: "center", gap: spacing.md, padding: spacing.lg, borderBottomWidth: 1, borderBottomColor: colors.border, backgroundColor: colors.surface },
-  back: { fontSize: 18 },
-  title: typography.title,
   body: { flex: 1, alignItems: "center", justifyContent: "center", paddingHorizontal: spacing.lg },
+  codeCard: {
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.lg,
+    padding: spacing.lg,
+    alignItems: "center",
+  },
   instruction: { ...typography.body, color: colors.textSecondary, marginBottom: spacing.lg, textAlign: "center" },
   otpRow: { flexDirection: "row", gap: spacing.sm },
   otpBox: {
@@ -93,14 +140,17 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   otpDigit: { fontSize: 28, fontWeight: "600", color: colors.accentText },
-  hint: { ...typography.small, color: colors.textMuted, marginTop: spacing.lg, textAlign: "center" },
-  altHint: { ...typography.small, color: colors.textMuted, marginTop: spacing.sm, textAlign: "center" },
-  routeLabel: { ...typography.caption, color: colors.textSecondary, marginTop: spacing.sm, textAlign: "center" },
-  driverBar: { flexDirection: "row", alignItems: "center", gap: spacing.md, padding: spacing.lg, borderTopWidth: 1, borderTopColor: colors.border, backgroundColor: colors.surface },
+  infoRow: { flexDirection: "row", alignItems: "flex-start", gap: 6, marginTop: spacing.md, maxWidth: 300 },
+  hint: { ...typography.small, color: colors.textMuted, flex: 1 },
+  altHint: { ...typography.small, color: colors.textMuted, flex: 1 },
+  routeLabel: { ...typography.caption, color: colors.textSecondary, flex: 1 },
+  driverBar: { flexDirection: "row", alignItems: "center", gap: spacing.sm, padding: spacing.lg, borderTopWidth: 1, borderTopColor: colors.border, backgroundColor: colors.surface },
   avatar: { width: 44, height: 44, borderRadius: 22, backgroundColor: colors.accentBg, alignItems: "center", justifyContent: "center" },
   avatarText: { color: colors.accentText, fontWeight: "600", fontSize: 16 },
   driverName: { ...typography.body, fontWeight: "500" },
+  ratingRow: { flexDirection: "row", alignItems: "center", gap: 3, marginTop: 1 },
   driverMeta: { ...typography.small, color: colors.textMuted },
-  trackButton: { backgroundColor: colors.textPrimary, height: 48, borderRadius: radius.sm, alignItems: "center", justifyContent: "center", margin: spacing.lg },
+  iconButton: { width: 36, height: 36, borderRadius: 18, backgroundColor: colors.accentBg, alignItems: "center", justifyContent: "center" },
+  trackButton: { flexDirection: "row", gap: spacing.xs, backgroundColor: colors.textPrimary, height: 48, borderRadius: radius.sm, alignItems: "center", justifyContent: "center", margin: spacing.lg },
   trackButtonText: { color: "#FFFFFF", ...typography.title },
 });

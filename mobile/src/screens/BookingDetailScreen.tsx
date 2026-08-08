@@ -1,25 +1,36 @@
-import React, { useEffect, useState } from "react";
-import { View, Text, Pressable, StyleSheet, ActivityIndicator } from "react-native";
+import React, { useState, useCallback } from "react";
+import { View, Text, Pressable, StyleSheet } from "react-native";
+import { useFocusEffect } from "@react-navigation/native";
 import { colors, spacing, radius, typography } from "../theme/theme";
 import { api } from "../lib/api";
+import { CarLoader } from "../components/CarLoader";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { BackButton } from "../components/BackButton";
 
 export default function BookingDetailScreen({ route, navigation }: any) {
   const { bookingId } = route.params;
   const [booking, setBooking] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    api.getBookingDetail(bookingId)
-      .then(setBooking)
-      .catch(() => setBooking(null))
-      .finally(() => setLoading(false));
-  }, [bookingId]);
+  // Refetches every time this screen regains focus, not just on first
+  // mount — status/refund/cash-collected fields here can all change
+  // while the passenger/driver is elsewhere (chat, live tracking,
+  // payment). `loading` only ever gates the very first fetch, so a
+  // background refresh on refocus doesn't flash the spinner over
+  // content that's already on screen.
+  useFocusEffect(
+    useCallback(() => {
+      api.getBookingDetail(bookingId)
+        .then(setBooking)
+        .catch(() => setBooking((prev: any) => prev ?? null))
+        .finally(() => setLoading(false));
+    }, [bookingId])
+  );
 
   if (loading) {
     return (
       <SafeAreaView style={[styles.screen, { justifyContent: "center", alignItems: "center" }]} edges={["top"]}>
-        <ActivityIndicator color={colors.accent} />
+        <CarLoader />
       </SafeAreaView>
     );
   }
@@ -37,9 +48,7 @@ export default function BookingDetailScreen({ route, navigation }: any) {
   return (
     <SafeAreaView style={styles.screen} edges={["top"]}>
       <View style={styles.header}>
-        <Pressable onPress={() => navigation.goBack()}>
-          <Text style={styles.back}>{"<"}</Text>
-        </Pressable>
+        <BackButton onPress={() => navigation.goBack()} />
         <Text style={styles.title}>Booking</Text>
       </View>
 

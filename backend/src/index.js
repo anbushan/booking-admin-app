@@ -33,6 +33,7 @@ import callsRoutes from "./routes/calls.routes.js";
 import i18nRoutes from "./routes/i18n.routes.js";
 import { expireStaleBookings } from "./cron/expireBookings.js";
 import { checkNoShows } from "./cron/checkNoShows.js";
+import { expireStaleRides } from "./cron/expireStaleRides.js";
 import { attachSocketServer } from "./lib/socket.js";
 
 const app = express();
@@ -76,3 +77,9 @@ setInterval(expireStaleBookings, 2 * 60 * 1000);
 // No-show auto-cancel needs tighter tolerance than the expiry sweep
 // since it's keyed off a real-world departure time, not a fixed TTL.
 setInterval(checkNoShows, 60 * 1000);
+
+// Runs right after checkNoShows on the same cadence — by the time this
+// fires, any ride whose no-show story needed handling already has been,
+// so anything still PUBLISHED past its departure time genuinely never
+// got used.
+setInterval(expireStaleRides, 60 * 1000);

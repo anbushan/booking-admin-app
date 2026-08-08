@@ -1,9 +1,12 @@
 import React, { useState } from "react";
 import { View, TextInput, FlatList, Pressable, Text, StyleSheet, ActivityIndicator } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import { colors, spacing, radius, typography } from "../theme/theme";
 import { api } from "../lib/api";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useToast } from "../components/Toast";
+import { EmptyState } from "../components/EmptyState";
+import { BackButton } from "../components/BackButton";
 
 type Suggestion = { placeId: string; description: string };
 
@@ -89,25 +92,29 @@ export default function LocationSearchScreen({ navigation, route }: any) {
   return (
     <SafeAreaView style={styles.screen} edges={["top"]}>
       <View style={styles.header}>
-        <Pressable onPress={() => navigation.goBack()}>
-          <Text style={styles.back}>{"<"}</Text>
-        </Pressable>
-        <TextInput
-          style={styles.input}
-          placeholder="Search for a location"
-          placeholderTextColor={colors.textMuted}
-          value={query}
-          onChangeText={handleChangeText}
-          autoFocus
-        />
+        <BackButton onPress={() => navigation.goBack()} />
+        <View style={styles.inputWrap}>
+          <Ionicons name="search-outline" size={16} color={colors.textMuted} />
+          <TextInput
+            style={styles.input}
+            placeholder="Search for a location"
+            placeholderTextColor={colors.textMuted}
+            value={query}
+            onChangeText={handleChangeText}
+            autoFocus
+          />
+        </View>
       </View>
 
       <Pressable style={styles.currentLocationRow} onPress={handleUseCurrentLocation} disabled={locating}>
-        {locating ? (
-          <ActivityIndicator size="small" color={colors.accentText} />
-        ) : (
-          <Text style={styles.currentLocationText}>Use current location</Text>
-        )}
+        <View style={styles.currentLocationIcon}>
+          {locating ? (
+            <ActivityIndicator size="small" color={colors.accentText} />
+          ) : (
+            <Ionicons name="locate" size={16} color={colors.accentText} />
+          )}
+        </View>
+        <Text style={styles.currentLocationText}>{locating ? "Finding you..." : "Use current location"}</Text>
       </Pressable>
 
       <FlatList
@@ -115,9 +122,15 @@ export default function LocationSearchScreen({ navigation, route }: any) {
         keyExtractor={(item) => item.placeId}
         renderItem={({ item }) => (
           <Pressable style={styles.row} onPress={() => handleSelect(item)}>
+            <Ionicons name="location-outline" size={16} color={colors.textMuted} />
             <Text style={styles.rowText}>{item.description}</Text>
           </Pressable>
         )}
+        ListEmptyComponent={
+          query.length >= 3 ? (
+            <EmptyState icon="search-outline" title="No matches" subtitle="Try a different spelling or a nearby landmark." />
+          ) : null
+        }
       />
     </SafeAreaView>
   );
@@ -134,10 +147,14 @@ const styles = StyleSheet.create({
     borderBottomColor: colors.border,
     backgroundColor: colors.surface,
   },
-  back: { fontSize: 18 },
+  inputWrap: {
+    flex: 1, flexDirection: "row", alignItems: "center", gap: spacing.sm,
+    backgroundColor: colors.bg, borderRadius: radius.sm, paddingHorizontal: spacing.sm, height: 40,
+  },
   input: { flex: 1, ...typography.body, height: 40 },
-  currentLocationRow: { padding: spacing.md, borderBottomWidth: 1, borderBottomColor: colors.border },
-  currentLocationText: { ...typography.body, color: colors.accentText },
-  row: { padding: spacing.md, borderBottomWidth: 1, borderBottomColor: colors.border },
-  rowText: typography.body,
+  currentLocationRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm, padding: spacing.md, borderBottomWidth: 1, borderBottomColor: colors.border },
+  currentLocationIcon: { width: 24, alignItems: "center" },
+  currentLocationText: { ...typography.body, color: colors.accentText, fontWeight: "500" },
+  row: { flexDirection: "row", alignItems: "center", gap: spacing.sm, padding: spacing.md, borderBottomWidth: 1, borderBottomColor: colors.border },
+  rowText: { ...typography.body, flex: 1 },
 });

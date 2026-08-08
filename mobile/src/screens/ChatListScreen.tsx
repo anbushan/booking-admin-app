@@ -1,11 +1,13 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { View, Text, FlatList, Pressable, StyleSheet, RefreshControl } from "react-native";
+import { useFocusEffect } from "@react-navigation/native";
 import { colors, spacing, radius, typography } from "../theme/theme";
 import { api } from "../lib/api";
 import { SkeletonList } from "../components/Skeleton";
 import { EmptyState } from "../components/EmptyState";
 import { ErrorState } from "../components/ErrorState";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { BackButton } from "../components/BackButton";
 
 type Conversation = {
   bookingId: string;
@@ -13,6 +15,16 @@ type Conversation = {
   routeLabel: string;
   status: string;
 };
+
+// Chat is for pre-trip coordination only — once the platform fee is
+// paid (CONFIRMED) and before the trip actually starts. Not before
+// (nothing to coordinate yet — the booking might still fall through)
+// and not once IN_PROGRESS or later (they're physically together by
+// then, or the trip's already over). Messages are hard-deleted
+// server-side at both edges of this window, so a conversation outside
+// it has nothing left to show anyway — this just keeps it out of the
+// list instead of leaving a dead entry.
+const ACTIVE_CHAT_STATUSES = ["CONFIRMED"];
 
 export default function ChatListScreen({ navigation, route }: any) {
   // Same as History — reachable generically (side menu, deep links) with
@@ -44,12 +56,14 @@ export default function ChatListScreen({ navigation, route }: any) {
         .getDriverActiveBookings()
         .then((items: any[]) =>
           setConversations(
-            items.map((b) => ({
-              bookingId: b.id,
-              otherPartyName: b.passenger?.name || "Passenger",
-              routeLabel: `${b.ride?.sourceAddress} to ${b.ride?.destAddress}`,
-              status: b.status,
-            }))
+            items
+              .filter((b) => ACTIVE_CHAT_STATUSES.includes(b.status))
+              .map((b) => ({
+                bookingId: b.id,
+                otherPartyName: b.passenger?.name || "Passenger",
+                routeLabel: `${b.ride?.sourceAddress} to ${b.ride?.destAddress}`,
+                status: b.status,
+              }))
           )
         )
         .catch(() => setError(true))
@@ -62,7 +76,7 @@ export default function ChatListScreen({ navigation, route }: any) {
       .then((items: any[]) =>
         setConversations(
           items
-            .filter((b) => ["CONFIRMED", "IN_PROGRESS", "PAID"].includes(b.status))
+            .filter((b) => ACTIVE_CHAT_STATUSES.includes(b.status))
             .map((b) => ({
               bookingId: b.id,
               otherPartyName: b.ride?.driver?.name || "Driver",
@@ -75,16 +89,16 @@ export default function ChatListScreen({ navigation, route }: any) {
       .finally(() => { setLoading(false); setRefreshing(false); });
   }
 
-  useEffect(() => {
-    if (role) load();
-  }, [role]);
+  useFocusEffect(
+    useCallback(() => {
+      if (role) load();
+    }, [role])
+  );
 
   return (
     <SafeAreaView style={styles.screen} edges={["top"]}>
       <View style={styles.header}>
-        <Pressable onPress={() => navigation.goBack()}>
-          <Text style={styles.back}>{"<"}</Text>
-        </Pressable>
+        <BackButton onPress={() => navigation.goBack()} />
         <Text style={styles.title}>Messages</Text>
       </View>
       {loading ? (
@@ -101,7 +115,11 @@ export default function ChatListScreen({ navigation, route }: any) {
           <Pressable
             style={styles.row}
             onPress={() =>
-              navigation.navigate("ChatDetail", { bookingId: item.bookingId, currentUserId })
+              navigation.navigate("ChatDetail", {
+                bookingId: item.bookingId,
+                currentUserId,
+                calleeRole: role === "DRIVER" ? "PASSENGER" : "DRIVER",
+              })
             }
           >
             <View style={styles.avatar}>
@@ -115,6 +133,7 @@ export default function ChatListScreen({ navigation, route }: any) {
         )}
         ListEmptyComponent={
           <EmptyState
+            icon="chatbubbles-outline"
             title="No conversations yet"
             subtitle="Conversations appear once you have a confirmed booking."
           />

@@ -1,14 +1,16 @@
-import React, { useState } from "react";
-import { View, Text, TextInput, Pressable, StyleSheet } from "react-native";
+import React, { useEffect, useState } from "react";
+import { View, Text, TextInput, Pressable, ScrollView, StyleSheet } from "react-native";
 import { showAlert } from "../lib/alert";
 import { colors, spacing, radius, typography } from "../theme/theme";
 import { api } from "../lib/api";
-import { Analytics } from "../lib/analytics";
 import { validateRidePricing } from "../lib/validators";
 import { computeFareCap } from "../lib/fareCap";
 import { FieldError } from "../components/FieldError";
+import { CarLoader } from "../components/CarLoader";
 import SearchOptionsModal, { formatSearchDate } from "../components/SearchOptionsModal";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { BackButton } from "../components/BackButton";
+import { AppBottomNav } from "../components/AppBottomNav";
 
 const PREFERENCE_OPTIONS = [
   { key: "music", label: "Music ok" },
@@ -36,8 +38,22 @@ export default function OfferRideScreen({ navigation }: any) {
     pets: true,
     smoking: false,
   });
-  const [submitting, setSubmitting] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+
+  const [vehicles, setVehicles] = useState<any[] | null>(null); // null = still loading
+  const [vehiclesError, setVehiclesError] = useState(false);
+  const [vehicleId, setVehicleId] = useState<string | null>(null);
+  const [profile, setProfile] = useState<any>(null);
+
+  useEffect(() => {
+    api.getVehicles()
+      .then((list) => {
+        setVehicles(list);
+        if (list.length === 1) setVehicleId(list[0].id);
+      })
+      .catch(() => setVehiclesError(true));
+    api.getMyProfile().then(setProfile).catch(() => {});
+  }, []);
 
   // The backend rejects pricePerSeat above a per-km cap (cost-sharing vs.
   // commercial-fare rule) — computed here too so the driver sees the real
@@ -57,9 +73,17 @@ export default function OfferRideScreen({ navigation }: any) {
     navigation.navigate("LocationSearch", { onSelect, skipMapConfirm: true });
   }
 
-  async function handlePublish() {
+  // Doesn't publish directly — hands off to RouteOptionsScreen, which
+  // always shows the driver a choice of routes (even for a plain
+  // point-to-point trip) before the ride actually gets created. That
+  // screen makes the real api.createRide() call once a route is picked.
+  function handleContinue() {
     if (!destination) {
       showAlert("Add a destination", "Pick where this ride is headed before publishing.");
+      return;
+    }
+    if (vehicles && vehicles.length > 1 && !vehicleId) {
+      showAlert("Select a vehicle", "Choose which vehicle this ride uses before publishing.");
       return;
     }
     const validationErrors = validateRidePricing({ seats: String(seats), price });
@@ -69,38 +93,57 @@ export default function OfferRideScreen({ navigation }: any) {
     setErrors(validationErrors);
     if (Object.keys(validationErrors).length > 0) return;
 
-    setSubmitting(true);
-    try {
-      const ride = await api.createRide({
-        sourceLat: source.lat, sourceLng: source.lng, sourceAddress: source.address,
-        destLat: destination.lat, destLng: destination.lng, destAddress: destination.address,
-        travelDate: travelDate.toISOString(),
-        seatsAvailable: seats,
-        pricePerSeat: Number(price),
-        preferences,
-      });
-      Analytics.ridePublished(ride?.id || "");
-      showAlert("Ride published", "Passengers can now find and book your ride.");
-      // "Your rides" (History, driver view) — where the driver also sees
-      // and responds to booking requests on this ride once they come in.
-      navigation.navigate("History", { role: "DRIVER" });
-    } catch (err: any) {
-      showAlert("Couldn't publish ride", err.message);
-    } finally {
-      setSubmitting(false);
-    }
+    navigation.navigate("RouteOptions", {
+      sourceLat: source.lat, sourceLng: source.lng, sourceAddress: source.address,
+      destLat: destination.lat, destLng: destination.lng, destAddress: destination.address,
+      travelDate: travelDate.toISOString(),
+      seatsAvailable: seats,
+      pricePerSeat: Number(price),
+      preferences,
+      ...(vehicleId ? { vehicleId } : {}),
+    });
   }
 
   return (
     <SafeAreaView style={styles.screen} edges={["top"]}>
       <View style={styles.header}>
-        <Pressable onPress={() => navigation.goBack()}>
-          <Text style={styles.back}>{"<"}</Text>
-        </Pressable>
+        <BackButton onPress={() => navigation.goBack()} />
         <Text style={styles.title}>Offer a ride</Text>
       </View>
 
-      <View style={styles.body}>
+      {vehicles === null && !vehiclesError ? (
+        <View style={styles.centerState}>
+          <CarLoader />
+        </View>
+      ) : vehicles !== null && vehicles.length === 0 ? (
+        <View style={styles.centerState}>
+          <Text style={styles.noVehicleTitle}>Add a vehicle to publish rides</Text>
+          <Text style={styles.noVehicleSubtitle}>Passengers need to know what they're getting picked up in.</Text>
+          <Pressable style={styles.button} onPress={() => navigation.navigate("AddVehicle")}>
+            <Text style={styles.buttonText}>Add vehicle</Text>
+          </Pressable>
+        </View>
+      ) : (
+      <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.body}>
+        {vehicles && vehicles.length > 1 && (
+          <>
+            <Text style={styles.label}>Vehicle</Text>
+            <View style={styles.chipRow}>
+              {vehicles.map((v) => (
+                <Pressable
+                  key={v.id}
+                  style={[styles.chip, vehicleId === v.id && styles.chipActive]}
+                  onPress={() => setVehicleId(v.id)}
+                >
+                  <Text style={[styles.chipText, vehicleId === v.id && styles.chipTextActive]}>
+                    {v.make} {v.model} · {v.regNumber}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+          </>
+        )}
+
         <View style={styles.routeCard}>
           <Pressable style={styles.field} onPress={() => openLocationSearch(setSource)}>
             <View style={[styles.dot, { backgroundColor: colors.accent }]} />
@@ -162,10 +205,11 @@ export default function OfferRideScreen({ navigation }: any) {
           })}
         </View>
 
-        <Pressable style={styles.button} onPress={handlePublish} disabled={submitting}>
-          <Text style={styles.buttonText}>{submitting ? "Publishing..." : "Publish ride"}</Text>
+        <Pressable style={styles.button} onPress={handleContinue}>
+          <Text style={styles.buttonText}>Search routes</Text>
         </Pressable>
-      </View>
+      </ScrollView>
+      )}
 
       <SearchOptionsModal
         visible={optionsVisible}
@@ -179,6 +223,7 @@ export default function OfferRideScreen({ navigation }: any) {
           if (errors.seats) setErrors((e) => ({ ...e, seats: "" }));
         }}
       />
+      <AppBottomNav navigation={navigation} profile={profile} active="offerRide" />
     </SafeAreaView>
   );
 }
@@ -197,6 +242,9 @@ const styles = StyleSheet.create({
   back: { fontSize: 18 },
   title: typography.title,
   body: { padding: spacing.lg },
+  centerState: { flex: 1, alignItems: "center", justifyContent: "center", padding: spacing.xl, gap: spacing.md },
+  noVehicleTitle: { ...typography.title, fontSize: 16, textAlign: "center" },
+  noVehicleSubtitle: { ...typography.caption, color: colors.textSecondary, textAlign: "center" },
   routeCard: {
     backgroundColor: colors.surface,
     borderWidth: 1,
