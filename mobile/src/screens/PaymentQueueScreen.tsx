@@ -4,11 +4,10 @@ import { useFocusEffect } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
 import { colors, spacing, radius, typography } from "../theme/theme";
 import { api } from "../lib/api";
-import { SkeletonList } from "../components/Skeleton";
+import { CarLoader } from "../components/CarLoader";
 import { EmptyState } from "../components/EmptyState";
 import { ErrorState } from "../components/ErrorState";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { AppHeader } from "../components/AppHeader";
 import { AppBottomNav } from "../components/AppBottomNav";
 import { CompactStepTracker } from "../components/CompactStepTracker";
 import { bookingJourneySteps } from "../components/StepTracker";
@@ -80,18 +79,21 @@ export default function PaymentQueueScreen({ navigation }: any) {
 
   return (
     <SafeAreaView style={styles.screen} edges={["top"]}>
-      <AppHeader title="Payment queue" />
+      <Text style={{ ...typography.title, padding: spacing.lg, paddingBottom: spacing.sm }}>Payment queue</Text>
 
       {loading ? (
-        <SkeletonList count={3} />
+        <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
+          <CarLoader size="lg" />
+        </View>
       ) : error ? (
         <ErrorState message="Couldn't load the payment queue." onRetry={load} />
       ) : (
         <FlatList
+          style={{ flex: 1 }}
           data={bookings}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => load(true)} colors={[colors.accent]} tintColor={colors.accent} />}
           keyExtractor={(item) => item.id}
-          contentContainerStyle={{ padding: spacing.md, gap: spacing.sm }}
+          contentContainerStyle={{ padding: spacing.md, gap: spacing.sm, flexGrow: 1 }}
           ListHeaderComponent={
             bookings.length > 0 ? (
               <View style={styles.notice}>

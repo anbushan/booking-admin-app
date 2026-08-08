@@ -25,9 +25,10 @@ type Props = {
   onClose: () => void;
   navigation: any;
   profile: { id?: string; name?: string; role?: string } | null;
+  unreadCount?: number;
 };
 
-export default function SideMenu({ visible, onClose, navigation, profile }: Props) {
+export default function SideMenu({ visible, onClose, navigation, profile, unreadCount = 0 }: Props) {
   const [mounted, setMounted] = useState(visible);
   const translateX = useRef(new Animated.Value(SCREEN_WIDTH)).current;
   const backdropOpacity = useRef(new Animated.Value(0)).current;
@@ -86,7 +87,7 @@ export default function SideMenu({ visible, onClose, navigation, profile }: Prop
             <Ionicons name="close" size={18} color={colors.textPrimary} />
           </Pressable>
 
-          <View style={styles.profileBlock}>
+          <Pressable style={styles.profileBlock} onPress={() => go("Profile")}>
             <View style={styles.avatar}>
               <Text style={styles.avatarText}>{(profile?.name || "?").charAt(0).toUpperCase()}</Text>
             </View>
@@ -95,7 +96,7 @@ export default function SideMenu({ visible, onClose, navigation, profile }: Prop
               <Ionicons name={isDriver ? "car-sport" : "person"} size={11} color={colors.accentText} />
               <Text style={styles.role}>{isDriver ? "Driver" : "Passenger"}</Text>
             </View>
-          </View>
+          </Pressable>
 
           <MenuRow icon="home-outline" label="Home" onPress={() => go("Home")} />
           {/* No standalone "Chat" entry — chat only exists for a booking
@@ -104,7 +105,7 @@ export default function SideMenu({ visible, onClose, navigation, profile }: Prop
               Upcoming trips for drivers) rather than a generic list that
               would mostly be empty. */}
           <MenuRow icon="receipt-outline" label="My bookings" onPress={() => go("History", { role: profile?.role })} />
-          <MenuRow icon="notifications-outline" label="Notifications" onPress={() => go("Notifications")} />
+          <MenuRow icon="notifications-outline" label="Notifications" onPress={() => go("Notifications")} badge={unreadCount} />
 
           {isDriver ? (
             <>
@@ -136,13 +137,18 @@ export default function SideMenu({ visible, onClose, navigation, profile }: Prop
   );
 }
 
-function MenuRow({ icon, label, onPress }: { icon: string; label: string; onPress: () => void }) {
+function MenuRow({ icon, label, onPress, badge }: { icon: string; label: string; onPress: () => void; badge?: number }) {
   return (
     <Pressable style={styles.row} onPress={onPress}>
       <View style={styles.rowIconWrap}>
         <Ionicons name={icon as any} size={17} color={colors.accentText} />
       </View>
       <Text style={styles.rowText}>{label}</Text>
+      {!!badge && (
+        <View style={styles.rowBadge}>
+          <Text style={styles.rowBadgeText}>{badge > 9 ? "9+" : badge}</Text>
+        </View>
+      )}
       <Ionicons name="chevron-forward" size={15} color={colors.textMuted} />
     </Pressable>
   );
@@ -201,6 +207,16 @@ const styles = StyleSheet.create({
   row: { flexDirection: "row", alignItems: "center", gap: spacing.sm, paddingVertical: 9 },
   rowIconWrap: { width: 30, height: 30, borderRadius: 9, backgroundColor: colors.accentBg, alignItems: "center", justifyContent: "center" },
   rowText: { ...typography.body, color: colors.textPrimary, flex: 1 },
+  rowBadge: {
+    minWidth: 18,
+    height: 18,
+    borderRadius: 9,
+    paddingHorizontal: 4,
+    backgroundColor: colors.danger,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  rowBadgeText: { color: "#FFFFFF", fontSize: 10, fontWeight: "700" },
   logoutRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm, marginTop: spacing.xl, paddingVertical: spacing.sm, borderTopWidth: 1, borderTopColor: colors.border, paddingTop: spacing.md },
   logoutText: { ...typography.body, color: colors.danger, fontWeight: "600" },
 });

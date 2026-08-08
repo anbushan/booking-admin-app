@@ -5,12 +5,11 @@ import { Ionicons } from "@expo/vector-icons";
 import { showAlert } from "../lib/alert";
 import { colors, spacing, radius, typography } from "../theme/theme";
 import { api } from "../lib/api";
-import { SkeletonList } from "../components/Skeleton";
+import { CarLoader } from "../components/CarLoader";
 import { EmptyState } from "../components/EmptyState";
 import { ErrorState } from "../components/ErrorState";
 import { useToast } from "../components/Toast";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { AppHeader } from "../components/AppHeader";
 import { AppBottomNav } from "../components/AppBottomNav";
 
 export default function VehicleListScreen({ navigation }: any) {
@@ -55,18 +54,21 @@ export default function VehicleListScreen({ navigation }: any) {
 
   return (
     <SafeAreaView style={styles.screen} edges={["top"]}>
-      <AppHeader title="Your vehicles" />
+      <Text style={{ ...typography.title, padding: spacing.lg, paddingBottom: spacing.sm }}>Your vehicles</Text>
 
       {loading ? (
-        <SkeletonList count={2} />
+        <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
+          <CarLoader size="lg" />
+        </View>
       ) : error ? (
         <ErrorState message="Couldn't load vehicles." onRetry={load} />
       ) : (
       <FlatList
+        style={{ flex: 1 }}
         data={vehicles}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => load(true)} colors={[colors.accent]} tintColor={colors.accent} />}
         keyExtractor={(item) => item.id}
-        contentContainerStyle={{ padding: spacing.md, gap: spacing.sm }}
+        contentContainerStyle={{ padding: spacing.md, gap: spacing.sm, flexGrow: 1 }}
         renderItem={({ item }) => (
           <View style={styles.card}>
             <View style={styles.iconWrap}>

@@ -4,12 +4,11 @@ import { useFocusEffect } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
 import { colors, spacing, radius, typography } from "../theme/theme";
 import { api } from "../lib/api";
-import { SkeletonList } from "../components/Skeleton";
+import { CarLoader } from "../components/CarLoader";
 import { NoRidesFound } from "../components/NoRidesFound";
 import { ErrorState } from "../components/ErrorState";
 import { Analytics } from "../lib/analytics";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { AppHeader } from "../components/AppHeader";
 import SearchOptionsModal, { formatSearchDate } from "../components/SearchOptionsModal";
 import { RouteTimeline } from "../components/RouteTimeline";
 
@@ -88,17 +87,18 @@ export default function SearchResultsScreen({ navigation, route }: any) {
 
   return (
     <SafeAreaView style={styles.screen} edges={["top"]}>
-      <AppHeader
-        title={`${sourceAddress}${destAddress ? ` to ${destAddress}` : ""}`}
-        subtitle={`${formatSearchDate(searchDate)}${timeRange.startTime ? ` · ${timeRange.startTime}–${timeRange.endTime}` : ""} · ${seats} seat${seats === 1 ? "" : "s"}`}
-        onBack={() => navigation.goBack()}
-        right={
-          <Pressable style={styles.filterButton} onPress={() => setOptionsVisible(true)}>
-            <Ionicons name="options-outline" size={14} color={colors.textSecondary} />
-            <Text style={styles.filterButtonText}>Filters</Text>
-          </Pressable>
-        }
-      />
+      <View style={styles.titleRow}>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.pageTitle} numberOfLines={1}>{sourceAddress}{destAddress ? ` to ${destAddress}` : ""}</Text>
+          <Text style={styles.pageSubtitle} numberOfLines={1}>
+            {formatSearchDate(searchDate)}{timeRange.startTime ? ` · ${timeRange.startTime}–${timeRange.endTime}` : ""} · {seats} seat{seats === 1 ? "" : "s"}
+          </Text>
+        </View>
+        <Pressable style={styles.filterButton} onPress={() => setOptionsVisible(true)}>
+          <Ionicons name="options-outline" size={14} color={colors.textSecondary} />
+          <Text style={styles.filterButtonText}>Filters</Text>
+        </Pressable>
+      </View>
 
       <View style={styles.sortRow}>
         {SORT_OPTIONS.map((opt) => (
@@ -115,7 +115,9 @@ export default function SearchResultsScreen({ navigation, route }: any) {
       </View>
 
       {loading ? (
-        <SkeletonList count={4} />
+        <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
+          <CarLoader size="lg" />
+        </View>
       ) : error ? (
         <ErrorState message="Couldn't load rides." onRetry={load} />
       ) : (
@@ -123,7 +125,7 @@ export default function SearchResultsScreen({ navigation, route }: any) {
           data={filteredSorted}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => load(true)} colors={[colors.accent]} tintColor={colors.accent} />}
           keyExtractor={(item) => item.id}
-          contentContainerStyle={{ padding: spacing.md, gap: spacing.sm }}
+          contentContainerStyle={{ padding: spacing.md, gap: spacing.sm, flexGrow: 1 }}
           renderItem={({ item }) => (
             <Pressable
               style={[styles.card, item.seatsFull && styles.cardFull]}
@@ -200,6 +202,9 @@ export default function SearchResultsScreen({ navigation, route }: any) {
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.bg },
+  titleRow: { flexDirection: "row", alignItems: "flex-start", gap: spacing.sm, padding: spacing.lg, paddingBottom: spacing.sm },
+  pageTitle: { ...typography.title },
+  pageSubtitle: { ...typography.small, color: colors.textMuted, marginTop: 2 },
   filterButton: { flexDirection: "row", alignItems: "center", gap: 5, backgroundColor: colors.bg, borderWidth: 1, borderColor: colors.border, borderRadius: radius.sm, paddingVertical: spacing.xs, paddingHorizontal: spacing.md },
   filterButtonText: { ...typography.small, color: colors.textSecondary },
   sortRow: { flexDirection: "row", gap: spacing.sm, padding: spacing.md, backgroundColor: colors.surface, borderBottomWidth: 1, borderBottomColor: colors.border },

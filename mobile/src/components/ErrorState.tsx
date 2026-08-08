@@ -27,7 +27,13 @@ export function ErrorState({
 }
 
 const styles = StyleSheet.create({
-  container: { alignItems: "center", justifyContent: "center", padding: spacing.xl, marginTop: spacing.xl },
+  // flex:1 matters here, not just cosmetic — this renders as a direct
+  // sibling swap for the FlatList/SectionList it replaces on error
+  // (see hub screens: `{error ? <ErrorState/> : <FlatList/>}`). Without
+  // it, this collapses to its own small content height instead of
+  // filling the screen, and whatever's below it (AppBottomNav) jumps up
+  // to sit right underneath instead of staying pinned to the bottom.
+  container: { flex: 1, alignItems: "center", justifyContent: "center", padding: spacing.xl, marginTop: spacing.xl },
   iconCircle: { width: 48, height: 48, borderRadius: 24, backgroundColor: colors.dangerBg, alignItems: "center", justifyContent: "center", marginBottom: spacing.md },
   message: { ...typography.body, color: colors.textSecondary, textAlign: "center" },
   retryButton: { flexDirection: "row", alignItems: "center", gap: 6, marginTop: spacing.md, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: radius.sm, paddingVertical: spacing.sm, paddingHorizontal: spacing.lg },

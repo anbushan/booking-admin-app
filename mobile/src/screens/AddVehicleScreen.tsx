@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { View, Text, TextInput, Pressable, StyleSheet } from "react-native";
+import { View, Text, TextInput, Pressable, ScrollView, StyleSheet } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { showAlert } from "../lib/alert";
 import { colors, spacing, radius, typography } from "../theme/theme";
@@ -8,7 +8,7 @@ import { Analytics } from "../lib/analytics";
 import { validateVehicle } from "../lib/validators";
 import { FieldError } from "../components/FieldError";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { AppHeader } from "../components/AppHeader";
+import { KeyboardAvoider } from "../components/KeyboardAvoider";
 
 // Two-wheeler and auto are placeholders for now — UI-only, no backend
 // field yet. Only "car" is selectable until that's built out.
@@ -47,9 +47,10 @@ export default function AddVehicleScreen({ navigation }: any) {
 
   return (
     <SafeAreaView style={styles.screen} edges={["top"]}>
-      <AppHeader title="Add your vehicle" onBack={() => navigation.goBack()} />
+      <Text style={{ ...typography.title, padding: spacing.lg, paddingBottom: spacing.sm }}>Add your vehicle</Text>
 
-      <View style={styles.body}>
+      <KeyboardAvoider>
+      <ScrollView contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
         <Text style={styles.label}>Vehicle type</Text>
         <View style={styles.chipRow}>
           {VEHICLE_TYPES.map((t) => (
@@ -108,7 +109,8 @@ export default function AddVehicleScreen({ navigation }: any) {
         <Pressable style={styles.button} onPress={handleSubmit} disabled={submitting}>
           <Text style={styles.buttonText}>{submitting ? "Saving..." : "Save vehicle"}</Text>
         </Pressable>
-      </View>
+      </ScrollView>
+      </KeyboardAvoider>
     </SafeAreaView>
   );
 }
@@ -124,6 +126,7 @@ const styles = StyleSheet.create({
     borderRadius: radius.sm,
     height: 44,
     paddingHorizontal: spacing.md,
+    color: colors.textPrimary,
   },
   inputError: { borderColor: colors.danger },
   chipRow: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm },

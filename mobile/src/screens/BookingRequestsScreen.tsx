@@ -4,13 +4,12 @@ import { useFocusEffect } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
 import { colors, spacing, radius, typography } from "../theme/theme";
 import { api } from "../lib/api";
-import { SkeletonList } from "../components/Skeleton";
+import { CarLoader } from "../components/CarLoader";
 import { EmptyState } from "../components/EmptyState";
 import { ErrorState } from "../components/ErrorState";
 import { useToast } from "../components/Toast";
 import { Analytics } from "../lib/analytics";
 import { StepTracker, bookingJourneySteps } from "../components/StepTracker";
-import { AppHeader } from "../components/AppHeader";
 import { AppBottomNav } from "../components/AppBottomNav";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -75,18 +74,21 @@ export default function BookingRequestsScreen({ route, navigation }: any) {
 
   return (
     <SafeAreaView style={styles.screen} edges={["top"]}>
-      <AppHeader title={rideId ? "Booking requests" : "All booking requests"} />
+      <Text style={{ ...typography.title, padding: spacing.lg, paddingBottom: spacing.sm }}>{rideId ? "Booking requests" : "All booking requests"}</Text>
 
       {loading ? (
-        <SkeletonList count={3} />
+        <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
+          <CarLoader size="lg" />
+        </View>
       ) : error ? (
         <ErrorState message="Couldn't load requests." onRetry={load} />
       ) : (
       <FlatList
+        style={{ flex: 1 }}
         data={requests}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => load(true)} colors={[colors.accent]} tintColor={colors.accent} />}
         keyExtractor={(item) => item.id}
-        contentContainerStyle={{ padding: spacing.md, gap: spacing.md }}
+        contentContainerStyle={{ padding: spacing.md, gap: spacing.md, flexGrow: 1 }}
         renderItem={({ item }) => (
           <View style={styles.card}>
             <Pressable onPress={() => navigation.navigate("BookingRequestDetail", { request: item })}>

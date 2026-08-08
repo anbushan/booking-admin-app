@@ -7,7 +7,7 @@ import { validateRidePricing } from "../lib/validators";
 import { computeFareCap } from "../lib/fareCap";
 import { FieldError } from "../components/FieldError";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { BackButton } from "../components/BackButton";
+import { KeyboardAvoider } from "../components/KeyboardAvoider";
 
 export default function EditRideScreen({ route, navigation }: any) {
   const { ride } = route.params;
@@ -60,11 +60,9 @@ export default function EditRideScreen({ route, navigation }: any) {
 
   return (
     <SafeAreaView style={styles.screen} edges={["top"]}>
-      <View style={styles.header}>
-        <BackButton onPress={() => navigation.goBack()} />
-        <Text style={styles.title}>Edit ride</Text>
-      </View>
+      <Text style={{ ...typography.title, padding: spacing.lg, paddingBottom: spacing.sm }}>Edit ride</Text>
 
+      <KeyboardAvoider>
       <View style={styles.body}>
         <Text style={styles.routeLabel}>{ride.sourceAddress} to {ride.destAddress}</Text>
 
@@ -97,6 +95,7 @@ export default function EditRideScreen({ route, navigation }: any) {
           <Text style={styles.cancelRideButtonText}>Cancel this ride</Text>
         </Pressable>
       </View>
+      </KeyboardAvoider>
     </SafeAreaView>
   );
 }
@@ -109,7 +108,7 @@ const styles = StyleSheet.create({
   body: { padding: spacing.lg },
   routeLabel: { ...typography.title, fontSize: 14, marginBottom: spacing.md },
   label: { ...typography.caption, color: colors.textSecondary, marginBottom: spacing.xs, marginTop: spacing.md },
-  input: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: radius.sm, height: 44, paddingHorizontal: spacing.md },
+  input: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: radius.sm, height: 44, paddingHorizontal: spacing.md, color: colors.textPrimary },
   inputError: { borderColor: colors.danger },
   hint: { ...typography.small, color: colors.textMuted, marginTop: spacing.xs },
   saveButton: { backgroundColor: colors.textPrimary, height: 46, borderRadius: radius.sm, alignItems: "center", justifyContent: "center", marginTop: spacing.xl },

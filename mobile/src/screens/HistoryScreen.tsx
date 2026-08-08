@@ -5,7 +5,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { showAlert } from "../lib/alert";
 import { colors, spacing, radius, typography } from "../theme/theme";
 import { api } from "../lib/api";
-import { SkeletonList } from "../components/Skeleton";
+import { CarLoader } from "../components/CarLoader";
 import { EmptyState } from "../components/EmptyState";
 import { ErrorState } from "../components/ErrorState";
 import { useToast } from "../components/Toast";
@@ -14,7 +14,6 @@ import { primeLocationIfNeeded } from "../lib/locationPriming";
 import { UnreadBadge } from "../components/UnreadBadge";
 import { StatusBadge } from "../components/StatusBadge";
 import { StepTracker, bookingJourneySteps } from "../components/StepTracker";
-import { AppHeader } from "../components/AppHeader";
 import { AppBottomNav } from "../components/AppBottomNav";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -124,17 +123,20 @@ export default function HistoryScreen({ navigation, route }: any) {
 
   return (
     <SafeAreaView style={styles.screen} edges={["top"]}>
-      <AppHeader title={role === "DRIVER" ? "Your rides" : "Your bookings"} />
+      <Text style={{ ...typography.title, padding: spacing.lg, paddingBottom: spacing.sm }}>{role === "DRIVER" ? "Your rides" : "Your bookings"}</Text>
       {loading ? (
-        <SkeletonList count={4} />
+        <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
+          <CarLoader size="lg" />
+        </View>
       ) : error ? (
         <ErrorState message="Couldn't load your history." onRetry={load} />
       ) : (
       <FlatList
+        style={{ flex: 1 }}
         data={items}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => load(true)} colors={[colors.accent]} tintColor={colors.accent} />}
         keyExtractor={(item) => item.id}
-        contentContainerStyle={{ padding: spacing.md, gap: spacing.md }}
+        contentContainerStyle={{ padding: spacing.md, gap: spacing.md, flexGrow: 1 }}
         renderItem={({ item }) =>
           role === "DRIVER" ? (
             <View style={styles.card}>

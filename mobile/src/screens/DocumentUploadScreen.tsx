@@ -7,7 +7,6 @@ import { colors, spacing, radius, typography } from "../theme/theme";
 import { api } from "../lib/api";
 import { Analytics } from "../lib/analytics";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { AppHeader } from "../components/AppHeader";
 import { CarLoader } from "../components/CarLoader";
 
 const DOC_TYPES: { key: "LICENSE" | "RC" | "INSURANCE"; label: string; icon: keyof typeof Ionicons.glyphMap }[] = [
@@ -58,7 +57,7 @@ export default function DocumentUploadScreen({ navigation }: any) {
 
   return (
     <SafeAreaView style={styles.screen} edges={["top"]}>
-      <AppHeader title="Verification documents" onBack={() => navigation.goBack()} />
+      <Text style={{ ...typography.title, padding: spacing.lg, paddingBottom: spacing.sm }}>Verification documents</Text>
 
       <View style={styles.body}>
         <Text style={styles.subtitle}>

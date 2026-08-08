@@ -9,7 +9,6 @@ import { EmptyState } from "../components/EmptyState";
 import { ErrorState } from "../components/ErrorState";
 import { useToast } from "../components/Toast";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { AppHeader } from "../components/AppHeader";
 import { AppBottomNav } from "../components/AppBottomNav";
 
 type Earnings = {
@@ -54,7 +53,7 @@ export default function EarningsScreen({ navigation }: any) {
 
   return (
     <SafeAreaView style={styles.screen} edges={["top"]}>
-      <AppHeader title="Earnings" />
+      <Text style={{ ...typography.title, padding: spacing.lg, paddingBottom: spacing.sm }}>Earnings</Text>
 
       {loading ? (
         <View style={{ padding: spacing.lg, gap: spacing.md }}>
@@ -92,9 +91,10 @@ export default function EarningsScreen({ navigation }: any) {
 
           <Text style={styles.sectionLabel}>Recent trips</Text>
           <FlatList
+            style={{ flex: 1 }}
             data={data?.recentTrips || []}
             keyExtractor={(item) => item.id}
-            contentContainerStyle={{ paddingHorizontal: spacing.lg }}
+            contentContainerStyle={{ paddingHorizontal: spacing.lg, flexGrow: 1 }}
             renderItem={({ item, index }) => (
               <View style={styles.tripRow}>
                 <View style={styles.tripTopRow}>

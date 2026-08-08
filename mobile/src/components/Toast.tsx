@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useRef, useState } from "react";
 import { Animated, Text, StyleSheet, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { colors, spacing, radius, typography } from "../theme/theme";
 
@@ -22,6 +23,11 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
   const opacity = useRef(new Animated.Value(0)).current;
   const translateY = useRef(new Animated.Value(24)).current;
   const hideTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // ToastProvider wraps the whole app, above any one screen's own
+  // layout, so it has no idea whether the current screen has
+  // AppBottomNav docked at the bottom — clearing it with a fixed
+  // safe-area-aware offset here is simpler than threading that down.
+  const insets = useSafeAreaInsets();
 
   function show(message: string, type: ToastType) {
     if (hideTimer.current) clearTimeout(hideTimer.current);
@@ -55,7 +61,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
         // signaling) than a loud red/green box every time.
         <Animated.View
           pointerEvents="none"
-          style={[styles.toast, { opacity, transform: [{ translateY }] }]}
+          style={[styles.toast, { bottom: insets.bottom + 76, opacity, transform: [{ translateY }] }]}
         >
           <View style={[styles.iconWrap, toast.type === "success" ? styles.iconWrapSuccess : styles.iconWrapError]}>
             <Ionicons
@@ -74,7 +80,6 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
 const styles = StyleSheet.create({
   toast: {
     position: "absolute",
-    bottom: 40,
     left: spacing.lg,
     right: spacing.lg,
     borderRadius: radius.md,
@@ -83,7 +88,11 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: spacing.sm,
-    backgroundColor: colors.textPrimary,
+    // Was colors.textPrimary (near-black) — invisible against Home's
+    // own near-black header background. The accent blue reads clearly
+    // against every surface in the app, light or dark, so the toast
+    // itself no longer depends on knowing what's behind it.
+    backgroundColor: colors.accent,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.25,

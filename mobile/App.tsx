@@ -62,7 +62,7 @@ export default function App() {
     <SafeAreaProvider>
     <ToastProvider>
     <NavigationContainer>
-      <StatusBar style="dark" />
+      <StatusBar style="dark" translucent backgroundColor="transparent" />
       <AlertModalHost />
       <Stack.Navigator initialRouteName="Splash" screenOptions={{ headerShown: false }}>
         {/* Launch */}

@@ -2,7 +2,6 @@ import React from "react";
 import { View, Text, Pressable, StyleSheet } from "react-native";
 import { colors, spacing, radius, typography } from "../theme/theme";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { BackButton } from "../components/BackButton";
 
 export default function PaymentDetailScreen({ route, navigation }: any) {
   const { booking } = route.params;
@@ -12,10 +11,7 @@ export default function PaymentDetailScreen({ route, navigation }: any) {
 
   return (
     <SafeAreaView style={styles.screen} edges={["top"]}>
-      <View style={styles.header}>
-        <BackButton onPress={() => navigation.goBack()} />
-        <Text style={styles.title}>Receipt</Text>
-      </View>
+      <Text style={{ ...typography.title, padding: spacing.lg, paddingBottom: spacing.sm }}>Receipt</Text>
 
       <View style={styles.body}>
         <View style={styles.card}>

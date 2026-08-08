@@ -7,7 +7,6 @@ import { checkPushPermission } from "../lib/pushNotifications";
 import { logout } from "../lib/api";
 import { Analytics } from "../lib/analytics";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { AppHeader } from "../components/AppHeader";
 import { AppBottomNav } from "../components/AppBottomNav";
 import { api } from "../lib/api";
 
@@ -48,7 +47,7 @@ export function SettingsScreen({ navigation }: any) {
 
   return (
     <SafeAreaView style={styles.screen} edges={["top"]}>
-      <AppHeader title="Settings" />
+      <Text style={{ ...typography.title, padding: spacing.lg, paddingBottom: spacing.sm }}>Settings</Text>
 
       <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: spacing.xl }}>
         {!pushGranted && (
@@ -88,7 +87,7 @@ export function SettingsScreen({ navigation }: any) {
 export function HelpSupportScreen({ navigation }: any) {
   return (
     <SafeAreaView style={styles.screen} edges={["top"]}>
-      <AppHeader title="Help & support" onBack={() => navigation.goBack()} />
+      <Text style={{ ...typography.title, padding: spacing.lg, paddingBottom: spacing.sm }}>Help & support</Text>
       <View style={styles.body}>
         <Text style={styles.paragraph}>
           Need help with a booking, payment, or safety concern? Reach out
@@ -110,7 +109,7 @@ export function HelpSupportScreen({ navigation }: any) {
 export function AboutScreen({ navigation }: any) {
   return (
     <SafeAreaView style={styles.screen} edges={["top"]}>
-      <AppHeader title="About & terms" onBack={() => navigation.goBack()} />
+      <Text style={{ ...typography.title, padding: spacing.lg, paddingBottom: spacing.sm }}>About & terms</Text>
       <View style={styles.body}>
         <Text style={styles.paragraph}>Carpool v0.1.0</Text>
         <Pressable style={styles.linkRow} onPress={() => Linking.openURL("https://example.com/terms")}>

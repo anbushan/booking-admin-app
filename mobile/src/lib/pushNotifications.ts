@@ -1,7 +1,17 @@
 import * as Notifications from "expo-notifications";
+import Constants, { ExecutionEnvironment } from "expo-constants";
 import { Platform } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { api } from "./api";
+
+// Expo Go dropped remote push token support on Android as of SDK 53 —
+// calling getDevicePushTokenAsync() there doesn't just fail, it logs a
+// scary red error to the console on every login. This isn't something
+// broken to fix; it's Expo Go's own known, documented limitation (real
+// push testing needs a dev client or standalone build either way), so
+// the right move is detecting it and skipping the attempt quietly
+// rather than letting the error surface as if something's wrong.
+const isExpoGo = Constants.executionEnvironment === ExecutionEnvironment.StoreClient;
 
 // Persists across logout/login — this is what actually stops the OS
 // permission dialog from reappearing. requestPermissionsAsync() is
@@ -34,6 +44,11 @@ Notifications.setNotificationHandler({
 // the backend knows not to attempt push and relies on the in-app
 // Notification list as the sole channel (see plan section 11L).
 export async function setupPushNotifications(): Promise<{ granted: boolean }> {
+  if (isExpoGo) {
+    await api.registerDevice(null);
+    return { granted: false };
+  }
+
   const { status: existingStatus } = await Notifications.getPermissionsAsync();
   let finalStatus = existingStatus;
 

@@ -3,12 +3,11 @@ import { View, Text, Pressable, FlatList, StyleSheet, RefreshControl } from "rea
 import { useFocusEffect } from "@react-navigation/native";
 import { colors, spacing, radius, typography } from "../theme/theme";
 import { api } from "../lib/api";
-import { SkeletonList } from "../components/Skeleton";
+import { CarLoader } from "../components/CarLoader";
 import { EmptyState } from "../components/EmptyState";
 import { ErrorState } from "../components/ErrorState";
 import { primeLocationIfNeeded } from "../lib/locationPriming";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { AppHeader } from "../components/AppHeader";
 import { AppBottomNav } from "../components/AppBottomNav";
 
 // A passenger's own view of where each of their outstanding requests
@@ -70,18 +69,21 @@ export default function MyRequestsScreen({ navigation }: any) {
 
   return (
     <SafeAreaView style={styles.screen} edges={["top"]}>
-      <AppHeader title="My requests" />
+      <Text style={{ ...typography.title, padding: spacing.lg, paddingBottom: spacing.sm }}>My requests</Text>
 
       {loading ? (
-        <SkeletonList count={3} />
+        <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
+          <CarLoader size="lg" />
+        </View>
       ) : error ? (
         <ErrorState message="Couldn't load your requests." onRetry={load} />
       ) : (
         <FlatList
+          style={{ flex: 1 }}
           data={requests}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => load(true)} colors={[colors.accent]} tintColor={colors.accent} />}
           keyExtractor={(item) => item.id}
-          contentContainerStyle={{ padding: spacing.md, gap: spacing.sm }}
+          contentContainerStyle={{ padding: spacing.md, gap: spacing.sm, flexGrow: 1 }}
           renderItem={({ item }) => {
             const mins = minutesLeft(item.expiresAt);
             return (

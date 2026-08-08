@@ -3,13 +3,12 @@ import { View, Text, Pressable, FlatList, StyleSheet, RefreshControl } from "rea
 import { useFocusEffect } from "@react-navigation/native";
 import { colors, spacing, radius, typography } from "../theme/theme";
 import { api } from "../lib/api";
-import { SkeletonList } from "../components/Skeleton";
+import { CarLoader } from "../components/CarLoader";
 import { EmptyState } from "../components/EmptyState";
 import { ErrorState } from "../components/ErrorState";
 import { primeLocationIfNeeded } from "../lib/locationPriming";
 import { UnreadBadge } from "../components/UnreadBadge";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { AppHeader } from "../components/AppHeader";
 import { AppBottomNav } from "../components/AppBottomNav";
 
 // The driver-side counterpart to "Booking requests" — once a request is
@@ -63,18 +62,21 @@ export default function UpcomingTripsScreen({ navigation }: any) {
 
   return (
     <SafeAreaView style={styles.screen} edges={["top"]}>
-      <AppHeader title="Upcoming trips" />
+      <Text style={{ ...typography.title, padding: spacing.lg, paddingBottom: spacing.sm }}>Upcoming trips</Text>
 
       {loading ? (
-        <SkeletonList count={3} />
+        <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
+          <CarLoader size="lg" />
+        </View>
       ) : error ? (
         <ErrorState message="Couldn't load your trips." onRetry={load} />
       ) : (
         <FlatList
+          style={{ flex: 1 }}
           data={trips}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => load(true)} colors={[colors.accent]} tintColor={colors.accent} />}
           keyExtractor={(item) => item.id}
-          contentContainerStyle={{ padding: spacing.md, gap: spacing.sm }}
+          contentContainerStyle={{ padding: spacing.md, gap: spacing.sm, flexGrow: 1 }}
           renderItem={({ item }) => (
             <View style={styles.card}>
               <Text style={styles.route}>{item.ride?.sourceAddress} to {item.ride?.destAddress}</Text>

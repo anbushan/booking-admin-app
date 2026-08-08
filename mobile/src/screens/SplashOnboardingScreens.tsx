@@ -14,7 +14,7 @@ export function SplashScreen({ navigation }: any) {
   const badgeScale = useRef(new Animated.Value(0.6)).current;
   const badgeOpacity = useRef(new Animated.Value(0)).current;
   const taglineOpacity = useRef(new Animated.Value(0)).current;
-  const dotsOpacity = useRef(new Animated.Value(0)).current;
+  const carOpacity = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     Analytics.appOpen();
@@ -29,7 +29,7 @@ export function SplashScreen({ navigation }: any) {
         Animated.timing(badgeOpacity, { toValue: 1, duration: 350, useNativeDriver: true }),
       ]),
       Animated.timing(taglineOpacity, { toValue: 1, duration: 300, useNativeDriver: true }),
-      Animated.timing(dotsOpacity, { toValue: 1, duration: 250, useNativeDriver: true }),
+      Animated.timing(carOpacity, { toValue: 1, duration: 250, useNativeDriver: true }),
     ]).start();
 
     // Ask for notification + location permission on every app start where
@@ -71,39 +71,42 @@ export function SplashScreen({ navigation }: any) {
       <Animated.Text style={[styles.splashTagline, { opacity: taglineOpacity }]}>
         Share the ride, split the cost
       </Animated.Text>
-      <Animated.View style={{ opacity: dotsOpacity, marginTop: spacing.xl }}>
-        <LoadingDots />
+      <Animated.View style={{ opacity: carOpacity, marginTop: spacing.xl }}>
+        <LoadingCar />
       </Animated.View>
     </View>
   );
 }
 
-// Three dots pulsing in sequence — reads as "loading" without a literal
-// spinner, and keeps the launch screen from feeling static while the
-// permission checks and auth-state read above resolve.
-function LoadingDots() {
-  const values = useRef([0, 1, 2].map(() => new Animated.Value(0.3))).current;
+const CAR_TRACK_WIDTH = 120;
+
+// A small car icon sliding slowly side to side along a fixed track —
+// reads as "loading" while staying on-brand (the same car motif as the
+// badge above it), in place of the earlier generic pulsing dots.
+// Slow (1.6s each direction) and eased in/out so it drifts rather than
+// darts, matching the calm, deliberate pace of the rest of the splash
+// entrance animation.
+function LoadingCar() {
+  const progress = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    const loops = values.map((v, i) =>
-      Animated.loop(
-        Animated.sequence([
-          Animated.delay(i * 150),
-          Animated.timing(v, { toValue: 1, duration: 350, easing: Easing.ease, useNativeDriver: true }),
-          Animated.timing(v, { toValue: 0.3, duration: 350, easing: Easing.ease, useNativeDriver: true }),
-          Animated.delay((2 - i) * 150),
-        ])
-      )
+    const drive = Animated.loop(
+      Animated.sequence([
+        Animated.timing(progress, { toValue: 1, duration: 1600, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
+        Animated.timing(progress, { toValue: 0, duration: 1600, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
+      ])
     );
-    loops.forEach((l) => l.start());
-    return () => loops.forEach((l) => l.stop());
+    drive.start();
+    return () => drive.stop();
   }, []);
 
+  const translateX = progress.interpolate({ inputRange: [0, 1], outputRange: [0, CAR_TRACK_WIDTH - 22] });
+
   return (
-    <View style={{ flexDirection: "row", gap: 6 }}>
-      {values.map((v, i) => (
-        <Animated.View key={i} style={[styles.loadingDot, { opacity: v }]} />
-      ))}
+    <View style={styles.carTrack}>
+      <Animated.View style={{ transform: [{ translateX }] }}>
+        <Ionicons name="car-sport" size={22} color={colors.marigold} />
+      </Animated.View>
     </View>
   );
 }
@@ -182,7 +185,7 @@ const styles = StyleSheet.create({
   },
   splashTitle: { color: "#FFFFFF", fontSize: 28, fontWeight: "500" },
   splashTagline: { color: "#FFFFFF", opacity: 0.7, fontSize: 13, marginTop: spacing.xs },
-  loadingDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: "#FFFFFF" },
+  carTrack: { width: CAR_TRACK_WIDTH, alignItems: "flex-start" },
   screen: { flex: 1, backgroundColor: colors.bg },
   slide: { alignItems: "center", justifyContent: "center", padding: spacing.xl },
   slideIcon: { width: 96, height: 96, borderRadius: 48, backgroundColor: colors.accentBg, marginBottom: spacing.xl, alignItems: "center", justifyContent: "center" },

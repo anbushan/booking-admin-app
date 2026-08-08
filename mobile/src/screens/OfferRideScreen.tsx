@@ -9,8 +9,8 @@ import { FieldError } from "../components/FieldError";
 import { CarLoader } from "../components/CarLoader";
 import SearchOptionsModal, { formatSearchDate } from "../components/SearchOptionsModal";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { BackButton } from "../components/BackButton";
 import { AppBottomNav } from "../components/AppBottomNav";
+import { KeyboardAvoider } from "../components/KeyboardAvoider";
 
 const PREFERENCE_OPTIONS = [
   { key: "music", label: "Music ok" },
@@ -26,8 +26,15 @@ export default function OfferRideScreen({ navigation }: any) {
   const [source, setSource] = useState<Point>(DEFAULT_SOURCE);
   const [destination, setDestination] = useState<Point | null>(null);
   const [travelDate, setTravelDate] = useState(() => {
+    // A fixed "today at 18:30" default is in the past for a good chunk
+    // of the day (anyone opening this after 6:30pm) — the backend
+    // rejects any travelDate that isn't strictly in the future, so
+    // publishing without touching the date picker at all would 400
+    // with no obvious reason why. Roll forward to tomorrow instead of
+    // just leaving it broken.
     const d = new Date();
     d.setHours(18, 30, 0, 0);
+    if (d.getTime() <= Date.now()) d.setDate(d.getDate() + 1);
     return d;
   });
   const [seats, setSeats] = useState(3);
@@ -106,10 +113,7 @@ export default function OfferRideScreen({ navigation }: any) {
 
   return (
     <SafeAreaView style={styles.screen} edges={["top"]}>
-      <View style={styles.header}>
-        <BackButton onPress={() => navigation.goBack()} />
-        <Text style={styles.title}>Offer a ride</Text>
-      </View>
+      <Text style={{ ...typography.title, padding: spacing.lg, paddingBottom: spacing.sm }}>Offer a ride</Text>
 
       {vehicles === null && !vehiclesError ? (
         <View style={styles.centerState}>
@@ -124,7 +128,8 @@ export default function OfferRideScreen({ navigation }: any) {
           </Pressable>
         </View>
       ) : (
-      <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.body}>
+      <KeyboardAvoider>
+      <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
         {vehicles && vehicles.length > 1 && (
           <>
             <Text style={styles.label}>Vehicle</Text>
@@ -209,6 +214,7 @@ export default function OfferRideScreen({ navigation }: any) {
           <Text style={styles.buttonText}>Search routes</Text>
         </Pressable>
       </ScrollView>
+      </KeyboardAvoider>
       )}
 
       <SearchOptionsModal
@@ -272,6 +278,7 @@ const styles = StyleSheet.create({
     height: 44,
     paddingHorizontal: spacing.md,
     marginTop: spacing.xs,
+    color: colors.textPrimary,
   },
   hint: { ...typography.small, color: colors.textMuted, marginTop: spacing.xs },
   inputError: { borderColor: colors.danger },

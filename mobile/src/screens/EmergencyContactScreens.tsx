@@ -4,7 +4,7 @@ import { useFocusEffect } from "@react-navigation/native";
 import { showAlert } from "../lib/alert";
 import { colors, spacing, radius, typography } from "../theme/theme";
 import { api } from "../lib/api";
-import { SkeletonList } from "../components/Skeleton";
+import { CarLoader } from "../components/CarLoader";
 import { EmptyState } from "../components/EmptyState";
 import { ErrorState } from "../components/ErrorState";
 import { useToast } from "../components/Toast";
@@ -12,9 +12,8 @@ import { Analytics } from "../lib/analytics";
 import { validateEmergencyContact } from "../lib/validators";
 import { FieldError } from "../components/FieldError";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { BackButton } from "../components/BackButton";
-import { AppHeader } from "../components/AppHeader";
 import { AppBottomNav } from "../components/AppBottomNav";
+import { KeyboardAvoider } from "../components/KeyboardAvoider";
 
 type Contact = { id: string; name: string; phone: string; isPrimary: boolean };
 
@@ -54,18 +53,21 @@ export function EmergencyContactsScreen({ navigation }: any) {
 
   return (
     <SafeAreaView style={styles.screen} edges={["top"]}>
-      <AppHeader title="Emergency contacts" />
+      <Text style={{ ...typography.title, padding: spacing.lg, paddingBottom: spacing.sm }}>Emergency contacts</Text>
 
       {loading ? (
-        <SkeletonList count={2} />
+        <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
+          <CarLoader size="lg" />
+        </View>
       ) : error ? (
         <ErrorState message="Couldn't load emergency contacts." onRetry={load} />
       ) : (
       <FlatList
+        style={{ flex: 1 }}
         data={contacts}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => load(true)} colors={[colors.accent]} tintColor={colors.accent} />}
         keyExtractor={(item) => item.id}
-        contentContainerStyle={{ padding: spacing.md, gap: spacing.sm }}
+        contentContainerStyle={{ padding: spacing.md, gap: spacing.sm, flexGrow: 1 }}
         renderItem={({ item }) => (
           <View style={styles.row}>
             <View>
@@ -126,11 +128,9 @@ export function AddEmergencyContactScreen({ navigation }: any) {
 
   return (
     <SafeAreaView style={styles.screen} edges={["top"]}>
-      <View style={styles.header}>
-        <BackButton onPress={() => navigation.goBack()} />
-        <Text style={styles.title}>Add emergency contact</Text>
-      </View>
+      <Text style={{ ...typography.title, padding: spacing.lg, paddingBottom: spacing.sm }}>Add emergency contact</Text>
 
+      <KeyboardAvoider>
       <View style={styles.body}>
         <TextInput
           style={[styles.input, errors.name && styles.inputError]}
@@ -162,6 +162,7 @@ export function AddEmergencyContactScreen({ navigation }: any) {
           <Text style={styles.addButtonText}>{submitting ? "Saving..." : "Save contact"}</Text>
         </Pressable>
       </View>
+      </KeyboardAvoider>
     </SafeAreaView>
   );
 }
@@ -211,6 +212,7 @@ const styles = StyleSheet.create({
     borderRadius: radius.sm,
     height: 44,
     paddingHorizontal: spacing.md,
+    color: colors.textPrimary,
   },
   inputError: { borderColor: colors.danger },
   checkboxRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm, marginTop: spacing.sm },

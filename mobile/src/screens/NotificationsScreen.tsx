@@ -4,11 +4,10 @@ import { useFocusEffect } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
 import { colors, spacing, radius, typography } from "../theme/theme";
 import { api } from "../lib/api";
-import { SkeletonList } from "../components/Skeleton";
+import { CarLoader } from "../components/CarLoader";
 import { EmptyState } from "../components/EmptyState";
 import { ErrorState } from "../components/ErrorState";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { AppHeader } from "../components/AppHeader";
 import { AppBottomNav } from "../components/AppBottomNav";
 
 type Notif = { id: string; type: string; title: string; body: string; bookingId: string | null; read: boolean; createdAt: string };
@@ -124,24 +123,27 @@ export default function NotificationsScreen({ navigation }: any) {
 
   return (
     <SafeAreaView style={styles.screen} edges={["top"]}>
-      <AppHeader
-        title="Notifications"
-        subtitle={unreadCount > 0 ? `${unreadCount} unread` : undefined}
-        right={
-          unreadCount > 0 ? (
-            <Pressable style={styles.markAllButton} onPress={markAllRead} disabled={markingAll} hitSlop={4}>
-              <Ionicons name="checkmark-done-outline" size={14} color={colors.accentText} />
-              <Text style={styles.markAllText}>Mark all read</Text>
-            </Pressable>
-          ) : undefined
-        }
-      />
+      <View style={styles.titleRow}>
+        <View>
+          <Text style={styles.pageTitle}>Notifications</Text>
+          {unreadCount > 0 && <Text style={styles.pageSubtitle}>{unreadCount} unread</Text>}
+        </View>
+        {unreadCount > 0 && (
+          <Pressable style={styles.markAllButton} onPress={markAllRead} disabled={markingAll} hitSlop={4}>
+            <Ionicons name="checkmark-done-outline" size={14} color={colors.accentText} />
+            <Text style={styles.markAllText}>Mark all read</Text>
+          </Pressable>
+        )}
+      </View>
       {loading ? (
-        <SkeletonList count={4} />
+        <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
+          <CarLoader size="lg" />
+        </View>
       ) : error ? (
         <ErrorState message="Couldn't load notifications." onRetry={load} />
       ) : (
       <SectionList
+        style={{ flex: 1 }}
         sections={sections}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => load(true)} colors={[colors.accent]} tintColor={colors.accent} />}
         keyExtractor={(item) => item.id}
@@ -178,7 +180,10 @@ export default function NotificationsScreen({ navigation }: any) {
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.bg },
-  markAllButton: { flexDirection: "row", alignItems: "center", gap: 4 },
+  titleRow: { flexDirection: "row", alignItems: "flex-start", justifyContent: "space-between", padding: spacing.lg, paddingBottom: spacing.sm },
+  pageTitle: { ...typography.title },
+  pageSubtitle: { ...typography.small, color: colors.textMuted, marginTop: 2 },
+  markAllButton: { flexDirection: "row", alignItems: "center", gap: 4, marginTop: 4 },
   markAllText: { ...typography.small, color: colors.accentText, fontWeight: "600" },
   sectionHeader: { ...typography.small, color: colors.textMuted, fontWeight: "700", textTransform: "uppercase", letterSpacing: 0.5, marginTop: spacing.sm, marginBottom: spacing.xs },
   card: {

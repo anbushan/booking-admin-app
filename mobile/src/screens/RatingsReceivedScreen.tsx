@@ -3,11 +3,10 @@ import { View, Text, FlatList, StyleSheet, RefreshControl } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
 import { colors, spacing, radius, typography } from "../theme/theme";
 import { api } from "../lib/api";
-import { SkeletonList } from "../components/Skeleton";
+import { CarLoader } from "../components/CarLoader";
 import { EmptyState } from "../components/EmptyState";
 import { ErrorState } from "../components/ErrorState";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { AppHeader } from "../components/AppHeader";
 import { AppBottomNav } from "../components/AppBottomNav";
 
 export default function RatingsReceivedScreen({ navigation }: any) {
@@ -38,10 +37,12 @@ export default function RatingsReceivedScreen({ navigation }: any) {
 
   return (
     <SafeAreaView style={styles.screen} edges={["top"]}>
-      <AppHeader title="Your ratings" />
+      <Text style={{ ...typography.title, padding: spacing.lg, paddingBottom: spacing.sm }}>Your ratings</Text>
 
       {loading ? (
-        <SkeletonList count={3} />
+        <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
+          <CarLoader size="lg" />
+        </View>
       ) : error ? (
         <ErrorState message="Couldn't load your ratings." onRetry={load} />
       ) : (
@@ -52,10 +53,11 @@ export default function RatingsReceivedScreen({ navigation }: any) {
           </View>
 
           <FlatList
+            style={{ flex: 1 }}
             data={reviews}
             refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => load(true)} colors={[colors.accent]} tintColor={colors.accent} />}
             keyExtractor={(item) => item.id}
-            contentContainerStyle={{ padding: spacing.md, gap: spacing.sm }}
+            contentContainerStyle={{ padding: spacing.md, gap: spacing.sm, flexGrow: 1 }}
             renderItem={({ item }) => (
               <View style={styles.card}>
                 <Text style={styles.stars}>{"\u2605".repeat(item.rating)}{"\u2606".repeat(5 - item.rating)}</Text>

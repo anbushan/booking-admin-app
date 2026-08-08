@@ -6,7 +6,7 @@ import { api } from "../lib/api";
 import { validateVehicle } from "../lib/validators";
 import { FieldError } from "../components/FieldError";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { BackButton } from "../components/BackButton";
+import { KeyboardAvoider } from "../components/KeyboardAvoider";
 
 const SEAT_OPTIONS = [4, 5, 6, 7];
 
@@ -38,11 +38,9 @@ export default function EditVehicleScreen({ route, navigation }: any) {
 
   return (
     <SafeAreaView style={styles.screen} edges={["top"]}>
-      <View style={styles.header}>
-        <BackButton onPress={() => navigation.goBack()} />
-        <Text style={styles.title}>Edit vehicle</Text>
-      </View>
+      <Text style={{ ...typography.title, padding: spacing.lg, paddingBottom: spacing.sm }}>Edit vehicle</Text>
 
+      <KeyboardAvoider>
       <View style={styles.body}>
         <Text style={styles.label}>Make</Text>
         <TextInput
@@ -89,6 +87,7 @@ export default function EditVehicleScreen({ route, navigation }: any) {
           <Text style={styles.buttonText}>{submitting ? "Saving..." : "Save vehicle"}</Text>
         </Pressable>
       </View>
+      </KeyboardAvoider>
     </SafeAreaView>
   );
 }
@@ -100,7 +99,7 @@ const styles = StyleSheet.create({
   title: typography.title,
   body: { padding: spacing.lg },
   label: { ...typography.caption, color: colors.textSecondary, marginBottom: spacing.xs, marginTop: spacing.md },
-  input: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: radius.sm, height: 44, paddingHorizontal: spacing.md },
+  input: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: radius.sm, height: 44, paddingHorizontal: spacing.md, color: colors.textPrimary },
   inputError: { borderColor: colors.danger },
   chipRow: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm },
   seatChip: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: radius.sm, paddingVertical: spacing.xs, paddingHorizontal: spacing.md },

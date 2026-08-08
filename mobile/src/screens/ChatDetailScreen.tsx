@@ -7,8 +7,8 @@ import { colors, spacing, radius, typography } from "../theme/theme";
 import { api } from "../lib/api";
 import { getSocket } from "../lib/socket";
 import { useToast } from "../components/Toast";
-import { BackButton } from "../components/BackButton";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { KeyboardAvoider } from "../components/KeyboardAvoider";
 
 type Message = { id: string; senderId: string; text: string; type?: "TEXT" | "LOCATION"; createdAt: string };
 
@@ -127,8 +127,8 @@ export default function ChatDetailScreen({ route, navigation }: any) {
 
   return (
     <SafeAreaView style={styles.screen} edges={["top"]}>
+      <KeyboardAvoider>
       <View style={styles.header}>
-        <BackButton onPress={() => navigation.goBack()} />
         <View style={styles.avatar}>
           <Text style={styles.avatarText}>{(otherName || "?").charAt(0).toUpperCase()}</Text>
         </View>
@@ -194,6 +194,7 @@ export default function ChatDetailScreen({ route, navigation }: any) {
           </Pressable>
         </View>
       )}
+      </KeyboardAvoider>
     </SafeAreaView>
   );
 }
@@ -220,6 +221,6 @@ const styles = StyleSheet.create({
   endedBanner: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, padding: spacing.md, borderTopWidth: 1, borderTopColor: colors.border, backgroundColor: colors.surface },
   endedBannerText: { ...typography.small, color: colors.textMuted },
   shareButton: { width: 40, height: 40, borderRadius: radius.sm, borderWidth: 1, borderColor: colors.border, alignItems: "center", justifyContent: "center" },
-  input: { flex: 1, backgroundColor: colors.bg, borderRadius: radius.sm, paddingHorizontal: spacing.md, height: 40 },
+  input: { flex: 1, backgroundColor: colors.bg, borderRadius: radius.sm, paddingHorizontal: spacing.md, height: 40, color: colors.textPrimary },
   sendButton: { width: 40, height: 40, backgroundColor: colors.accent, borderRadius: radius.sm, alignItems: "center", justifyContent: "center" },
 });

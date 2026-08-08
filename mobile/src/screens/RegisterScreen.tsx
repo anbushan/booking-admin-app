@@ -1,11 +1,12 @@
 import React, { useState } from "react";
-import { View, Text, TextInput, Pressable, ScrollView, KeyboardAvoidingView, Platform, StyleSheet } from "react-native";
+import { View, Text, TextInput, Pressable, ScrollView, StyleSheet } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { showAlert } from "../lib/alert";
 import { colors, spacing, radius, typography } from "../theme/theme";
 import { api } from "../lib/api";
 import { Analytics } from "../lib/analytics";
 import { FieldError } from "../components/FieldError";
+import { KeyboardAvoider } from "../components/KeyboardAvoider";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -51,7 +52,7 @@ export default function RegisterScreen({ navigation }: any) {
 
   return (
     <SafeAreaView style={styles.screen} edges={["top"]}>
-      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
+      <KeyboardAvoider>
         <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
           <View style={styles.brandIcon}>
             <Ionicons name="person-add-outline" size={26} color={colors.accentText} />
@@ -121,7 +122,7 @@ export default function RegisterScreen({ navigation }: any) {
             <Text style={styles.buttonText}>{submitting ? "Saving..." : "Continue"}</Text>
           </Pressable>
         </ScrollView>
-      </KeyboardAvoidingView>
+      </KeyboardAvoider>
     </SafeAreaView>
   );
 }
@@ -143,6 +144,7 @@ const styles = StyleSheet.create({
     borderRadius: radius.sm,
     height: 44,
     paddingHorizontal: spacing.md,
+    color: colors.textPrimary,
   },
   inputError: { borderColor: colors.danger },
   roleRow: { flexDirection: "row", gap: spacing.sm, marginTop: spacing.xs },

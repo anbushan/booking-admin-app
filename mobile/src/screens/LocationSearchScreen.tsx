@@ -6,7 +6,7 @@ import { api } from "../lib/api";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useToast } from "../components/Toast";
 import { EmptyState } from "../components/EmptyState";
-import { BackButton } from "../components/BackButton";
+import { KeyboardAvoider } from "../components/KeyboardAvoider";
 
 type Suggestion = { placeId: string; description: string };
 
@@ -91,8 +91,8 @@ export default function LocationSearchScreen({ navigation, route }: any) {
 
   return (
     <SafeAreaView style={styles.screen} edges={["top"]}>
+      <KeyboardAvoider>
       <View style={styles.header}>
-        <BackButton onPress={() => navigation.goBack()} />
         <View style={styles.inputWrap}>
           <Ionicons name="search-outline" size={16} color={colors.textMuted} />
           <TextInput
@@ -118,6 +118,8 @@ export default function LocationSearchScreen({ navigation, route }: any) {
       </Pressable>
 
       <FlatList
+        style={{ flex: 1 }}
+        contentContainerStyle={{ flexGrow: 1 }}
         data={suggestions}
         keyExtractor={(item) => item.placeId}
         renderItem={({ item }) => (
@@ -132,6 +134,7 @@ export default function LocationSearchScreen({ navigation, route }: any) {
           ) : null
         }
       />
+      </KeyboardAvoider>
     </SafeAreaView>
   );
 }
@@ -151,7 +154,7 @@ const styles = StyleSheet.create({
     flex: 1, flexDirection: "row", alignItems: "center", gap: spacing.sm,
     backgroundColor: colors.bg, borderRadius: radius.sm, paddingHorizontal: spacing.sm, height: 40,
   },
-  input: { flex: 1, ...typography.body, height: 40 },
+  input: { flex: 1, ...typography.body, height: 40, color: colors.textPrimary },
   currentLocationRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm, padding: spacing.md, borderBottomWidth: 1, borderBottomColor: colors.border },
   currentLocationIcon: { width: 24, alignItems: "center" },
   currentLocationText: { ...typography.body, color: colors.accentText, fontWeight: "500" },

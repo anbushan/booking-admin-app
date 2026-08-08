@@ -8,7 +8,6 @@ import { ErrorState } from "../components/ErrorState";
 import { RouteStopsList } from "../components/RouteStopsList";
 import { CarLoader } from "../components/CarLoader";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { BackButton } from "../components/BackButton";
 
 type Stop = { lat: number; lng: number; placeName: string; distanceKm: number; durationMinutes: number };
 type RouteOption = { summary: string; polyline: string; distanceKm: number; durationMinutes: number; stops: Stop[] };
@@ -61,10 +60,7 @@ export default function RouteOptionsScreen({ route, navigation }: any) {
 
   return (
     <SafeAreaView style={styles.screen} edges={["top"]}>
-      <View style={styles.header}>
-        <BackButton onPress={() => navigation.goBack()} />
-        <Text style={styles.title}>Search routes</Text>
-      </View>
+      <Text style={{ ...typography.title, padding: spacing.lg, paddingBottom: spacing.sm }}>Search routes</Text>
 
       {alternatives === null && !error ? (
         <View style={styles.centerState}>

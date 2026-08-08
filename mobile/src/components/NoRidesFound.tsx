@@ -27,7 +27,7 @@ export function NoRidesFound({ title, subtitle }: { title: string; subtitle?: st
 }
 
 const styles = StyleSheet.create({
-  container: { alignItems: "center", justifyContent: "center", padding: spacing.xl, marginTop: spacing.xl },
+  container: { flex: 1, alignItems: "center", justifyContent: "center", padding: spacing.xl },
   scene: { width: 96, alignItems: "center", marginBottom: spacing.lg },
   carCircle: {
     width: 76, height: 76, borderRadius: 38, backgroundColor: colors.accentBg,

@@ -4,7 +4,6 @@ import MapView, { Marker, PROVIDER_GOOGLE, Region } from "react-native-maps";
 import { Ionicons } from "@expo/vector-icons";
 import { colors, spacing, radius, typography } from "../theme/theme";
 import { api } from "../lib/api";
-import { AppHeader } from "../components/AppHeader";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function MapPinConfirmScreen({ route, navigation }: any) {
@@ -36,7 +35,7 @@ export default function MapPinConfirmScreen({ route, navigation }: any) {
 
   return (
     <SafeAreaView style={styles.screen} edges={["top"]}>
-      <AppHeader title="Confirm location" onBack={() => navigation.goBack()} />
+      <Text style={{ ...typography.title, padding: spacing.lg, paddingBottom: spacing.sm }}>Confirm location</Text>
       <View style={styles.mapContainer}>
         <MapView
           style={{ flex: 1 }}

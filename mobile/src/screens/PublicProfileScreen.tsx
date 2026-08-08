@@ -3,7 +3,6 @@ import { View, Text, FlatList, StyleSheet } from "react-native";
 import { colors, spacing, radius, typography } from "../theme/theme";
 import { api } from "../lib/api";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { BackButton } from "../components/BackButton";
 
 export default function PublicProfileScreen({ route, navigation }: any) {
   const { userId } = route.params;
@@ -19,10 +18,7 @@ export default function PublicProfileScreen({ route, navigation }: any) {
 
   return (
     <SafeAreaView style={styles.screen} edges={["top"]}>
-      <View style={styles.header}>
-        <BackButton onPress={() => navigation.goBack()} />
-        <Text style={styles.title}>Profile</Text>
-      </View>
+      <Text style={{ ...typography.title, padding: spacing.lg, paddingBottom: spacing.sm }}>Profile</Text>
 
       <View style={styles.profileCard}>
         <View style={styles.avatar}>
@@ -42,7 +38,7 @@ export default function PublicProfileScreen({ route, navigation }: any) {
       <FlatList
         data={reviews}
         keyExtractor={(item) => item.id}
-        contentContainerStyle={{ paddingHorizontal: spacing.lg, gap: spacing.sm }}
+        contentContainerStyle={{ paddingHorizontal: spacing.lg, gap: spacing.sm, flexGrow: 1 }}
         renderItem={({ item }) => (
           <View style={styles.reviewRow}>
             <Text style={styles.reviewStars}>{"\u2605".repeat(item.rating)}</Text>

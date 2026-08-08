@@ -2,7 +2,6 @@ import React, { useState } from "react";
 import { View, Text, Pressable, StyleSheet } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { colors, spacing, radius, typography } from "../theme/theme";
-import { AppHeader } from "../components/AppHeader";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 // Web build of MapPinConfirmScreen — see LiveTrackingScreen.web.tsx for why
@@ -22,7 +21,7 @@ export default function MapPinConfirmScreen({ route, navigation }: any) {
 
   return (
     <SafeAreaView style={styles.screen} edges={["top"]}>
-      <AppHeader title="Confirm location" onBack={() => navigation.goBack()} />
+      <Text style={{ ...typography.title, padding: spacing.lg, paddingBottom: spacing.sm }}>Confirm location</Text>
       <View style={styles.mapPlaceholder}>
         <Ionicons name="map-outline" size={28} color={colors.accentText} />
         <Text style={styles.mapPlaceholderText}>Map preview isn't available on web</Text>

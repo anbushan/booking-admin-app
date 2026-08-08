@@ -5,7 +5,6 @@ import { colors, spacing, radius, typography } from "../theme/theme";
 import { api } from "../lib/api";
 import { CarLoader } from "../components/CarLoader";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { BackButton } from "../components/BackButton";
 
 export default function BookingDetailScreen({ route, navigation }: any) {
   const { bookingId } = route.params;
@@ -47,10 +46,7 @@ export default function BookingDetailScreen({ route, navigation }: any) {
 
   return (
     <SafeAreaView style={styles.screen} edges={["top"]}>
-      <View style={styles.header}>
-        <BackButton onPress={() => navigation.goBack()} />
-        <Text style={styles.title}>Booking</Text>
-      </View>
+      <Text style={{ ...typography.title, padding: spacing.lg, paddingBottom: spacing.sm }}>Booking</Text>
 
       <View style={styles.body}>
         <Text style={styles.route}>{booking.ride.sourceAddress} to {booking.ride.destAddress}</Text>

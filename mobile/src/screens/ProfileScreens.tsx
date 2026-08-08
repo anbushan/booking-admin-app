@@ -6,8 +6,8 @@ import { colors, spacing, radius, typography } from "../theme/theme";
 import { api } from "../lib/api";
 import { useToast } from "../components/Toast";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { AppHeader } from "../components/AppHeader";
 import { AppBottomNav } from "../components/AppBottomNav";
+import { KeyboardAvoider } from "../components/KeyboardAvoider";
 import { CarLoader } from "../components/CarLoader";
 
 function memberSince(createdAt?: string) {
@@ -23,9 +23,17 @@ export function ProfileScreen({ navigation }: any) {
   }, []);
 
   if (!profile) {
+    // Same shell as the loaded return below (AppHeader + AppBottomNav
+    // both present), just a spinner where the profile content will go
+    // — otherwise the bottom nav is simply missing for this first beat
+    // and then pops in once the fetch resolves.
     return (
-      <SafeAreaView style={[styles.screen, { alignItems: "center", justifyContent: "center" }]} edges={["top"]}>
-        <CarLoader />
+      <SafeAreaView style={styles.screen} edges={["top"]}>
+        <Text style={{ ...typography.title, padding: spacing.lg, paddingBottom: spacing.sm }}>Profile</Text>
+        <View style={[{ flex: 1 }, { alignItems: "center", justifyContent: "center" }]}>
+          <CarLoader />
+        </View>
+        <AppBottomNav navigation={navigation} profile={null} active="menu" />
       </SafeAreaView>
     );
   }
@@ -48,7 +56,7 @@ export function ProfileScreen({ navigation }: any) {
 
   return (
     <SafeAreaView style={styles.screen} edges={["top"]}>
-      <AppHeader title="Profile" />
+      <Text style={{ ...typography.title, padding: spacing.lg, paddingBottom: spacing.sm }}>Profile</Text>
       <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: spacing.xl }}>
         <View style={styles.hero}>
           <Pressable
@@ -127,7 +135,8 @@ export function EditProfileScreen({ route, navigation }: any) {
 
   return (
     <SafeAreaView style={styles.screen} edges={["top"]}>
-      <AppHeader title="Edit profile" onBack={() => navigation.goBack()} />
+      <Text style={{ ...typography.title, padding: spacing.lg, paddingBottom: spacing.sm }}>Edit profile</Text>
+      <KeyboardAvoider>
       <View style={styles.body}>
         <Text style={styles.label}>Name</Text>
         <TextInput style={styles.input} value={name} onChangeText={setName} />
@@ -138,6 +147,7 @@ export function EditProfileScreen({ route, navigation }: any) {
           <Text style={styles.editButtonText}>{submitting ? "Saving..." : "Save"}</Text>
         </Pressable>
       </View>
+      </KeyboardAvoider>
     </SafeAreaView>
   );
 }
@@ -188,5 +198,5 @@ const styles = StyleSheet.create({
   editButton: { flexDirection: "row", gap: spacing.xs, backgroundColor: colors.textPrimary, height: 44, borderRadius: radius.sm, alignItems: "center", justifyContent: "center", marginTop: spacing.lg, alignSelf: "stretch" },
   editButtonText: { color: "#FFFFFF", ...typography.title },
   label: { ...typography.caption, color: colors.textSecondary, alignSelf: "flex-start", marginTop: spacing.md, marginBottom: spacing.xs },
-  input: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: radius.sm, height: 44, paddingHorizontal: spacing.md, alignSelf: "stretch" },
+  input: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: radius.sm, height: 44, paddingHorizontal: spacing.md, alignSelf: "stretch", color: colors.textPrimary },
 });

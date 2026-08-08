@@ -1,0 +1,6 @@
+# Local tooling / editor config — not part of the app
+.claude/
+.vscode/
+**/.agents/
+**/.claude/
+**/skills-lock.json

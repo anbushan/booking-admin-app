@@ -5,7 +5,6 @@ import { colors, spacing, radius, typography } from "../theme/theme";
 import { Analytics } from "../lib/analytics";
 import { API_BASE_URL } from "../lib/api";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { BackButton } from "../components/BackButton";
 
 const LOCALE_LABELS: Record<string, string> = {
   en: "English",
@@ -37,10 +36,7 @@ export default function LanguageSelectionScreen({ navigation }: any) {
 
   return (
     <SafeAreaView style={styles.screen} edges={["top"]}>
-      <View style={styles.header}>
-        <BackButton onPress={() => navigation.goBack()} />
-        <Text style={styles.title}>Language</Text>
-      </View>
+      <Text style={{ ...typography.title, padding: spacing.lg, paddingBottom: spacing.sm }}>Language</Text>
 
       <FlatList
         data={locales}

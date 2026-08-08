@@ -10,7 +10,6 @@ import { SkeletonBlock } from "../components/Skeleton";
 import { ErrorState } from "../components/ErrorState";
 import { RouteTimeline } from "../components/RouteTimeline";
 import { RouteStopsList } from "../components/RouteStopsList";
-import { AppHeader } from "../components/AppHeader";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 type RideDetails = {
@@ -87,7 +86,7 @@ export default function BookingConfirmScreen({ route, navigation }: any) {
 
   return (
     <SafeAreaView style={styles.screen} edges={["top"]}>
-      <AppHeader title="Confirm booking" onBack={() => navigation.goBack()} />
+      <Text style={{ ...typography.title, padding: spacing.lg, paddingBottom: spacing.sm }}>Confirm booking</Text>
 
       {loading ? (
         <View style={{ padding: spacing.lg, gap: spacing.md }}>

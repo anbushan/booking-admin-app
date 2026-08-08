@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { View, Text, Pressable, Modal, ScrollView, TextInput, StyleSheet } from "react-native";
 import { colors, spacing, radius, typography } from "../theme/theme";
+import { KeyboardAvoider } from "./KeyboardAvoider";
 
 // Dependency-free date + time + seat-count picker. Deliberately avoids
 // @react-native-community/datetimepicker (a native module that isn't
@@ -118,7 +119,7 @@ export default function SearchOptionsModal({ visible, initialDate, initialSeats,
 
   return (
     <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
-      <View style={styles.backdrop}>
+      <KeyboardAvoider style={styles.backdrop}>
         <View style={styles.sheet}>
           <Text style={styles.sheetTitle}>When are you traveling?</Text>
 
@@ -202,7 +203,7 @@ export default function SearchOptionsModal({ visible, initialDate, initialSeats,
             </Pressable>
           </View>
         </View>
-      </View>
+      </KeyboardAvoider>
     </Modal>
   );
 }
@@ -227,6 +228,7 @@ const styles = StyleSheet.create({
   label: { ...typography.caption, color: colors.textSecondary, marginBottom: spacing.xs },
   timeInput: {
     ...typography.body,
+    color: colors.textPrimary,
     borderWidth: 1,
     borderColor: colors.border,
     borderRadius: radius.sm,

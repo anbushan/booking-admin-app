@@ -34,7 +34,11 @@ export function EmptyState({
 }
 
 const styles = StyleSheet.create({
-  container: { alignItems: "center", justifyContent: "center", padding: spacing.xl, marginTop: spacing.xl },
+  // flex:1 + the list's own contentContainerStyle needing flexGrow:1 is
+  // what actually centers this in the middle of the screen — previously
+  // just a marginTop nudge, which only pushed it partway down from the
+  // top of whatever space the (possibly short) list content left.
+  container: { flex: 1, alignItems: "center", justifyContent: "center", padding: spacing.xl },
   scene: { alignItems: "center", marginBottom: spacing.md },
   iconCircle: { width: 60, height: 60, borderRadius: 30, backgroundColor: colors.accentBg, alignItems: "center", justifyContent: "center" },
   road: { width: 56, height: 2, marginTop: spacing.sm, borderRadius: 1, borderStyle: "dashed", borderWidth: 1, borderColor: colors.border },

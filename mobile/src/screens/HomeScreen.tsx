@@ -85,11 +85,25 @@ export default function HomeScreen({ navigation }: any) {
 
   const firstName = profile?.name?.split(" ")[0];
   const isDriver = profile?.role === "DRIVER";
+  // Recomputed on every render rather than once — cheap, and means the
+  // greeting actually flips over if the app's just sitting open on
+  // Home when the hour rolls past a boundary, not stuck on whatever it
+  // was when the screen first mounted.
+  const hour = new Date().getHours();
+  const greeting = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : hour < 21 ? "Good evening" : "Good night";
 
   if (checkingActiveTrip) {
+    // AppBottomNav still renders here, not just in the loaded return
+    // below — otherwise the bar is simply absent for this first beat,
+    // then pops in the moment the active-trip check resolves. Same
+    // layout shell throughout, only the body swaps.
     return (
-      <View style={[styles.screen, { alignItems: "center", justifyContent: "center" }]}>
-        <CarLoader size="lg" />
+      <View style={styles.screen}>
+        <View style={{ height: insets.top, backgroundColor: colors.successBg }} />
+        <View style={[styles.scroll, { alignItems: "center", justifyContent: "center" }]}>
+          <CarLoader size="lg" />
+        </View>
+        <AppBottomNav navigation={navigation} profile={profile} active="home" />
       </View>
     );
   }
@@ -117,11 +131,20 @@ export default function HomeScreen({ navigation }: any) {
 
   return (
     <View style={styles.screen}>
+    {/* Android 15 (this app's target SDK) enforces edge-to-edge — the
+        real status bar is always transparent there and ignores
+        setStatusBarBackgroundColor entirely, ever since that API was
+        deprecated. The only way to get a colored status bar area is to
+        paint the app's own content that color, since it shows through:
+        this strip sits exactly under the status bar/notch (insets.top
+        tall) so that's what actually reads as "the status bar is
+        green", not a real OS-level status bar color. */}
+    <View style={{ height: insets.top, backgroundColor: colors.successBg }} />
     <ScrollView style={styles.scroll} contentContainerStyle={{ paddingBottom: spacing.xl }}>
-      <View style={[styles.header, { paddingTop: insets.top + spacing.lg }]}>
+      <View style={[styles.header, { paddingTop: spacing.lg }]}>
         <View style={styles.headerTopRow}>
           <View>
-            <Text style={styles.greeting}>Good morning</Text>
+            <Text style={styles.greeting}>{greeting}</Text>
             <Text style={styles.name}>{firstName || "there"}</Text>
           </View>
           <Pressable style={styles.avatarButton} onPress={() => navigation.navigate("Profile")} hitSlop={8}>
