@@ -19,6 +19,40 @@ router.post("/", requireAuth, async (req, res) => {
     return res.status(400).json({ error: "You can't review yourself." });
   }
 
+  // Previously unguarded entirely — any authenticated user could POST any
+  // bookingId/toUserId pair and it would just insert, letting anyone tank
+  // or inflate a stranger's rating with a review for a trip they were
+  // never on. This ties the review to the actual booking: the requester
+  // must have really been the passenger or driver on it, toUserId must be
+  // the *other* party on that same booking (not just any user), and the
+  // trip must actually be finished — matches the only two places the
+  // mobile app ever offers this (post-trip, from LiveTracking/Earnings).
+  const booking = await prisma.booking.findUnique({
+    where: { id: bookingId },
+    include: { ride: true },
+  });
+  if (!booking) {
+    return res.status(404).json({ error: "Booking not found." });
+  }
+  const isPassenger = booking.passengerId === req.user.id;
+  const isDriver = booking.ride.driverId === req.user.id;
+  if (!isPassenger && !isDriver) {
+    return res.status(403).json({ error: "You weren't part of this booking." });
+  }
+  const expectedToUserId = isPassenger ? booking.ride.driverId : booking.passengerId;
+  if (toUserId !== expectedToUserId) {
+    return res.status(400).json({ error: "You can only review the other person on this booking." });
+  }
+  if (booking.status !== "COMPLETED") {
+    return res.status(400).json({ error: "You can only review a completed trip." });
+  }
+  const existing = await prisma.review.findFirst({
+    where: { bookingId, fromUserId: req.user.id },
+  });
+  if (existing) {
+    return res.status(409).json({ error: "You've already reviewed this trip." });
+  }
+
   const review = await prisma.review.create({
     data: { bookingId, fromUserId: req.user.id, toUserId, rating, comment },
   });

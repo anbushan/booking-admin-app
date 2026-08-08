@@ -166,6 +166,14 @@ router.put("/:id/reject", requireAuth, requireRole("DRIVER"), async (req, res) =
   if (!booking || booking.ride.driverId !== req.user.id) {
     return res.status(404).json({ error: "Booking not found." });
   }
+  // Without this, a driver could reject a booking that's already past
+  // BOOKED (e.g. CONFIRMED, IN_PROGRESS, even COMPLETED) — the seat
+  // increment below would double-count against ride.seatsAvailable, and
+  // a paid/confirmed booking could get silently flipped back to
+  // REJECTED. Same guard `accept` already has, just missing here.
+  if (booking.status !== "BOOKED") {
+    return res.status(400).json({ error: `Cannot reject a booking in status ${booking.status}.` });
+  }
 
   await prisma.$transaction([
     prisma.booking.update({ where: { id: booking.id }, data: { status: "REJECTED" } }),
