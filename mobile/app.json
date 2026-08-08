@@ -8,6 +8,7 @@
     "assetBundlePatterns": [
       "**/*"
     ],
+    "newArchEnabled": false,
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.carpool.app"
@@ -26,7 +27,12 @@
         "POST_NOTIFICATIONS",
         "android.permission.ACCESS_COARSE_LOCATION",
         "android.permission.ACCESS_FINE_LOCATION"
-      ]
+      ],
+      "config": {
+        "googleMaps": {
+          "apiKey": "AIzaSyDY3pENaSjXmwLYff3D1HZZ77jkg-JMYVo"
+        }
+      }
     },
     "plugins": [
       [
