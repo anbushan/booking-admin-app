@@ -2,14 +2,16 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Location from "expo-location";
 import { reportNetworkError } from "./networkStatus";
 
-// Point this at your local backend during development (see backend/.env.example).
-// Use your machine's LAN IP, not localhost, when testing on a physical device.
-// Run `ipconfig getifaddr en0` (or check System Settings > Wi-Fi) to find
-// this if your machine's IP changes — it isn't static on most networks.
+// Production backend on Railway (see backend/README or the deploy notes for
+// how this got provisioned — Neon Postgres + Railway-hosted Redis, both
+// wired in via Railway env vars, not this file).
+// To point at a local backend during development instead, swap this for
+// your machine's LAN IP (not localhost — a physical device can't reach
+// that): run `ipconfig getifaddr en0` to find it.
 // Exported so lib/socket.ts and LanguageSelectionScreen.tsx share this one
 // value instead of keeping their own copies in sync by hand (they used to,
 // and drifted — a stuck-on-"Sending..." OTP screen was one symptom).
-export const API_BASE_URL = "http://10.164.176.64:4000";
+export const API_BASE_URL = "https://carpool-backend-api-production.up.railway.app";
 
 async function request(path: string, options: RequestInit = {}) {
   const token = await AsyncStorage.getItem("authToken");
