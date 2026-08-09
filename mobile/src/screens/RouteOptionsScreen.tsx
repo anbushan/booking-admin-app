@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
-import { View, Text, Pressable, FlatList, StyleSheet } from "react-native";
+import { View, Text, FlatList, StyleSheet } from "react-native";
+import { Pressable } from "../components/Pressable";
 import { showAlert } from "../lib/alert";
 import { colors, spacing, radius, typography } from "../theme/theme";
 import { api } from "../lib/api";
@@ -59,7 +60,7 @@ export default function RouteOptionsScreen({ route, navigation }: any) {
   }
 
   return (
-    <SafeAreaView style={styles.screen} edges={["top"]}>
+    <SafeAreaView style={styles.screen} edges={["top", "bottom"]}>
       <Text style={{ ...typography.title, padding: spacing.lg, paddingBottom: spacing.sm }}>Search routes</Text>
 
       {alternatives === null && !error ? (
@@ -113,5 +114,5 @@ const styles = StyleSheet.create({
   summary: { ...typography.title, fontSize: 14 },
   meta: { ...typography.small, color: colors.textMuted },
   button: { backgroundColor: colors.textPrimary, height: 44, borderRadius: radius.sm, alignItems: "center", justifyContent: "center", marginTop: spacing.xs },
-  buttonText: { color: "#FFFFFF", ...typography.body, fontWeight: "500" },
+  buttonText: { color: "#FFFFFF", ...typography.body, fontWeight: "700" },
 });

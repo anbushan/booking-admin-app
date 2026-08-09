@@ -1,5 +1,6 @@
 import React, { useState, useCallback, useEffect } from "react";
 import { View, Text, FlatList, StyleSheet, RefreshControl } from "react-native";
+import { Pressable } from "../components/Pressable";
 import { useFocusEffect } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
 import { colors, spacing, radius, typography } from "../theme/theme";
@@ -100,7 +101,7 @@ export default function PaymentQueueScreen({ navigation }: any) {
                 <Ionicons name="information-circle-outline" size={16} color={colors.accentText} />
                 <Text style={styles.noticeText}>
                   Nothing to do here yet — this just tracks who still owes the platform fee. It moves
-                  to "Upcoming trips" automatically once they pay.
+                  to "Start trip now" automatically once they pay.
                 </Text>
               </View>
             ) : null
@@ -108,7 +109,11 @@ export default function PaymentQueueScreen({ navigation }: any) {
           renderItem={({ item }) => {
             const mins = minutesLeft(item.expiresAt);
             return (
-              <View style={styles.card}>
+              // Nothing actionable here (see the comment above), but
+              // tapping through to the full booking detail was still
+              // missing — the only entry point into BookingDetailScreen
+              // used to be a notification tap.
+              <Pressable style={styles.card} onPress={() => navigation.navigate("BookingDetail", { bookingId: item.id })}>
                 <Text style={styles.route}>{item.ride?.sourceAddress} to {item.ride?.destAddress}</Text>
                 <View style={styles.rowBetween}>
                   <Text style={styles.meta}>
@@ -132,7 +137,7 @@ export default function PaymentQueueScreen({ navigation }: any) {
                     <Text style={styles.countdown}>{mins}m left to pay</Text>
                   )}
                 </View>
-              </View>
+              </Pressable>
             );
           }}
           ListEmptyComponent={
@@ -157,7 +162,7 @@ const styles = StyleSheet.create({
   route: { ...typography.title, fontSize: 14 },
   rowBetween: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
   meta: { ...typography.small, color: colors.textMuted },
-  fee: { ...typography.caption, fontWeight: "500", color: colors.textPrimary },
+  fee: { ...typography.caption, fontWeight: "700", color: colors.textPrimary },
   trackerBlock: { paddingVertical: spacing.xs },
   statusRow: { flexDirection: "row", alignItems: "center", gap: 4 },
   status: { ...typography.small, color: colors.warning, backgroundColor: colors.warningBg, paddingVertical: 2, paddingHorizontal: 6, borderRadius: 6 },

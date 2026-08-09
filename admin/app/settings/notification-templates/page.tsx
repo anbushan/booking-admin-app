@@ -4,6 +4,11 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import AdminShell from "../../../components/AdminShell";
 
+import { PageHeader } from "../../../components/PageHeader";
+import { Badge } from "../../../components/Badge";
+import { SubmitButton } from "../../../components/SubmitButton";
+import { redirectWithToast } from "../../../lib/toastRedirect";
+import { Bell } from "lucide-react";
 export const dynamic = "force-dynamic";
 
 // Seeded from every notify() call site across the backend — keeping this
@@ -34,6 +39,7 @@ async function saveTemplate(formData: FormData) {
   });
 
   revalidatePath("/settings/notification-templates");
+  redirectWithToast("/settings/notification-templates", `Saved "${type}" template.`);
 }
 
 export default async function NotificationTemplatesPage() {
@@ -48,7 +54,7 @@ export default async function NotificationTemplatesPage() {
   return (
     <AdminShell activeHref="/settings/notification-templates">
       <div style={{ padding: 24, fontFamily: "sans-serif" }}>
-        <h1 style={{ fontSize: 20, fontWeight: 500 }}>Notification templates</h1>
+        <PageHeader icon={Bell} title="Notification templates" />
         <p style={{ fontSize: 13, color: "#5F5E5A" }}>
           Super Admin only. Note: `notify()` in the backend currently
           hardcodes title/body text at each call site rather than reading
@@ -66,26 +72,25 @@ export default async function NotificationTemplatesPage() {
                 style={{ border: "1px solid #E3E1D8", borderRadius: 8, padding: 16 }}
               >
                 <input type="hidden" name="type" value={type} />
-                <div style={{ fontSize: 12, color: "#888780", marginBottom: 8 }}>{type}</div>
+                <div style={{ marginBottom: 8 }}><Badge tone="neutral">{type}</Badge></div>
                 <input
                   name="title"
                   placeholder="Title"
                   defaultValue={existing?.title || ""}
-                  style={{ width: "100%", height: 34, border: "1px solid #E3E1D8", borderRadius: 6, padding: "0 8px", fontSize: 13, marginBottom: 8 }}
+                  className="admin-input"
+                  style={{ width: "100%", marginBottom: 8 }}
                 />
                 <textarea
                   name="body"
                   placeholder="Body (use {placeholder} for dynamic values)"
                   defaultValue={existing?.body || ""}
                   rows={2}
-                  style={{ width: "100%", border: "1px solid #E3E1D8", borderRadius: 6, padding: 8, fontSize: 13, marginBottom: 8 }}
+                  className="admin-input"
+                  style={{ width: "100%", height: "auto", padding: 8, marginBottom: 8 }}
                 />
-                <button
-                  type="submit"
-                  style={{ background: "#1A1A18", color: "#fff", border: "none", borderRadius: 6, padding: "6px 12px", fontSize: 12 }}
-                >
+                <SubmitButton className="admin-btn admin-btn-primary admin-btn-sm" pendingLabel="Saving...">
                   Save
-                </button>
+                </SubmitButton>
               </form>
             );
           })}

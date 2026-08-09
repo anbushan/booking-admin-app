@@ -2,6 +2,9 @@ import { prisma } from "../../../lib/prisma";
 import { getSession, requireRole } from "../../../lib/session";
 import { redirect } from "next/navigation";
 import AdminShell from "../../../components/AdminShell";
+import { PageHeader } from "../../../components/PageHeader";
+import { Badge } from "../../../components/Badge";
+import { Ticket, ArrowLeft } from "lucide-react";
 
 export const dynamic = "force-dynamic";
 
@@ -25,11 +28,13 @@ export default async function BookingDetailPage({ params }: { params: { id: stri
 
   return (
     <AdminShell activeHref="/bookings">
-      <div style={{ padding: 24, fontFamily: "sans-serif" }}>
-        <a href="/bookings" style={{ fontSize: 13, color: "#5F5E5A" }}>{"< Back to bookings"}</a>
-        <h1 style={{ fontSize: 20, fontWeight: 500, marginTop: 8 }}>
-          Booking {booking.id.slice(0, 8)}
-        </h1>
+      <div style={{ padding: 24 }}>
+        <a href="/bookings" style={{ fontSize: 13, color: "#5F5E5A", display: "inline-flex", alignItems: "center", gap: 4 }}>
+          <ArrowLeft size={14} /> Back to bookings
+        </a>
+        <div style={{ marginTop: 12 }}>
+          <PageHeader icon={Ticket} title={`Booking ${booking.id.slice(0, 8)}`} />
+        </div>
 
         <div style={{ marginTop: 16, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, fontSize: 13 }}>
           <div>
@@ -65,7 +70,7 @@ export default async function BookingDetailPage({ params }: { params: { id: stri
           </div>
           <div>
             <div style={{ color: "#888780" }}>Status</div>
-            <div>{booking.status}</div>
+            <div><Badge>{booking.status}</Badge></div>
           </div>
           {booking.cancelledBy && (
             <div>
@@ -85,9 +90,10 @@ export default async function BookingDetailPage({ params }: { params: { id: stri
         {booking.refund && (
           <>
             <h2 style={{ fontSize: 15, fontWeight: 500, marginTop: 24 }}>Refund</h2>
-            <div style={{ fontSize: 13 }}>
-              Rs {Number(booking.refund.amount)} — {booking.refund.status} — estimated by{" "}
-              {booking.refund.estimatedCompletionAt.toLocaleDateString()}
+            <div style={{ fontSize: 13, display: "flex", alignItems: "center", gap: 8 }}>
+              <span>Rs {Number(booking.refund.amount)}</span>
+              <Badge>{booking.refund.status}</Badge>
+              <span>estimated by {booking.refund.estimatedCompletionAt.toLocaleDateString()}</span>
             </div>
           </>
         )}

@@ -1,5 +1,6 @@
 import React, { useState } from "react";
-import { View, Text, Pressable, StyleSheet } from "react-native";
+import { View, Text, StyleSheet } from "react-native";
+import { Pressable } from "../components/Pressable";
 import MapView, { Marker, PROVIDER_GOOGLE, Region } from "react-native-maps";
 import { Ionicons } from "@expo/vector-icons";
 import { colors, spacing, radius, typography } from "../theme/theme";
@@ -34,7 +35,7 @@ export default function MapPinConfirmScreen({ route, navigation }: any) {
   }
 
   return (
-    <SafeAreaView style={styles.screen} edges={["top"]}>
+    <SafeAreaView style={styles.screen} edges={["top", "bottom"]}>
       <Text style={{ ...typography.title, padding: spacing.lg, paddingBottom: spacing.sm }}>Confirm location</Text>
       <View style={styles.mapContainer}>
         <MapView

@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
-import { Modal, View, Text, Pressable, StyleSheet } from "react-native";
+import { Modal, View, Text, StyleSheet } from "react-native";
+import { Pressable } from "./Pressable";
 import { Ionicons } from "@expo/vector-icons";
 import { colors, spacing, radius, typography } from "../theme/theme";
 import { registerAlertListener, popAlert, AlertRequest } from "../lib/alertStore";

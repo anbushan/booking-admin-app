@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { View, Text, Pressable, FlatList, StyleSheet, RefreshControl } from "react-native";
+import { View, Text, FlatList, StyleSheet, RefreshControl } from "react-native";
+import { Pressable } from "../components/Pressable";
 import { useFocusEffect } from "@react-navigation/native";
 import { colors, spacing, radius, typography } from "../theme/theme";
 import { api } from "../lib/api";
@@ -87,7 +88,10 @@ export default function MyRequestsScreen({ navigation }: any) {
           renderItem={({ item }) => {
             const mins = minutesLeft(item.expiresAt);
             return (
-              <View style={styles.card}>
+              // Whole card opens the full booking detail — the
+              // status-specific action button below stays its own
+              // Pressable and still fires independently on its own tap.
+              <Pressable style={styles.card} onPress={() => navigation.navigate("BookingDetail", { bookingId: item.id })}>
                 <Text style={styles.route}>{item.ride?.sourceAddress} to {item.ride?.destAddress}</Text>
                 <View style={styles.rowBetween}>
                   <Text style={styles.meta}>
@@ -124,7 +128,7 @@ export default function MyRequestsScreen({ navigation }: any) {
                     <Text style={styles.payButtonText}>Track trip</Text>
                   </Pressable>
                 )}
-              </View>
+              </Pressable>
             );
           }}
           ListEmptyComponent={
@@ -150,5 +154,5 @@ const styles = StyleSheet.create({
   countdown: { ...typography.small, color: colors.textMuted },
   status: { ...typography.small, color: colors.warning, backgroundColor: colors.warningBg, alignSelf: "flex-start", paddingVertical: 2, paddingHorizontal: 6, borderRadius: 6 },
   payButton: { backgroundColor: colors.textPrimary, height: 38, borderRadius: radius.sm, alignItems: "center", justifyContent: "center", marginTop: spacing.xs },
-  payButtonText: { color: "#FFFFFF", ...typography.caption, fontWeight: "500" },
+  payButtonText: { color: "#FFFFFF", ...typography.caption, fontWeight: "700" },
 });

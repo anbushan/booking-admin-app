@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
-import { View, Text, TextInput, Pressable, Linking, StyleSheet } from "react-native";
+import { View, Text, TextInput, Linking, StyleSheet } from "react-native";
+import { Pressable } from "../components/Pressable";
 import { Ionicons } from "@expo/vector-icons";
 import { showAlert } from "../lib/alert";
 import { colors, spacing, radius, typography } from "../theme/theme";
@@ -63,7 +64,7 @@ export default function StartTripScreen({ route, navigation }: any) {
   }
 
   return (
-    <SafeAreaView style={styles.screen} edges={["top"]}>
+    <SafeAreaView style={styles.screen} edges={["top", "bottom"]}>
       <KeyboardAvoider style={styles.centerContent}>
         {arriving ? (
           <View style={styles.arrivingCard}>
@@ -144,8 +145,8 @@ const styles = StyleSheet.create({
     borderRadius: radius.md, padding: spacing.md, marginBottom: spacing.lg,
   },
   avatar: { width: 38, height: 38, borderRadius: 19, backgroundColor: colors.accentBg, alignItems: "center", justifyContent: "center" },
-  avatarText: { color: colors.accentText, fontWeight: "600", fontSize: 15 },
-  passengerName: { ...typography.body, fontWeight: "500" },
+  avatarText: { color: colors.accentText, fontWeight: "700", fontSize: 15 },
+  passengerName: { ...typography.body, fontWeight: "700" },
   ratingRow: { flexDirection: "row", alignItems: "center", gap: 3, marginTop: 1 },
   passengerMeta: { ...typography.small, color: colors.textMuted },
   callButton: { width: 34, height: 34, borderRadius: 17, backgroundColor: colors.accentBg, alignItems: "center", justifyContent: "center" },

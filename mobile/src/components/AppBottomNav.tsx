@@ -23,6 +23,7 @@ export function AppBottomNav({ navigation, profile, active = "" }: Props) {
   const [pendingRequestCount, setPendingRequestCount] = useState(0);
   const [myRequestsCount, setMyRequestsCount] = useState(0);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [upcomingTripsCount, setUpcomingTripsCount] = useState(0);
   const isDriver = profile?.role === "DRIVER";
 
   // Refetch every time a hub screen regains focus, not just once on
@@ -35,6 +36,12 @@ export function AppBottomNav({ navigation, profile, active = "" }: Props) {
       if (!profile?.role) return;
       if (isDriver) {
         api.getDriverPendingRequests().then((list: any[]) => setPendingRequestCount(list.length)).catch(() => {});
+        // Same filter UpcomingTripsScreen itself uses — the badge counts
+        // exactly what you'd see if you tapped through, same as every
+        // other badge in this app.
+        api.getDriverActiveBookings()
+          .then((list: any[]) => setUpcomingTripsCount(list.filter((t) => ["AWAITING_PAYMENT", "CONFIRMED", "IN_PROGRESS"].includes(t.status)).length))
+          .catch(() => {});
       } else {
         api.getMyBookings()
           .then((list: any[]) => setMyRequestsCount(list.filter((b) => ["BOOKED", "AWAITING_PAYMENT", "PAYMENT_PENDING"].includes(b.status)).length))
@@ -82,6 +89,7 @@ export function AppBottomNav({ navigation, profile, active = "" }: Props) {
         navigation={navigation}
         profile={profile}
         unreadCount={unreadCount}
+        upcomingTripsCount={upcomingTripsCount}
       />
     </>
   );

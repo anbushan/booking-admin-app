@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState, useCallback } from "react";
-import { View, Text, TextInput, Pressable, FlatList, StyleSheet, Linking } from "react-native";
+import { View, Text, TextInput, FlatList, StyleSheet, Linking } from "react-native";
+import { Pressable } from "../components/Pressable";
 import { useFocusEffect } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
 import { showAlert } from "../lib/alert";
@@ -126,7 +127,7 @@ export default function ChatDetailScreen({ route, navigation }: any) {
   }
 
   return (
-    <SafeAreaView style={styles.screen} edges={["top"]}>
+    <SafeAreaView style={styles.screen} edges={["top", "bottom"]}>
       <KeyboardAvoider>
       <View style={styles.header}>
         <View style={styles.avatar}>
@@ -215,7 +216,7 @@ const styles = StyleSheet.create({
   timeText: { ...typography.small, color: colors.textMuted, fontSize: 10, marginTop: 2, alignSelf: "flex-end" },
   locationBubble: { minWidth: 160 },
   locationRow: { flexDirection: "row", alignItems: "center", gap: 5 },
-  locationText: { ...typography.caption, color: colors.textPrimary, fontWeight: "500" },
+  locationText: { ...typography.caption, color: colors.textPrimary, fontWeight: "700" },
   locationHint: { ...typography.small, color: colors.textMuted, marginTop: 2 },
   inputRow: { flexDirection: "row", gap: spacing.sm, padding: spacing.md, borderTopWidth: 1, borderTopColor: colors.border, backgroundColor: colors.surface },
   endedBanner: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, padding: spacing.md, borderTopWidth: 1, borderTopColor: colors.border, backgroundColor: colors.surface },

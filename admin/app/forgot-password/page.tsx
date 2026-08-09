@@ -32,9 +32,9 @@ async function requestReset(formData: FormData) {
 
 export default function ForgotPasswordPage({ searchParams }: { searchParams: { sent?: string } }) {
   return (
-    <div style={{ display: "flex", minHeight: "100vh", alignItems: "center", justifyContent: "center", fontFamily: "sans-serif", padding: 16 }}>
-      <div style={{ width: "100%", maxWidth: 320 }}>
-        <h1 style={{ fontSize: 18, fontWeight: 500, marginBottom: 8 }}>Reset password</h1>
+    <div style={{ display: "flex", minHeight: "100vh", alignItems: "center", justifyContent: "center", background: "#F1EFE8", padding: 16 }}>
+      <div style={{ width: "100%", maxWidth: 340, background: "#fff", border: "1px solid #E3E1D8", borderRadius: 12, padding: 28 }}>
+        <h1 style={{ fontSize: 18, fontWeight: 600, marginBottom: 8 }}>Reset password</h1>
 
         {searchParams.sent ? (
           <p style={{ fontSize: 13, color: "#5F5E5A" }}>
@@ -45,17 +45,8 @@ export default function ForgotPasswordPage({ searchParams }: { searchParams: { s
           </p>
         ) : (
           <form action={requestReset} style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-            <input
-              name="email"
-              type="email"
-              placeholder="you@company.com"
-              required
-              style={{ height: 40, border: "1px solid #E3E1D8", borderRadius: 6, padding: "0 10px" }}
-            />
-            <button
-              type="submit"
-              style={{ height: 42, background: "#1A1A18", color: "#fff", border: "none", borderRadius: 6, fontSize: 14 }}
-            >
+            <input name="email" type="email" placeholder="you@company.com" required className="admin-input" style={{ height: 40 }} />
+            <button type="submit" className="admin-btn admin-btn-primary" style={{ height: 42, width: "100%" }}>
               Send reset link
             </button>
           </form>

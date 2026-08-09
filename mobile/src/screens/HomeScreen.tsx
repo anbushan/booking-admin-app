@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useCallback } from "react";
-import { View, Text, Pressable, StyleSheet, ScrollView } from "react-native";
+import { View, Text, StyleSheet, ScrollView, RefreshControl } from "react-native";
+import { Pressable } from "../components/Pressable";
 import { useFocusEffect } from "@react-navigation/native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -20,7 +21,7 @@ const DEFAULT_SOURCE: Point = { lat: 12.9352, lng: 77.6146, address: "Koramangal
 // reads the word.
 const DRIVER_ACTIONS = [
   { route: "BookingRequests", label: "Booking requests", icon: "mail-unread-outline" },
-  { route: "UpcomingTrips", label: "Upcoming trips", icon: "navigate-outline" },
+  { route: "UpcomingTrips", label: "Start trip now", icon: "navigate-outline" },
   { route: "History", label: "Your rides", params: { role: "DRIVER" }, icon: "car-outline" },
   { route: "Earnings", label: "Earnings", icon: "wallet-outline" },
 ] as const;
@@ -40,10 +41,30 @@ export default function HomeScreen({ navigation }: any) {
   const [checkingActiveTrip, setCheckingActiveTrip] = useState(true);
   const [pendingRequestCount, setPendingRequestCount] = useState(0);
   const [howItWorksVisible, setHowItWorksVisible] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
     api.getMyProfile().then(setProfile).catch(() => {});
   }, []);
+
+  // Driver's Home is the one screen that's mostly a live dashboard
+  // (pending request count, quick links) rather than a form — pull to
+  // refresh re-checks the profile and that count on demand, the same
+  // way AppBottomNav's own badges already refresh on focus, just
+  // available immediately instead of waiting for a navigation round trip.
+  async function onRefresh() {
+    setRefreshing(true);
+    try {
+      await Promise.all([
+        api.getMyProfile().then(setProfile).catch(() => {}),
+        profile?.role === "DRIVER"
+          ? api.getDriverPendingRequests().then((list: any[]) => setPendingRequestCount(list.length)).catch(() => {})
+          : Promise.resolve(),
+      ]);
+    } finally {
+      setRefreshing(false);
+    }
+  }
 
   // If the app crashed, was force-quit, or reinstalled while a trip was
   // IN_PROGRESS, there was previously nothing bringing the user back to
@@ -140,7 +161,11 @@ export default function HomeScreen({ navigation }: any) {
         tall) so that's what actually reads as "the status bar is
         green", not a real OS-level status bar color. */}
     <View style={{ height: insets.top, backgroundColor: colors.successBg }} />
-    <ScrollView style={styles.scroll} contentContainerStyle={{ paddingBottom: spacing.xl }}>
+    <ScrollView
+      style={styles.scroll}
+      contentContainerStyle={{ paddingBottom: spacing.xl }}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[colors.accent]} tintColor={colors.accent} />}
+    >
       <View style={[styles.header, { paddingTop: spacing.lg }]}>
         <View style={styles.headerTopRow}>
           <View>
@@ -186,12 +211,12 @@ export default function HomeScreen({ navigation }: any) {
           <Text style={styles.driverHint}>
             Publish a ride with your route and seats — passengers searching that route can then
             request to book. Accept or decline from "Booking requests", then start each trip from
-            "Upcoming trips" once you arrive at pickup.
+            "Start trip now" once you arrive at pickup.
           </Text>
 
           {/* A static preview of the whole flow, not tied to any one
               ride — new drivers land here with zero context for what
-              "Booking requests"/"Payment queue"/"Upcoming trips" even
+              "Booking requests"/"Payment queue"/"Start trip now" even
               mean until they've lived through the loop once. */}
           <Pressable
             style={({ pressed }) => [styles.howItWorksCard, pressed && styles.howItWorksCardPressed]}
@@ -332,7 +357,12 @@ export default function HomeScreen({ navigation }: any) {
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.bg },
   scroll: { flex: 1 },
-  header: { backgroundColor: colors.textPrimary, padding: spacing.lg, paddingBottom: spacing.xl },
+  // Was near-black (colors.textPrimary) — read as flat and out of place
+  // against the rest of the app's warm, light palette. The blue accent
+  // is the app's own brand color already carrying every primary CTA
+  // (search button, chips, badges), so the header now reads as "this
+  // app" rather than a generic dark bar, for both driver and passenger.
+  header: { backgroundColor: colors.accent, padding: spacing.lg, paddingBottom: spacing.xl },
   headerTopRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" },
   avatarButton: {
     width: 38, height: 38, borderRadius: 19,
@@ -341,7 +371,7 @@ const styles = StyleSheet.create({
   },
   avatarButtonText: { color: "#FFFFFF", ...typography.title, fontSize: 15 },
   greeting: { color: "#FFFFFF", opacity: 0.8, fontSize: 13 },
-  name: { color: "#FFFFFF", fontSize: 18, fontWeight: "500", marginTop: 2 },
+  name: { color: "#FFFFFF", fontSize: 18, fontWeight: "700", marginTop: 2 },
   searchCard: {
     backgroundColor: colors.surface,
     marginHorizontal: spacing.lg,
@@ -434,7 +464,7 @@ const styles = StyleSheet.create({
   howItWorksLinkRow: { flexDirection: "row", alignItems: "center", gap: 4, marginTop: spacing.sm },
   howItWorksLinkLabel: { ...typography.small, color: colors.accentText, fontWeight: "700", textDecorationLine: "underline" },
   howItWorksLink: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 4, marginTop: spacing.sm },
-  howItWorksLinkText: { ...typography.small, color: colors.accentText, fontWeight: "600" },
+  howItWorksLinkText: { ...typography.small, color: colors.accentText, fontWeight: "700" },
   sectionLabel: {
     ...typography.title,
     marginHorizontal: spacing.lg,

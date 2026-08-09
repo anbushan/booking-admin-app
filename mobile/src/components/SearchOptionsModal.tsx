@@ -1,7 +1,14 @@
-import React, { useState } from "react";
-import { View, Text, Pressable, Modal, ScrollView, TextInput, StyleSheet } from "react-native";
+import React, { useEffect, useRef, useState } from "react";
+import { View, Text, Modal, ScrollView, TextInput, Animated, Easing, StyleSheet } from "react-native";
+import { Pressable } from "./Pressable";
 import { colors, spacing, radius, typography } from "../theme/theme";
 import { KeyboardAvoider } from "./KeyboardAvoider";
+
+// Off-screen starting offset for the slide-up — see HowItWorksSheet for
+// the same pattern and the reasoning (RN's Modal `animationType="slide"`
+// is a fixed, non-interruptible, un-eased animation — a hand-rolled one
+// is what actually reads as smooth).
+const OFFSCREEN_Y = 700;
 
 // Dependency-free date + time + seat-count picker. Deliberately avoids
 // @react-native-community/datetimepicker (a native module that isn't
@@ -93,6 +100,27 @@ export default function SearchOptionsModal({ visible, initialDate, initialSeats,
   const [seats, setSeats] = useState(initialSeats);
   const [timeError, setTimeError] = useState("");
 
+  const [mounted, setMounted] = useState(visible);
+  const translateY = useRef(new Animated.Value(OFFSCREEN_Y)).current;
+  const backdropOpacity = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    if (visible) {
+      setMounted(true);
+      translateY.setValue(OFFSCREEN_Y);
+      backdropOpacity.setValue(0);
+      Animated.parallel([
+        Animated.timing(translateY, { toValue: 0, duration: 300, easing: Easing.out(Easing.cubic), useNativeDriver: true }),
+        Animated.timing(backdropOpacity, { toValue: 1, duration: 300, easing: Easing.out(Easing.cubic), useNativeDriver: true }),
+      ]).start();
+    } else {
+      Animated.parallel([
+        Animated.timing(translateY, { toValue: OFFSCREEN_Y, duration: 240, easing: Easing.in(Easing.cubic), useNativeDriver: true }),
+        Animated.timing(backdropOpacity, { toValue: 0, duration: 240, easing: Easing.in(Easing.cubic), useNativeDriver: true }),
+      ]).start(({ finished }) => { if (finished) setMounted(false); });
+    }
+  }, [visible]);
+
   function handleConfirm() {
     if (rangeMode) {
       const start = parseTimeText(startTimeText);
@@ -117,9 +145,18 @@ export default function SearchOptionsModal({ visible, initialDate, initialSeats,
     onConfirm(result, seats);
   }
 
+  if (!mounted) return null;
+
   return (
-    <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
-      <KeyboardAvoider style={styles.backdrop}>
+    <Modal visible transparent animationType="none" onRequestClose={onClose}>
+      {/* Dim layer is its own sibling, not a parent wrapping the sheet —
+          KeyboardAvoider's inner content box is a plain (non-Animated)
+          View, so an Animated.Value opacity dropped into its style
+          wouldn't actually animate. Splitting them keeps the fade
+          working without touching KeyboardAvoider itself. */}
+      <Animated.View style={[styles.backdrop, { opacity: backdropOpacity }]} pointerEvents="none" />
+      <KeyboardAvoider style={styles.avoiderBackdrop}>
+        <Animated.View style={{ transform: [{ translateY }] }}>
         <View style={styles.sheet}>
           <Text style={styles.sheetTitle}>When are you traveling?</Text>
 
@@ -203,13 +240,15 @@ export default function SearchOptionsModal({ visible, initialDate, initialSeats,
             </Pressable>
           </View>
         </View>
+        </Animated.View>
       </KeyboardAvoider>
     </Modal>
   );
 }
 
 const styles = StyleSheet.create({
-  backdrop: { flex: 1, backgroundColor: "rgba(0,0,0,0.4)", justifyContent: "flex-end" },
+  backdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: "rgba(0,0,0,0.4)" },
+  avoiderBackdrop: { flex: 1, justifyContent: "flex-end" },
   sheet: { backgroundColor: colors.surface, borderTopLeftRadius: radius.lg, borderTopRightRadius: radius.lg, padding: spacing.lg },
   sheetTitle: { ...typography.title, marginBottom: spacing.md },
   dateRow: { marginBottom: spacing.md },
@@ -224,7 +263,7 @@ const styles = StyleSheet.create({
   },
   dateChipActive: { backgroundColor: colors.accentBg, borderColor: colors.accent },
   dateChipText: { ...typography.small, color: colors.textSecondary },
-  dateChipTextActive: { color: colors.accentText, fontWeight: "500" },
+  dateChipTextActive: { color: colors.accentText, fontWeight: "700" },
   label: { ...typography.caption, color: colors.textSecondary, marginBottom: spacing.xs },
   timeInput: {
     ...typography.body,

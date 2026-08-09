@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "Carpool",
+    "name": "NanbaGO",
     "slug": "carpool",
     "version": "0.1.0",
     "orientation": "portrait",
@@ -51,7 +51,8 @@
           "locationAlwaysAndWhenInUsePermission": "We use your location during an active trip so the other rider can track progress and to power the SOS button."
         }
       ],
-      "expo-font"
+      "expo-font",
+      "./plugins/withDisableForceDark"
     ],
     "extra": {
       "eas": {

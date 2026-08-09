@@ -5,6 +5,11 @@ import { revalidatePath } from "next/cache";
 import bcrypt from "bcryptjs";
 import AdminShell from "../../../components/AdminShell";
 
+import { PageHeader } from "../../../components/PageHeader";
+import { Badge } from "../../../components/Badge";
+import { SubmitButton } from "../../../components/SubmitButton";
+import { redirectWithToast } from "../../../lib/toastRedirect";
+import { UserCog } from "lucide-react";
 export const dynamic = "force-dynamic";
 
 const ROLES = ["super_admin", "finance", "verification", "support"];
@@ -20,6 +25,7 @@ async function createAdmin(formData: FormData) {
   await prisma.adminRole.create({ data: { adminId: admin.id, role } });
 
   revalidatePath("/settings/roles");
+  redirectWithToast("/settings/roles", `Admin account created for ${email}.`);
 }
 
 async function changeRole(formData: FormData) {
@@ -34,6 +40,7 @@ async function changeRole(formData: FormData) {
     await prisma.adminRole.create({ data: { adminId, role } });
   }
   revalidatePath("/settings/roles");
+  redirectWithToast("/settings/roles", "Role updated.");
 }
 
 export default async function RolesPage() {
@@ -51,7 +58,7 @@ export default async function RolesPage() {
   return (
     <AdminShell activeHref="/settings/roles">
       <div style={{ padding: 24, fontFamily: "sans-serif" }}>
-        <h1 style={{ fontSize: 20, fontWeight: 500 }}>Admin roles</h1>
+        <PageHeader icon={UserCog} title="Admin roles" />
         <p style={{ fontSize: 13, color: "#5F5E5A" }}>
           Super Admin sees everything. Finance, Verification, and Support
           are scoped per the access table — each admin page checks this
@@ -70,18 +77,18 @@ export default async function RolesPage() {
             {admins.map((a) => (
               <tr key={a.id} style={{ borderBottom: "1px solid #E3E1D8" }}>
                 <td style={{ padding: "8px 4px" }}>{a.email}</td>
-                <td style={{ padding: "8px 4px" }}>{roleByAdminId[a.id] || "none"}</td>
+                <td style={{ padding: "8px 4px" }}><Badge tone={roleByAdminId[a.id] ? "info" : "neutral"}>{roleByAdminId[a.id] || "none"}</Badge></td>
                 <td style={{ padding: "8px 4px" }}>
                   <form action={changeRole} style={{ display: "flex", gap: 6 }}>
                     <input type="hidden" name="adminId" value={a.id} />
-                    <select name="role" defaultValue={roleByAdminId[a.id] || "support"} style={{ fontSize: 12, padding: 4 }}>
+                    <select name="role" defaultValue={roleByAdminId[a.id] || "support"} className="admin-select" style={{ height: 30, fontSize: 12 }}>
                       {ROLES.map((r) => (
                         <option key={r} value={r}>{r}</option>
                       ))}
                     </select>
-                    <button type="submit" style={{ fontSize: 12, background: "#fff", border: "1px solid #E3E1D8", borderRadius: 6, padding: "4px 10px" }}>
+                    <SubmitButton className="admin-btn admin-btn-secondary admin-btn-sm" pendingLabel="Updating...">
                       Update
-                    </button>
+                    </SubmitButton>
                   </form>
                 </td>
               </tr>
@@ -90,17 +97,15 @@ export default async function RolesPage() {
         </table>
 
         <h2 style={{ fontSize: 15, fontWeight: 500, marginTop: 24 }}>Add admin</h2>
-        <form action={createAdmin} style={{ display: "flex", gap: 8, marginTop: 8, alignItems: "center" }}>
-          <input name="email" type="email" placeholder="email" required style={{ height: 34, border: "1px solid #E3E1D8", borderRadius: 6, padding: "0 8px", fontSize: 13 }} />
-          <input name="password" type="password" placeholder="password" required style={{ height: 34, border: "1px solid #E3E1D8", borderRadius: 6, padding: "0 8px", fontSize: 13 }} />
-          <select name="role" defaultValue="support" style={{ fontSize: 13, height: 34 }}>
+        <form action={createAdmin} style={{ display: "flex", gap: 8, marginTop: 8, alignItems: "center", flexWrap: "wrap" }}>
+          <input name="email" type="email" placeholder="email" required className="admin-input" />
+          <input name="password" type="password" placeholder="password" required className="admin-input" />
+          <select name="role" defaultValue="support" className="admin-select">
             {ROLES.map((r) => (
               <option key={r} value={r}>{r}</option>
             ))}
           </select>
-          <button type="submit" style={{ background: "#1A1A18", color: "#fff", border: "none", borderRadius: 6, padding: "8px 14px", fontSize: 13 }}>
-            Create
-          </button>
+          <SubmitButton pendingLabel="Creating...">Create</SubmitButton>
         </form>
       </div>
     </AdminShell>

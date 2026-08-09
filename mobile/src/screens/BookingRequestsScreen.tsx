@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useCallback } from "react";
-import { View, Text, Pressable, FlatList, StyleSheet, RefreshControl } from "react-native";
+import { View, Text, FlatList, StyleSheet, RefreshControl } from "react-native";
+import { Pressable } from "../components/Pressable";
 import { useFocusEffect } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
 import { colors, spacing, radius, typography } from "../theme/theme";
@@ -175,5 +176,5 @@ const styles = StyleSheet.create({
   acceptButton: { flex: 1, flexDirection: "row", gap: 6, backgroundColor: colors.accent, height: 40, borderRadius: radius.sm, alignItems: "center", justifyContent: "center" },
   acceptText: { color: "#FFFFFF", ...typography.caption, fontWeight: "700" },
   declineButton: { flex: 1, flexDirection: "row", gap: 6, backgroundColor: colors.bg, borderWidth: 1, borderColor: colors.border, height: 40, borderRadius: radius.sm, alignItems: "center", justifyContent: "center" },
-  declineText: { ...typography.caption, color: colors.textSecondary, fontWeight: "600" },
+  declineText: { ...typography.caption, color: colors.textSecondary, fontWeight: "700" },
 });

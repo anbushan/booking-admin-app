@@ -1,5 +1,6 @@
 import React, { useState } from "react";
-import { View, Text, Pressable, StyleSheet } from "react-native";
+import { View, Text, StyleSheet } from "react-native";
+import { Pressable } from "../components/Pressable";
 import { Ionicons } from "@expo/vector-icons";
 import { showAlert } from "../lib/alert";
 import { colors, spacing, radius, typography } from "../theme/theme";
@@ -25,7 +26,7 @@ export default function BookingRequestDetailScreen({ route, navigation }: any) {
   }
 
   return (
-    <SafeAreaView style={styles.screen} edges={["top"]}>
+    <SafeAreaView style={styles.screen} edges={["top", "bottom"]}>
       <Text style={{ ...typography.title, padding: spacing.lg, paddingBottom: spacing.sm }}>Booking request</Text>
 
       <View style={styles.body}>
@@ -89,7 +90,7 @@ const styles = StyleSheet.create({
   body: { padding: spacing.lg },
   profileRow: { flexDirection: "row", alignItems: "center", gap: spacing.md, paddingBottom: spacing.lg, borderBottomWidth: 1, borderBottomColor: colors.border },
   avatar: { width: 44, height: 44, borderRadius: 22, backgroundColor: colors.accentBg, alignItems: "center", justifyContent: "center" },
-  avatarText: { fontSize: 16, fontWeight: "500", color: colors.accentText },
+  avatarText: { fontSize: 16, fontWeight: "700", color: colors.accentText },
   name: { ...typography.title, fontSize: 15 },
   meta: { ...typography.small, color: colors.textMuted, marginTop: 2 },
   infoRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingVertical: spacing.sm, borderBottomWidth: 1, borderBottomColor: colors.border },
@@ -101,5 +102,5 @@ const styles = StyleSheet.create({
   acceptButton: { flexDirection: "row", gap: spacing.xs, backgroundColor: colors.accent, height: 46, borderRadius: radius.sm, alignItems: "center", justifyContent: "center", marginTop: spacing.xl },
   acceptButtonText: { color: "#FFFFFF", ...typography.title },
   declineButton: { flexDirection: "row", gap: 6, alignItems: "center", justifyContent: "center", marginTop: spacing.md, paddingVertical: spacing.xs },
-  declineButtonText: { ...typography.caption, color: colors.danger, fontWeight: "600" },
+  declineButtonText: { ...typography.caption, color: colors.danger, fontWeight: "700" },
 });

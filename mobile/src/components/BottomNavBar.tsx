@@ -1,5 +1,6 @@
 import React from "react";
-import { View, Text, Pressable, StyleSheet } from "react-native";
+import { View, Text, StyleSheet } from "react-native";
+import { Pressable } from "./Pressable";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { colors, spacing, typography } from "../theme/theme";
@@ -69,7 +70,7 @@ const styles = StyleSheet.create({
   },
   tab: { flex: 1, alignItems: "center", justifyContent: "center", gap: 2, paddingHorizontal: 2 },
   label: { ...typography.small, fontSize: 10.5, color: colors.textMuted },
-  labelActive: { color: colors.accentText, fontWeight: "600" },
+  labelActive: { color: colors.accentText, fontWeight: "700" },
   badge: {
     position: "absolute",
     top: -4,

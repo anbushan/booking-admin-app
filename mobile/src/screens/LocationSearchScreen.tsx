@@ -1,5 +1,6 @@
 import React, { useState } from "react";
-import { View, TextInput, FlatList, Pressable, Text, StyleSheet, ActivityIndicator } from "react-native";
+import { View, TextInput, FlatList, Text, StyleSheet, ActivityIndicator } from "react-native";
+import { Pressable } from "../components/Pressable";
 import { Ionicons } from "@expo/vector-icons";
 import { colors, spacing, radius, typography } from "../theme/theme";
 import { api } from "../lib/api";
@@ -90,7 +91,7 @@ export default function LocationSearchScreen({ navigation, route }: any) {
   }
 
   return (
-    <SafeAreaView style={styles.screen} edges={["top"]}>
+    <SafeAreaView style={styles.screen} edges={["top", "bottom"]}>
       <KeyboardAvoider>
       <View style={styles.header}>
         <View style={styles.inputWrap}>
@@ -157,7 +158,7 @@ const styles = StyleSheet.create({
   input: { flex: 1, ...typography.body, height: 40, color: colors.textPrimary },
   currentLocationRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm, padding: spacing.md, borderBottomWidth: 1, borderBottomColor: colors.border },
   currentLocationIcon: { width: 24, alignItems: "center" },
-  currentLocationText: { ...typography.body, color: colors.accentText, fontWeight: "500" },
+  currentLocationText: { ...typography.body, color: colors.accentText, fontWeight: "700" },
   row: { flexDirection: "row", alignItems: "center", gap: spacing.sm, padding: spacing.md, borderBottomWidth: 1, borderBottomColor: colors.border },
   rowText: { ...typography.body, flex: 1 },
 });

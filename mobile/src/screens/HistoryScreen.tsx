@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useCallback } from "react";
-import { View, Text, FlatList, Pressable, StyleSheet, RefreshControl } from "react-native";
+import { View, Text, FlatList, StyleSheet, RefreshControl } from "react-native";
+import { Pressable } from "../components/Pressable";
 import { useFocusEffect } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
 import { showAlert } from "../lib/alert";
@@ -167,7 +168,10 @@ export default function HistoryScreen({ navigation, route }: any) {
               )}
             </View>
           ) : (
-            <View style={styles.card}>
+            // Whole card opens the full booking detail — previously the
+            // only way to reach BookingDetailScreen at all was tapping a
+            // notification, with nothing in normal browsing linking to it.
+            <Pressable style={styles.card} onPress={() => navigation.navigate("BookingDetail", { bookingId: item.id })}>
               <View style={styles.routeRow}>
                 <Ionicons name="navigate-outline" size={13} color={colors.textMuted} />
                 <Text style={styles.route}>{item.ride?.sourceAddress} to {item.ride?.destAddress}</Text>
@@ -216,7 +220,7 @@ export default function HistoryScreen({ navigation, route }: any) {
                   )}
                 </View>
               )}
-            </View>
+            </Pressable>
           )
         }
         ListEmptyComponent={

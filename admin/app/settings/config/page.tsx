@@ -4,6 +4,10 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import AdminShell from "../../../components/AdminShell";
 
+import { PageHeader } from "../../../components/PageHeader";
+import { SubmitButton } from "../../../components/SubmitButton";
+import { redirectWithToast } from "../../../lib/toastRedirect";
+import { Settings as SettingsIcon } from "lucide-react";
 export const dynamic = "force-dynamic";
 
 const NUMERIC_KEYS = [
@@ -40,6 +44,7 @@ async function saveConfig(formData: FormData) {
   }
 
   revalidatePath("/settings/config");
+  redirectWithToast("/settings/config", "Configuration saved.");
 }
 
 export default async function AppConfigPage() {
@@ -100,7 +105,7 @@ export default async function AppConfigPage() {
   return (
     <AdminShell activeHref="/settings/config">
       <div style={{ padding: 24, fontFamily: "sans-serif" }}>
-        <h1 style={{ fontSize: 20, fontWeight: 500 }}>App configuration</h1>
+        <PageHeader icon={SettingsIcon} title="App configuration" />
         <p style={{ fontSize: 13, color: "#5F5E5A" }}>
           Super Admin only. The backend reads these values (with a short
           in-memory cache, so changes take effect within ~15 seconds — no
@@ -120,7 +125,8 @@ export default async function AppConfigPage() {
                       type="number"
                       step="any"
                       defaultValue={String(config![f.key])}
-                      style={{ height: 38, border: "1px solid #E3E1D8", borderRadius: 6, padding: "0 10px", width: "100%", fontSize: 13 }}
+                      className="admin-input"
+                      style={{ width: "100%" }}
                     />
                     <div style={{ fontSize: 11, color: "#888780", marginTop: 2 }}>{f.hint}</div>
                   </div>
@@ -128,12 +134,7 @@ export default async function AppConfigPage() {
               </div>
             </div>
           ))}
-          <button
-            type="submit"
-            style={{ background: "#1A1A18", color: "#fff", border: "none", borderRadius: 6, padding: "10px 16px", fontSize: 13, width: "fit-content" }}
-          >
-            Save configuration
-          </button>
+          <SubmitButton pendingLabel="Saving...">Save configuration</SubmitButton>
         </form>
       </div>
     </AdminShell>

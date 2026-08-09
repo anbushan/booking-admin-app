@@ -14,7 +14,7 @@ export default function RefundStatusScreen({ route, navigation }: any) {
   const { refund } = route.params;
 
   return (
-    <SafeAreaView style={styles.screen} edges={["top"]}>
+    <SafeAreaView style={styles.screen} edges={["top", "bottom"]}>
       <Text style={{ ...typography.title, padding: spacing.lg, paddingBottom: spacing.sm }}>Refund status</Text>
 
       <View style={styles.body}>
@@ -55,7 +55,7 @@ const styles = StyleSheet.create({
   back: { fontSize: 18 },
   title: typography.title,
   body: { padding: spacing.lg, alignItems: "center" },
-  amount: { fontSize: 28, fontWeight: "500", marginTop: spacing.lg },
+  amount: { fontSize: 28, fontWeight: "700", marginTop: spacing.lg },
   statusText: { ...typography.caption, color: colors.textSecondary, marginTop: spacing.xs, textAlign: "center" },
   timeline: { alignSelf: "stretch", marginTop: spacing.xl, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: radius.md, padding: spacing.md },
   timelineRow: { flexDirection: "row", justifyContent: "space-between", paddingVertical: spacing.sm, borderBottomWidth: 1, borderBottomColor: colors.border },

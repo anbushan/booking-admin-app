@@ -1,5 +1,6 @@
 import React, { useState, useCallback, useMemo } from "react";
-import { View, Text, SectionList, Pressable, StyleSheet, RefreshControl } from "react-native";
+import { View, Text, SectionList, StyleSheet, RefreshControl } from "react-native";
+import { Pressable } from "../components/Pressable";
 import { useFocusEffect } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
 import { colors, spacing, radius, typography } from "../theme/theme";
@@ -22,10 +23,13 @@ type Notif = { id: string; type: string; title: string; body: string; bookingId:
 // every booking-scoped notification. Account-level notices (driver
 // strikes, passenger cooldown) have no bookingId and no natural
 // destination — those just mark read in place.
-function resolveTarget(notif: Notif): { screen: string; params?: Record<string, any> } | null {
+function resolveTarget(notif: Notif, myRole?: string): { screen: string; params?: Record<string, any> } | null {
   if (notif.type === "NEW_BOOKING_REQUEST") return { screen: "BookingRequests" };
   if (!notif.bookingId) return null;
   if (notif.type === "DRIVER_ARRIVED") return { screen: "TripOtp", params: { bookingId: notif.bookingId } };
+  if (notif.type === "NEW_MESSAGE") {
+    return { screen: "ChatDetail", params: { bookingId: notif.bookingId, calleeRole: myRole === "DRIVER" ? "PASSENGER" : "DRIVER" } };
+  }
   return { screen: "BookingDetail", params: { bookingId: notif.bookingId } };
 }
 
@@ -39,6 +43,7 @@ function notifIcon(type: string): keyof typeof Ionicons.glyphMap {
   if (type === "BOOKING_ACCEPTED" || type === "BOOKING_CONFIRMED") return "checkmark-circle-outline";
   if (type === "BOOKING_REJECTED" || type === "BOOKING_CANCELLED") return "close-circle-outline";
   if (type === "TRIP_COMPLETED") return "flag-outline";
+  if (type === "NEW_MESSAGE") return "chatbubble-ellipses-outline";
   return "notifications-outline";
 }
 
@@ -117,7 +122,7 @@ export default function NotificationsScreen({ navigation }: any) {
 
   function handlePress(notif: Notif) {
     markRead(notif.id);
-    const target = resolveTarget(notif);
+    const target = resolveTarget(notif, profile?.role);
     if (target) navigation.navigate(target.screen, target.params);
   }
 
@@ -184,7 +189,7 @@ const styles = StyleSheet.create({
   pageTitle: { ...typography.title },
   pageSubtitle: { ...typography.small, color: colors.textMuted, marginTop: 2 },
   markAllButton: { flexDirection: "row", alignItems: "center", gap: 4, marginTop: 4 },
-  markAllText: { ...typography.small, color: colors.accentText, fontWeight: "600" },
+  markAllText: { ...typography.small, color: colors.accentText, fontWeight: "700" },
   sectionHeader: { ...typography.small, color: colors.textMuted, fontWeight: "700", textTransform: "uppercase", letterSpacing: 0.5, marginTop: spacing.sm, marginBottom: spacing.xs },
   card: {
     flexDirection: "row",

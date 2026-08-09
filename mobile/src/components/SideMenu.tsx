@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
-import { View, Text, Pressable, Modal, Animated, Easing, Dimensions, StyleSheet } from "react-native";
+import { View, Text, Modal, Animated, Easing, Dimensions, StyleSheet } from "react-native";
+import { Pressable } from "./Pressable";
 import { Ionicons } from "@expo/vector-icons";
 import { showAlert } from "../lib/alert";
 import { colors, spacing, radius, typography } from "../theme/theme";
@@ -19,6 +20,7 @@ import { Analytics } from "../lib/analytics";
 // (`mounted` state) rather than letting `visible` unmount it instantly.
 
 const SCREEN_WIDTH = Dimensions.get("window").width;
+const CLOSE_DURATION = 240;
 
 type Props = {
   visible: boolean;
@@ -26,9 +28,10 @@ type Props = {
   navigation: any;
   profile: { id?: string; name?: string; role?: string } | null;
   unreadCount?: number;
+  upcomingTripsCount?: number;
 };
 
-export default function SideMenu({ visible, onClose, navigation, profile, unreadCount = 0 }: Props) {
+export default function SideMenu({ visible, onClose, navigation, profile, unreadCount = 0, upcomingTripsCount = 0 }: Props) {
   const [mounted, setMounted] = useState(visible);
   const translateX = useRef(new Animated.Value(SCREEN_WIDTH)).current;
   const backdropOpacity = useRef(new Animated.Value(0)).current;
@@ -44,15 +47,23 @@ export default function SideMenu({ visible, onClose, navigation, profile, unread
       ]).start();
     } else {
       Animated.parallel([
-        Animated.timing(translateX, { toValue: SCREEN_WIDTH, duration: 240, easing: Easing.in(Easing.cubic), useNativeDriver: true }),
-        Animated.timing(backdropOpacity, { toValue: 0, duration: 240, easing: Easing.in(Easing.cubic), useNativeDriver: true }),
+        Animated.timing(translateX, { toValue: SCREEN_WIDTH, duration: CLOSE_DURATION, easing: Easing.in(Easing.cubic), useNativeDriver: true }),
+        Animated.timing(backdropOpacity, { toValue: 0, duration: CLOSE_DURATION, easing: Easing.in(Easing.cubic), useNativeDriver: true }),
       ]).start(({ finished }) => { if (finished) setMounted(false); });
     }
   }, [visible]);
 
+  // onClose() and navigation.navigate() used to fire in the same tick —
+  // the sidebar's own close animation and the new screen's push
+  // transition then both started at once, competing for the same JS/UI
+  // thread work (this app runs without New Architecture, for
+  // react-native-razorpay compat, so there's no Fabric concurrency to
+  // absorb that), which is exactly what read as "not smooth". Letting
+  // the close animation actually finish first, then navigating,
+  // sequences the two instead of layering them.
   function go(route: string, params?: Record<string, any>) {
     onClose();
-    navigation.navigate(route, params);
+    setTimeout(() => navigation.navigate(route, params), CLOSE_DURATION);
   }
 
   function handleLogout() {
@@ -79,10 +90,18 @@ export default function SideMenu({ visible, onClose, navigation, profile, unread
     <Modal visible transparent animationType="none" onRequestClose={onClose}>
       <View style={styles.container}>
         <Animated.View style={[styles.backdrop, { opacity: backdropOpacity }]}>
-          <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
+          <Pressable style={StyleSheet.absoluteFill} onPress={onClose} noFeedback />
         </Animated.View>
 
-        <Animated.View style={[styles.panel, { transform: [{ translateX }] }]}>
+        {/* renderToHardwareTextureAndroid — this panel carries a drop
+            shadow (elevation: 12) and is animated via transform every
+            open/close. Without this, Android has to recompute the
+            shadow's compositing on every single frame of the slide
+            instead of just moving a pre-rendered layer, which is
+            exactly what read as "not closing smoothly" — a well-known
+            RN Android cost specifically for elevation + transform
+            together, not a bug in the animation's own timing/easing. */}
+        <Animated.View style={[styles.panel, { transform: [{ translateX }] }]} renderToHardwareTextureAndroid>
           <Pressable style={styles.closeButton} onPress={onClose} hitSlop={8}>
             <Ionicons name="close" size={18} color={colors.textPrimary} />
           </Pressable>
@@ -98,29 +117,27 @@ export default function SideMenu({ visible, onClose, navigation, profile, unread
             </View>
           </Pressable>
 
-          <MenuRow icon="home-outline" label="Home" onPress={() => go("Home")} />
-          {/* No standalone "Chat" entry — chat only exists for a booking
-              that's currently CONFIRMED (paid, pre-trip), so it's reached
-              from that booking's own card (My bookings for passengers,
-              Upcoming trips for drivers) rather than a generic list that
-              would mostly be empty. */}
-          <MenuRow icon="receipt-outline" label="My bookings" onPress={() => go("History", { role: profile?.role })} />
+          {/* "Home" isn't listed here — it's always one of the bottom nav
+              tabs for both roles, so a duplicate entry to the exact same
+              screen just adds noise. Same reasoning removed "Offer a
+              ride"/"Booking requests" from the driver section below (both
+              already have their own bottom nav tab) and "My requests"
+              from the passenger section (ditto) — this menu now only
+              lists what the bottom nav *doesn't* already cover.
+              No standalone "Chat" entry either — chat only exists for a
+              booking that's currently CONFIRMED (paid, pre-trip), so it's
+              reached from that booking's own card rather than a generic
+              list that would mostly be empty. */}
           <MenuRow icon="notifications-outline" label="Notifications" onPress={() => go("Notifications")} badge={unreadCount} />
 
-          {isDriver ? (
+          {isDriver && (
             <>
               <Text style={styles.sectionLabel}>Driver</Text>
-              <MenuRow icon="add-circle-outline" label="Offer a ride" onPress={() => go("OfferRide")} />
-              <MenuRow icon="mail-unread-outline" label="Booking requests" onPress={() => go("BookingRequests")} />
+              <MenuRow icon="receipt-outline" label="My bookings" onPress={() => go("History", { role: profile?.role })} />
               <MenuRow icon="hourglass-outline" label="Payment queue" onPress={() => go("PaymentQueue")} />
-              <MenuRow icon="navigate-outline" label="Upcoming trips" onPress={() => go("UpcomingTrips")} />
+              <MenuRow icon="navigate-outline" label="Start trip now" onPress={() => go("UpcomingTrips")} badge={upcomingTripsCount} />
               <MenuRow icon="car-sport-outline" label="My vehicles" onPress={() => go("VehicleList")} />
               <MenuRow icon="wallet-outline" label="Earnings" onPress={() => go("Earnings")} />
-            </>
-          ) : (
-            <>
-              <Text style={styles.sectionLabel}>Passenger</Text>
-              <MenuRow icon="list-outline" label="My requests" onPress={() => go("MyRequests")} />
             </>
           )}
 
@@ -218,5 +235,5 @@ const styles = StyleSheet.create({
   },
   rowBadgeText: { color: "#FFFFFF", fontSize: 10, fontWeight: "700" },
   logoutRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm, marginTop: spacing.xl, paddingVertical: spacing.sm, borderTopWidth: 1, borderTopColor: colors.border, paddingTop: spacing.md },
-  logoutText: { ...typography.body, color: colors.danger, fontWeight: "600" },
+  logoutText: { ...typography.body, color: colors.danger, fontWeight: "700" },
 });

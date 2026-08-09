@@ -1,5 +1,6 @@
 import React, { useState } from "react";
-import { View, Text, Pressable, StyleSheet } from "react-native";
+import { View, Text, StyleSheet } from "react-native";
+import { Pressable } from "../components/Pressable";
 import { showAlert } from "../lib/alert";
 import RazorpayCheckout from "react-native-razorpay";
 import { colors, spacing, radius, typography } from "../theme/theme";
@@ -35,7 +36,7 @@ export default function PaymentScreen({ route, navigation }: any) {
         amount: order.amount * 100,
         currency: "INR",
         order_id: order.orderId,
-        name: "Carpool",
+        name: "NanbaGO",
         description,
         theme: { color: "#1A1A18" },
       });
@@ -98,7 +99,7 @@ export default function PaymentScreen({ route, navigation }: any) {
   }
 
   return (
-    <SafeAreaView style={styles.screen} edges={["top"]}>
+    <SafeAreaView style={styles.screen} edges={["top", "bottom"]}>
       <Text style={{ ...typography.title, padding: spacing.lg, paddingBottom: spacing.sm }}>{description}</Text>
 
       <View style={styles.body}>
@@ -169,5 +170,5 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     marginTop: spacing.lg,
   },
-  mockButtonText: { color: colors.warning, ...typography.caption, fontWeight: "500" },
+  mockButtonText: { color: colors.warning, ...typography.caption, fontWeight: "700" },
 });

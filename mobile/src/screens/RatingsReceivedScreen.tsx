@@ -1,5 +1,7 @@
 import React, { useState, useCallback } from "react";
 import { View, Text, FlatList, StyleSheet, RefreshControl } from "react-native";
+import { Pressable } from "../components/Pressable";
+import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
 import { colors, spacing, radius, typography } from "../theme/theme";
 import { api } from "../lib/api";
@@ -59,11 +61,22 @@ export default function RatingsReceivedScreen({ navigation }: any) {
             keyExtractor={(item) => item.id}
             contentContainerStyle={{ padding: spacing.md, gap: spacing.sm, flexGrow: 1 }}
             renderItem={({ item }) => (
-              <View style={styles.card}>
+              // Whole card is tappable through to the reviewer's public
+              // profile when we actually know who they are \u2014 reviews
+              // aren't anonymous, but nothing let you follow through to
+              // see the person before.
+              <Pressable
+                style={styles.card}
+                disabled={!item.fromUser?.id}
+                onPress={() => navigation.navigate("PublicProfile", { userId: item.fromUser.id })}
+              >
                 <Text style={styles.stars}>{"\u2605".repeat(item.rating)}{"\u2606".repeat(5 - item.rating)}</Text>
                 {item.comment ? <Text style={styles.comment}>{item.comment}</Text> : null}
-                <Text style={styles.from}>{item.fromUser?.name || "Rider"}</Text>
-              </View>
+                <View style={styles.fromRow}>
+                  <Text style={styles.from}>{item.fromUser?.name || "Rider"}</Text>
+                  {!!item.fromUser?.id && <Ionicons name="chevron-forward" size={14} color={colors.textMuted} />}
+                </View>
+              </Pressable>
             )}
             ListEmptyComponent={<EmptyState icon="star-outline" title="No reviews yet" />}
           />
@@ -77,10 +90,11 @@ export default function RatingsReceivedScreen({ navigation }: any) {
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.bg },
   summary: { alignItems: "center", padding: spacing.lg },
-  summaryValue: { fontSize: 32, fontWeight: "500", color: colors.warning },
+  summaryValue: { fontSize: 32, fontWeight: "700", color: colors.warning },
   summaryLabel: { ...typography.caption, color: colors.textMuted, marginTop: 4 },
   card: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: radius.sm, padding: spacing.md },
   stars: { color: colors.warning, fontSize: 14 },
   comment: { ...typography.caption, marginTop: 4 },
-  from: { ...typography.small, color: colors.textMuted, marginTop: 4 },
+  fromRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: 4 },
+  from: { ...typography.small, color: colors.textMuted },
 });

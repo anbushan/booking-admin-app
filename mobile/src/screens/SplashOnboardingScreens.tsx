@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useRef } from "react";
-import { View, Text, Pressable, StyleSheet, FlatList, Dimensions, Animated, Easing } from "react-native";
+import { View, Text, StyleSheet, FlatList, Dimensions, Animated, Easing } from "react-native";
+import { Pressable } from "../components/Pressable";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Notifications from "expo-notifications";
 import * as Location from "expo-location";
@@ -67,9 +68,9 @@ export function SplashScreen({ navigation }: any) {
       <Animated.View style={[styles.splashBadge, { opacity: badgeOpacity, transform: [{ scale: badgeScale }] }]}>
         <Ionicons name="car-sport" size={30} color="#FFFFFF" />
       </Animated.View>
-      <Text style={styles.splashTitle}>Carpool</Text>
+      <Text style={styles.splashTitle}>NanbaGO</Text>
       <Animated.Text style={[styles.splashTagline, { opacity: taglineOpacity }]}>
-        Share the ride, split the cost
+        Dosti For Every Journey.
       </Animated.Text>
       <Animated.View style={{ opacity: carOpacity, marginTop: spacing.xl }}>
         <LoadingCar />
@@ -138,7 +139,7 @@ export function OnboardingScreen({ navigation }: any) {
   }
 
   return (
-    <SafeAreaView style={styles.screen} edges={["top"]}>
+    <SafeAreaView style={styles.screen} edges={["top", "bottom"]}>
       <FlatList
         ref={listRef}
         data={SLIDES}
@@ -183,7 +184,7 @@ const styles = StyleSheet.create({
     width: 68, height: 68, borderRadius: 34, backgroundColor: colors.marigold,
     alignItems: "center", justifyContent: "center", marginBottom: spacing.lg,
   },
-  splashTitle: { color: "#FFFFFF", fontSize: 28, fontWeight: "500" },
+  splashTitle: { color: "#FFFFFF", fontSize: 28, fontWeight: "700" },
   splashTagline: { color: "#FFFFFF", opacity: 0.7, fontSize: 13, marginTop: spacing.xs },
   carTrack: { width: CAR_TRACK_WIDTH, alignItems: "flex-start" },
   screen: { flex: 1, backgroundColor: colors.bg },
@@ -197,5 +198,5 @@ const styles = StyleSheet.create({
   footer: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", padding: spacing.lg },
   skip: { ...typography.caption, color: colors.textMuted },
   nextButton: { flexDirection: "row", alignItems: "center", gap: 6, backgroundColor: colors.accent, paddingVertical: spacing.sm, paddingHorizontal: spacing.lg, borderRadius: radius.sm },
-  nextButtonText: { color: "#FFFFFF", ...typography.caption, fontWeight: "500" },
+  nextButtonText: { color: "#FFFFFF", ...typography.caption, fontWeight: "700" },
 });

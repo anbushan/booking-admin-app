@@ -1,5 +1,6 @@
 import React, { useState } from "react";
-import { View, Text, Pressable, StyleSheet } from "react-native";
+import { View, Text, StyleSheet } from "react-native";
+import { Pressable } from "../components/Pressable";
 import * as Location from "expo-location";
 import { colors, spacing, radius, typography } from "../theme/theme";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -38,7 +39,7 @@ export default function LocationPermissionPrimingScreen({ navigation, route }: a
   }
 
   return (
-    <SafeAreaView style={styles.screen} edges={["top"]}>
+    <SafeAreaView style={styles.screen} edges={["top", "bottom"]}>
       <View style={styles.body}>
         <View style={styles.iconCircle}>
           <Text style={styles.iconText}>{"\u25CE"}</Text>

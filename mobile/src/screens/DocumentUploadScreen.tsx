@@ -1,5 +1,6 @@
 import React, { useState } from "react";
-import { View, Text, Pressable, StyleSheet } from "react-native";
+import { View, Text, StyleSheet } from "react-native";
+import { Pressable } from "../components/Pressable";
 import { Ionicons } from "@expo/vector-icons";
 import { showAlert } from "../lib/alert";
 import * as DocumentPicker from "expo-document-picker";
@@ -56,7 +57,7 @@ export default function DocumentUploadScreen({ navigation }: any) {
   }
 
   return (
-    <SafeAreaView style={styles.screen} edges={["top"]}>
+    <SafeAreaView style={styles.screen} edges={["top", "bottom"]}>
       <Text style={{ ...typography.title, padding: spacing.lg, paddingBottom: spacing.sm }}>Verification documents</Text>
 
       <View style={styles.body}>
@@ -114,7 +115,7 @@ const styles = StyleSheet.create({
   iconWrap: { width: 30, height: 30, borderRadius: 10, backgroundColor: colors.accentBg, alignItems: "center", justifyContent: "center" },
   rowLabel: { ...typography.body, flex: 1 },
   uploadButton: { backgroundColor: colors.textPrimary, paddingVertical: spacing.xs, paddingHorizontal: spacing.md, borderRadius: radius.sm },
-  uploadButtonText: { color: "#FFFFFF", ...typography.small, fontWeight: "500" },
+  uploadButtonText: { color: "#FFFFFF", ...typography.small, fontWeight: "700" },
   pendingTag: { flexDirection: "row", alignItems: "center", gap: 4, backgroundColor: colors.warningBg, paddingVertical: 4, paddingHorizontal: 8, borderRadius: 6 },
   pendingTagText: { ...typography.small, color: colors.warning },
 });

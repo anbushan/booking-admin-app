@@ -2,6 +2,8 @@ import { prisma } from "../../../lib/prisma";
 import { getSession, requireRole } from "../../../lib/session";
 import { redirect } from "next/navigation";
 import AdminShell from "../../../components/AdminShell";
+import { PageHeader } from "../../../components/PageHeader";
+import { CalendarRange } from "lucide-react";
 import { EmptyState } from "../../../components/EmptyState";
 
 export const dynamic = "force-dynamic";
@@ -50,24 +52,56 @@ export default async function DailyReportPage({
     buckets.set(key, existing);
   }
   const rows = Array.from(buckets.entries()).sort((a, b) => (a[0] < b[0] ? 1 : -1));
+  // Chart reads left-to-right chronologically (oldest first) — the
+  // table below stays newest-first since that's what you scan first
+  // when checking "how did we do recently", but a trend line/bar chart
+  // reads backwards if it doesn't go the normal time direction.
+  const chartRows = [...rows].reverse();
+  const maxRevenue = Math.max(1, ...rows.map(([, d]) => d.revenue));
 
   return (
     <AdminShell activeHref="/reports/daily">
       <div style={{ padding: 24, fontFamily: "sans-serif" }}>
-        <h1 style={{ fontSize: 20, fontWeight: 500 }}>Daily / monthly report</h1>
+        <PageHeader icon={CalendarRange} title="Daily / monthly report" />
 
-        <form method="get" style={{ display: "flex", gap: 8, marginTop: 16, alignItems: "center", fontSize: 13 }}>
-          <input type="date" name="from" defaultValue={from.toISOString().slice(0, 10)} style={{ height: 34, border: "1px solid #E3E1D8", borderRadius: 6, padding: "0 8px" }} />
+        <form method="get" style={{ display: "flex", gap: 8, marginTop: 16, alignItems: "center", fontSize: 13, flexWrap: "wrap" }}>
+          <input type="date" name="from" defaultValue={from.toISOString().slice(0, 10)} className="admin-input" />
           <span>to</span>
-          <input type="date" name="to" defaultValue={to.toISOString().slice(0, 10)} style={{ height: 34, border: "1px solid #E3E1D8", borderRadius: 6, padding: "0 8px" }} />
-          <select name="groupBy" defaultValue={groupBy} style={{ height: 34 }}>
+          <input type="date" name="to" defaultValue={to.toISOString().slice(0, 10)} className="admin-input" />
+          <select name="groupBy" defaultValue={groupBy} className="admin-select">
             <option value="day">By day</option>
             <option value="month">By month</option>
           </select>
-          <button type="submit" style={{ background: "#1A1A18", color: "#fff", border: "none", borderRadius: 6, padding: "8px 14px" }}>
+          <button type="submit" className="admin-btn admin-btn-primary">
             Apply
           </button>
         </form>
+
+        {chartRows.length > 0 && (
+          <div style={{ marginTop: 20, background: "#fff", border: "1px solid #E3E1D8", borderRadius: 10, padding: "16px 16px 4px" }}>
+            <div style={{ fontSize: 12, fontWeight: 600, color: "#5F5E5A", marginBottom: 12 }}>Revenue trend</div>
+            <div style={{ display: "flex", alignItems: "flex-end", gap: 4, height: 120 }}>
+              {chartRows.map(([key, data]) => (
+                <div key={key} title={`${key}: Rs ${data.revenue.toLocaleString()}`} style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "flex-end", height: "100%" }}>
+                  <div
+                    style={{
+                      background: "#185FA5",
+                      borderRadius: "3px 3px 0 0",
+                      height: `${Math.max(2, (data.revenue / maxRevenue) * 100)}%`,
+                    }}
+                  />
+                </div>
+              ))}
+            </div>
+            <div style={{ display: "flex", gap: 4, marginTop: 6, paddingBottom: 10 }}>
+              {chartRows.map(([key]) => (
+                <div key={key} style={{ flex: 1, fontSize: 10, color: "#888780", textAlign: "center", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                  {groupBy === "month" ? key.slice(5) : key.slice(5)}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         <table style={{ width: "100%", marginTop: 16, borderCollapse: "collapse", fontSize: 13 }}>
           <thead>

@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
-import { View, Text, Pressable, StyleSheet, Linking } from "react-native";
+import { View, Text, StyleSheet, Linking } from "react-native";
+import { Pressable } from "../components/Pressable";
 import * as Location from "expo-location";
 import { Ionicons } from "@expo/vector-icons";
 import { showAlert } from "../lib/alert";
@@ -152,7 +153,7 @@ export default function LiveTrackingScreen({ route, navigation }: any) {
   }
 
   return (
-    <SafeAreaView style={styles.screen} edges={["top"]}>
+    <SafeAreaView style={styles.screen} edges={["top", "bottom"]}>
       <View style={styles.mapArea}>
         <View style={styles.mapPlaceholder}>
           <Ionicons name="map-outline" size={26} color={colors.accentText} />

@@ -2,6 +2,9 @@ import { prisma } from "../../lib/prisma";
 import { getSession, requireRole } from "../../lib/session";
 import { redirect } from "next/navigation";
 import AdminShell from "../../components/AdminShell";
+import { PageHeader } from "../../components/PageHeader";
+import { StatCard } from "../../components/StatCard";
+import { LayoutDashboard, Users, Car, UserCheck, Route, Wallet } from "lucide-react";
 
 export const dynamic = "force-dynamic";
 
@@ -33,38 +36,27 @@ export default async function DashboardPage() {
   });
 
   const stats = [
-    { label: "Total users", value: totalUsers },
-    { label: "Drivers", value: totalDrivers },
-    { label: "Passengers", value: totalPassengers },
-    { label: "Active rides", value: activeRides },
-    { label: "Total bookings", value: totalBookings },
-    { label: "Fee-paid bookings", value: revenueResult._count },
+    { label: "Total users", value: totalUsers, icon: Users, tone: "accent" as const },
+    { label: "Drivers", value: totalDrivers, icon: Car, tone: "success" as const },
+    { label: "Passengers", value: totalPassengers, icon: UserCheck, tone: "accent" as const },
+    { label: "Active rides", value: activeRides, icon: Route, tone: "warning" as const },
+    { label: "Total bookings", value: totalBookings, icon: LayoutDashboard, tone: "neutral" as const },
+    { label: "Fee-paid bookings", value: revenueResult._count, icon: Wallet, tone: "success" as const },
   ];
 
   return (
     <AdminShell activeHref="/dashboard">
-    <div style={{ padding: 24, fontFamily: "sans-serif" }}>
-      <h1 style={{ fontSize: 20, fontWeight: 500 }}>Dashboard</h1>
+    <div style={{ padding: 24 }}>
+      <PageHeader icon={LayoutDashboard} title="Dashboard" subtitle="What's happening across the platform right now." />
       <div
         style={{
           display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))",
+          gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
           gap: 12,
-          marginTop: 16,
         }}
       >
         {stats.map((s) => (
-          <div
-            key={s.label}
-            style={{
-              background: "#F1EFE8",
-              borderRadius: 8,
-              padding: 16,
-            }}
-          >
-            <div style={{ fontSize: 13, color: "#5F5E5A" }}>{s.label}</div>
-            <div style={{ fontSize: 24, fontWeight: 500, marginTop: 4 }}>{s.value}</div>
-          </div>
+          <StatCard key={s.label} icon={s.icon} label={s.label} value={s.value} tone={s.tone} />
         ))}
       </div>
     </div>

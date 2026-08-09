@@ -88,7 +88,7 @@ const styles = StyleSheet.create({
   dotEnd: { backgroundColor: colors.danger },
   line: { width: 1, flex: 1, minHeight: 24, backgroundColor: colors.border, marginVertical: 2 },
   point: { flex: 1, paddingBottom: spacing.sm },
-  placeName: { ...typography.caption, fontWeight: "500", color: colors.textPrimary },
+  placeName: { ...typography.caption, fontWeight: "700", color: colors.textPrimary },
   meta: { ...typography.small, color: colors.textMuted, marginTop: 1 },
   carBadge: {
     position: "absolute", left: -5, top: 0, width: 18, height: 18, borderRadius: 9,

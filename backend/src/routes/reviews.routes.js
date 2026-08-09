@@ -73,7 +73,7 @@ router.post("/", requireAuth, async (req, res) => {
 router.get("/user/:userId", requireAuth, async (req, res) => {
   const reviews = await prisma.review.findMany({
     where: { toUserId: req.params.userId, flagged: false },
-    include: { fromUser: { select: { name: true } } },
+    include: { fromUser: { select: { id: true, name: true } } },
     orderBy: { createdAt: "desc" },
   });
   res.json(reviews);

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
-import { View, Text, Pressable, FlatList, StyleSheet, RefreshControl } from "react-native";
+import { View, Text, FlatList, StyleSheet, RefreshControl } from "react-native";
+import { Pressable } from "../components/Pressable";
 import { useFocusEffect } from "@react-navigation/native";
 import { colors, spacing, radius, typography } from "../theme/theme";
 import { api } from "../lib/api";
@@ -62,7 +63,7 @@ export default function UpcomingTripsScreen({ navigation }: any) {
 
   return (
     <SafeAreaView style={styles.screen} edges={["top"]}>
-      <Text style={{ ...typography.title, padding: spacing.lg, paddingBottom: spacing.sm }}>Upcoming trips</Text>
+      <Text style={{ ...typography.title, padding: spacing.lg, paddingBottom: spacing.sm }}>Start trip now</Text>
 
       {loading ? (
         <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
@@ -78,7 +79,10 @@ export default function UpcomingTripsScreen({ navigation }: any) {
           keyExtractor={(item) => item.id}
           contentContainerStyle={{ padding: spacing.md, gap: spacing.sm, flexGrow: 1 }}
           renderItem={({ item }) => (
-            <View style={styles.card}>
+            // Whole card opens the full booking detail — the explicit
+            // Start/Continue/Chat buttons inside stay as their own
+            // Pressables and still fire independently on their own tap.
+            <Pressable style={styles.card} onPress={() => navigation.navigate("BookingDetail", { bookingId: item.id })}>
               <Text style={styles.route}>{item.ride?.sourceAddress} to {item.ride?.destAddress}</Text>
               <View style={styles.rowBetween}>
                 <Text style={styles.meta}>{item.passenger?.name || "Passenger"} · {item.seatsBooked} seat(s)</Text>
@@ -111,7 +115,7 @@ export default function UpcomingTripsScreen({ navigation }: any) {
                   )}
                 </View>
               )}
-            </View>
+            </Pressable>
           )}
           ListEmptyComponent={
             <EmptyState
@@ -139,7 +143,7 @@ const styles = StyleSheet.create({
   pendingCaption: { ...typography.small, color: colors.textMuted, marginTop: spacing.sm },
   actionRow: { flexDirection: "row", gap: spacing.sm, marginTop: spacing.sm },
   actionButton: { backgroundColor: colors.textPrimary, height: 40, borderRadius: radius.sm, alignItems: "center", justifyContent: "center" },
-  actionButtonText: { color: "#FFFFFF", ...typography.caption, fontWeight: "500" },
+  actionButtonText: { color: "#FFFFFF", ...typography.caption, fontWeight: "700" },
   chatButton: { flex: 0, paddingHorizontal: spacing.md, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
-  chatButtonText: { color: colors.accentText, ...typography.caption, fontWeight: "500" },
+  chatButtonText: { color: colors.accentText, ...typography.caption, fontWeight: "700" },
 });

@@ -3,6 +3,9 @@ import { getSession, requireRole } from "../../lib/session";
 import { redirect } from "next/navigation";
 import AdminShell from "../../components/AdminShell";
 
+import { PageHeader } from "../../components/PageHeader";
+import { StatCard } from "../../components/StatCard";
+import { BarChart3, Wallet, Route, LayoutDashboard, XCircle, Clock } from "lucide-react";
 export const dynamic = "force-dynamic";
 
 export default async function ReportsPage() {
@@ -34,44 +37,29 @@ export default async function ReportsPage() {
   ]);
 
   const stats = [
-    { label: "Revenue this month", value: `Rs ${revenueThisMonth.toLocaleString()}` },
-    { label: "Trips paid this month", value: paidThisMonth.length },
-    { label: "Total bookings (all time)", value: totalBookings },
-    { label: "Cancelled bookings", value: cancelledBookings },
-    { label: "Payment-pending bookings", value: paymentPending },
+    { label: "Revenue this month", value: `Rs ${revenueThisMonth.toLocaleString()}`, icon: Wallet, tone: "success" as const },
+    { label: "Trips paid this month", value: paidThisMonth.length, icon: Route, tone: "accent" as const },
+    { label: "Total bookings (all time)", value: totalBookings, icon: LayoutDashboard, tone: "neutral" as const },
+    { label: "Cancelled bookings", value: cancelledBookings, icon: XCircle, tone: "neutral" as const },
+    { label: "Payment-pending bookings", value: paymentPending, icon: Clock, tone: "warning" as const },
   ];
 
   return (
     <AdminShell activeHref="/reports">
       <div style={{ padding: 24, fontFamily: "sans-serif" }}>
-        <h1 style={{ fontSize: 20, fontWeight: 500 }}>Reports</h1>
+        <PageHeader icon={BarChart3} title="Reports" />
         <p style={{ fontSize: 13, color: "#5F5E5A" }}>
           Revenue counts only bookings with a webhook-confirmed payment
           capture — not trips merely marked complete.
         </p>
 
-        <a
-          href="/reports/export"
-          style={{
-            display: "inline-block",
-            marginTop: 8,
-            fontSize: 13,
-            background: "#1A1A18",
-            color: "#fff",
-            borderRadius: 6,
-            padding: "8px 14px",
-            textDecoration: "none",
-          }}
-        >
+        <a href="/reports/export" className="admin-btn admin-btn-primary" style={{ marginTop: 8, width: "fit-content" }}>
           Export paid bookings as CSV
         </a>
 
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 12, marginTop: 16 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 12, marginTop: 16 }}>
           {stats.map((s) => (
-            <div key={s.label} style={{ background: "#F1EFE8", borderRadius: 8, padding: 16 }}>
-              <div style={{ fontSize: 13, color: "#5F5E5A" }}>{s.label}</div>
-              <div style={{ fontSize: 22, fontWeight: 500, marginTop: 4 }}>{s.value}</div>
-            </div>
+            <StatCard key={s.label} icon={s.icon} label={s.label} value={s.value} tone={s.tone} />
           ))}
         </div>
       </div>

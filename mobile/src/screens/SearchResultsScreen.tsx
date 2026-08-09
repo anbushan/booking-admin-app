@@ -1,5 +1,6 @@
 import React, { useMemo, useState, useCallback } from "react";
-import { View, Text, Pressable, FlatList, StyleSheet, RefreshControl } from "react-native";
+import { View, Text, FlatList, StyleSheet, RefreshControl } from "react-native";
+import { Pressable } from "../components/Pressable";
 import { useFocusEffect } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
 import { colors, spacing, radius, typography } from "../theme/theme";
@@ -86,7 +87,7 @@ export default function SearchResultsScreen({ navigation, route }: any) {
   }, [rides, sort]);
 
   return (
-    <SafeAreaView style={styles.screen} edges={["top"]}>
+    <SafeAreaView style={styles.screen} edges={["top", "bottom"]}>
       <View style={styles.titleRow}>
         <View style={{ flex: 1 }}>
           <Text style={styles.pageTitle} numberOfLines={1}>{sourceAddress}{destAddress ? ` to ${destAddress}` : ""}</Text>
@@ -211,7 +212,7 @@ const styles = StyleSheet.create({
   sortChip: { paddingVertical: spacing.xs, paddingHorizontal: spacing.md, borderRadius: radius.sm, backgroundColor: colors.bg },
   sortChipActive: { backgroundColor: colors.accentBg },
   sortChipText: { ...typography.small, color: colors.textSecondary },
-  sortChipTextActive: { color: colors.accentText, fontWeight: "500" },
+  sortChipTextActive: { color: colors.accentText, fontWeight: "700" },
   card: {
     backgroundColor: colors.surface,
     borderWidth: 1,
@@ -227,7 +228,7 @@ const styles = StyleSheet.create({
   nameRow: { flexDirection: "row", alignItems: "center", gap: spacing.xs },
   driverName: { ...typography.title, fontSize: 14 },
   verifiedBadge: { flexDirection: "row", alignItems: "center", gap: 2, backgroundColor: colors.successBg, borderRadius: 4, paddingVertical: 1, paddingHorizontal: 5 },
-  verifiedBadgeText: { fontSize: 10, color: colors.success, fontWeight: "500" },
+  verifiedBadgeText: { fontSize: 10, color: colors.success, fontWeight: "700" },
   meta: { ...typography.small, color: colors.textMuted, marginTop: 2 },
   price: { ...typography.title, color: colors.textPrimary, fontVariant: ["tabular-nums"] },
   seatsPill: { flexDirection: "row", alignItems: "center", gap: 3, backgroundColor: colors.successBg, borderRadius: 6, paddingVertical: 2, paddingHorizontal: 6, marginTop: 4 },

@@ -1,5 +1,6 @@
 import React, { useRef, useState, useEffect } from "react";
-import { View, Text, TextInput, Pressable, StyleSheet } from "react-native";
+import { View, Text, TextInput, StyleSheet } from "react-native";
+import { Pressable } from "../components/Pressable";
 import { Ionicons } from "@expo/vector-icons";
 import { showAlert } from "../lib/alert";
 import { colors, spacing, radius, typography } from "../theme/theme";
@@ -52,13 +53,13 @@ export function PhoneEntryScreen({ navigation }: any) {
     // No back button here — this screen is reached via navigation.replace()
     // from Splash/Onboarding (see SplashOnboardingScreens.tsx), so there's
     // no previous screen in the stack to return to.
-    <SafeAreaView style={styles.screen} edges={["top"]}>
+    <SafeAreaView style={styles.screen} edges={["top", "bottom"]}>
       <KeyboardAvoider>
         <View style={styles.heroBand}>
           <View style={styles.brandIconLg}>
             <Ionicons name="car-sport" size={30} color="#FFFFFF" />
           </View>
-          <Text style={styles.brandName}>Carpool</Text>
+          <Text style={styles.brandName}>NanbaGO</Text>
         </View>
         <View style={styles.centerContent}>
           <Text style={styles.title}>Enter your mobile number</Text>
@@ -168,7 +169,7 @@ export function OtpVerifyScreen({ route, navigation }: any) {
   const digits = otp.padEnd(OTP_LENGTH, " ").slice(0, OTP_LENGTH).split("");
 
   return (
-    <SafeAreaView style={styles.screen} edges={["top"]}>
+    <SafeAreaView style={styles.screen} edges={["top", "bottom"]}>
       <KeyboardAvoider>
         <View style={styles.centerContent}>
           <View style={styles.brandIcon}>
@@ -273,7 +274,7 @@ const styles = StyleSheet.create({
     borderRadius: radius.sm, height: 52, marginBottom: spacing.xs, paddingHorizontal: spacing.md,
   },
   inputWrapError: { borderColor: colors.danger },
-  countryCode: { ...typography.body, color: colors.textSecondary, fontWeight: "600" },
+  countryCode: { ...typography.body, color: colors.textSecondary, fontWeight: "700" },
   inputDivider: { width: 1, height: 22, backgroundColor: colors.border, marginHorizontal: spacing.sm },
   plainInput: { flex: 1, ...typography.body, height: 50, fontSize: 16, color: colors.textPrimary },
   fieldErrorRow: { flexDirection: "row", alignItems: "center", gap: 4, alignSelf: "flex-start", marginBottom: spacing.sm },

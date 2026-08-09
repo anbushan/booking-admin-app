@@ -1,5 +1,6 @@
 import React from "react";
-import { View, Text, Pressable, StyleSheet } from "react-native";
+import { View, Text, StyleSheet } from "react-native";
+import { Pressable } from "./Pressable";
 import { Ionicons } from "@expo/vector-icons";
 import { colors, spacing, radius, typography } from "../theme/theme";
 
@@ -37,5 +38,5 @@ const styles = StyleSheet.create({
   iconCircle: { width: 48, height: 48, borderRadius: 24, backgroundColor: colors.dangerBg, alignItems: "center", justifyContent: "center", marginBottom: spacing.md },
   message: { ...typography.body, color: colors.textSecondary, textAlign: "center" },
   retryButton: { flexDirection: "row", alignItems: "center", gap: 6, marginTop: spacing.md, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: radius.sm, paddingVertical: spacing.sm, paddingHorizontal: spacing.lg },
-  retryButtonText: { ...typography.caption, color: colors.accentText, fontWeight: "500" },
+  retryButtonText: { ...typography.caption, color: colors.accentText, fontWeight: "700" },
 });

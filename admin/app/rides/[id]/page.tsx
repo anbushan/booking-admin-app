@@ -4,6 +4,11 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import AdminShell from "../../../components/AdminShell";
 import { EmptyState } from "../../../components/EmptyState";
+import { PageHeader } from "../../../components/PageHeader";
+import { Badge } from "../../../components/Badge";
+import { ConfirmButton } from "../../../components/ConfirmButton";
+import { redirectWithToast } from "../../../lib/toastRedirect";
+import { Car, ArrowLeft } from "lucide-react";
 
 export const dynamic = "force-dynamic";
 
@@ -18,6 +23,7 @@ async function cancelRide(formData: FormData) {
     }),
   ]);
   revalidatePath(`/rides/${rideId}`);
+  redirectWithToast(`/rides/${rideId}`, "Ride cancelled.");
 }
 
 export default async function RideDetailPage({ params }: { params: { id: string } }) {
@@ -37,23 +43,29 @@ export default async function RideDetailPage({ params }: { params: { id: string 
 
   return (
     <AdminShell activeHref="/rides">
-      <div style={{ padding: 24, fontFamily: "sans-serif" }}>
-        <a href="/rides" style={{ fontSize: 13, color: "#5F5E5A" }}>{"< Back to rides"}</a>
-        <h1 style={{ fontSize: 20, fontWeight: 500, marginTop: 8 }}>
-          {ride.sourceAddress} to {ride.destAddress}
-        </h1>
-        <div style={{ fontSize: 13, color: "#5F5E5A", marginTop: 4 }}>
-          Driver: {ride.driver.name || ride.driver.phone} · {ride.travelDate.toLocaleString()} ·
-          Rs {Number(ride.pricePerSeat)}/seat · {ride.status}
+      <div style={{ padding: 24 }}>
+        <a href="/rides" style={{ fontSize: 13, color: "#5F5E5A", display: "inline-flex", alignItems: "center", gap: 4 }}>
+          <ArrowLeft size={14} /> Back to rides
+        </a>
+        <div style={{ marginTop: 12 }}>
+          <PageHeader icon={Car} title={`${ride.sourceAddress} to ${ride.destAddress}`} />
+        </div>
+        <div style={{ fontSize: 13, color: "#5F5E5A", marginTop: -12, display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+          <span>Driver: {ride.driver.name || ride.driver.phone} · {ride.travelDate.toLocaleString()} · Rs {Number(ride.pricePerSeat)}/seat</span>
+          <Badge>{ride.status}</Badge>
         </div>
 
         {ride.status === "PUBLISHED" && (
-          <form action={cancelRide} style={{ marginTop: 12 }}>
-            <input type="hidden" name="rideId" value={ride.id} />
-            <button type="submit" style={{ background: "#fff", color: "#A32D2D", border: "1px solid #E3E1D8", borderRadius: 6, padding: "8px 14px", fontSize: 13 }}>
-              Cancel this ride
-            </button>
-          </form>
+          <div style={{ marginTop: 12 }}>
+            <ConfirmButton
+              action={cancelRide}
+              hiddenFields={{ rideId: ride.id }}
+              label="Cancel this ride"
+              confirmTitle="Cancel this ride?"
+              confirmMessage="Every open booking on this ride gets cancelled too. This can't be undone from here."
+              confirmLabel="Cancel ride"
+            />
+          </div>
         )}
 
         {Array.isArray(ride.routeStops) && ride.routeStops.length > 0 && (
@@ -71,8 +83,9 @@ export default async function RideDetailPage({ params }: { params: { id: string 
 
         <h2 style={{ fontSize: 15, fontWeight: 500, marginTop: 24 }}>Bookings on this ride</h2>
         {ride.bookings.map((b) => (
-          <div key={b.id} style={{ fontSize: 13, padding: "8px 0", borderBottom: "1px solid #E3E1D8" }}>
-            {b.passenger.name || b.passenger.phone} — {b.seatsBooked} seat(s) — {b.status}
+          <div key={b.id} style={{ fontSize: 13, padding: "8px 0", borderBottom: "1px solid #E3E1D8", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, flexWrap: "wrap" }}>
+            <span>{b.passenger.name || b.passenger.phone} — {b.seatsBooked} seat(s)</span>
+            <Badge>{b.status}</Badge>
           </div>
         ))}
         {ride.bookings.length === 0 && <EmptyState title="No bookings yet" />}

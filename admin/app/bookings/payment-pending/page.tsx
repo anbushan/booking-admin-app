@@ -3,9 +3,16 @@ import { getSession, requireRole } from "../../../lib/session";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import AdminShell from "../../../components/AdminShell";
+import { PageHeader } from "../../../components/PageHeader";
+import { Badge } from "../../../components/Badge";
+import { Clock } from "lucide-react";
 import { EmptyState } from "../../../components/EmptyState";
+import Pagination from "../../../components/Pagination";
+import { SubmitButton } from "../../../components/SubmitButton";
+import { redirectWithToast } from "../../../lib/toastRedirect";
 
 export const dynamic = "force-dynamic";
+const PAGE_SIZE = 25;
 
 // Admin cannot complete a Razorpay Checkout itself — that requires the
 // passenger's own device. What admin *can* do is nudge them to retry
@@ -28,27 +35,37 @@ async function sendRetryReminder(formData: FormData) {
   });
 
   revalidatePath("/bookings/payment-pending");
+  redirectWithToast("/bookings/payment-pending", "Reminder sent.");
 }
 
-export default async function PaymentPendingPage() {
+export default async function PaymentPendingPage({ searchParams }: { searchParams: { page?: string } }) {
   const session = getSession();
   if (!requireRole(session, ["finance"])) {
     redirect("/login");
   }
 
-  const bookings = await prisma.booking.findMany({
-    where: { status: { in: ["AWAITING_PAYMENT", "CHARGE_ATTEMPTED", "PAYMENT_PENDING"] } },
-    include: {
-      ride: { include: { driver: { select: { name: true } } } },
-      passenger: { select: { name: true, phone: true } },
-    },
-    orderBy: { expiresAt: "asc" },
-  });
+  const page = Math.max(1, Number(searchParams.page || 1));
+  const where = { status: { in: ["AWAITING_PAYMENT", "CHARGE_ATTEMPTED", "PAYMENT_PENDING"] } };
+
+  const [bookings, total] = await Promise.all([
+    prisma.booking.findMany({
+      where,
+      include: {
+        ride: { include: { driver: { select: { name: true } } } },
+        passenger: { select: { name: true, phone: true } },
+      },
+      orderBy: { expiresAt: "asc" },
+      skip: (page - 1) * PAGE_SIZE,
+      take: PAGE_SIZE,
+    }),
+    prisma.booking.count({ where }),
+  ]);
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
   return (
     <AdminShell activeHref="/bookings/payment-pending">
-      <div style={{ padding: 24, fontFamily: "sans-serif" }}>
-        <h1 style={{ fontSize: 20, fontWeight: 500 }}>Payment-pending bookings</h1>
+      <div style={{ padding: 24 }}>
+        <PageHeader icon={Clock} title="Payment-pending bookings" subtitle={`${total} total`} />
         <p style={{ fontSize: 13, color: "#5F5E5A" }}>
           Driver-accepted bookings where the passenger's platform-fee
           payment hasn't succeeded yet (still within the pay window, in
@@ -61,11 +78,12 @@ export default async function PaymentPendingPage() {
             return (
               <div
                 key={b.id}
-                style={{ border: "1px solid #E3E1D8", borderRadius: 8, padding: 16, display: "flex", justifyContent: "space-between", alignItems: "center" }}
+                style={{ border: "1px solid #E3E1D8", borderRadius: 8, padding: 16, display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12 }}
               >
                 <div>
-                  <div style={{ fontSize: 13, fontWeight: 500 }}>
-                    {b.passenger.name || b.passenger.phone} · Rs {amount} fee · {b.status}
+                  <div style={{ fontSize: 13, fontWeight: 500, display: "flex", alignItems: "center", gap: 8 }}>
+                    <span>{b.passenger.name || b.passenger.phone} · Rs {amount} fee</span>
+                    <Badge>{b.status}</Badge>
                   </div>
                   <div style={{ fontSize: 12, color: "#888780", marginTop: 4 }}>
                     Driver {b.ride.driver.name || "—"} · pay window expires{" "}
@@ -76,12 +94,9 @@ export default async function PaymentPendingPage() {
                   <input type="hidden" name="bookingId" value={b.id} />
                   <input type="hidden" name="passengerId" value={b.passengerId} />
                   <input type="hidden" name="amount" value={amount} />
-                  <button
-                    type="submit"
-                    style={{ background: "#fff", border: "1px solid #E3E1D8", borderRadius: 6, padding: "8px 14px", fontSize: 13 }}
-                  >
+                  <SubmitButton className="admin-btn admin-btn-secondary" pendingLabel="Sending...">
                     Send retry reminder
-                  </button>
+                  </SubmitButton>
                 </form>
               </div>
             );
@@ -90,6 +105,7 @@ export default async function PaymentPendingPage() {
             <EmptyState title="Nothing pending right now" />
           )}
         </div>
+        <Pagination page={page} totalPages={totalPages} basePath="/bookings/payment-pending" />
       </div>
     </AdminShell>
   );

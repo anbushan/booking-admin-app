@@ -1,12 +1,13 @@
 import React, { useState, useCallback } from "react";
-import { View, Text, Pressable, StyleSheet } from "react-native";
+import { View, Text, StyleSheet } from "react-native";
+import { Pressable } from "../components/Pressable";
 import { useFocusEffect } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
 import { showAlert } from "../lib/alert";
 import { colors, spacing, radius, typography } from "../theme/theme";
 import { api } from "../lib/api";
 import { Analytics } from "../lib/analytics";
-import { SkeletonBlock } from "../components/Skeleton";
+import { CarLoader } from "../components/CarLoader";
 import { ErrorState } from "../components/ErrorState";
 import { RouteTimeline } from "../components/RouteTimeline";
 import { RouteStopsList } from "../components/RouteStopsList";
@@ -85,13 +86,12 @@ export default function BookingConfirmScreen({ route, navigation }: any) {
   }
 
   return (
-    <SafeAreaView style={styles.screen} edges={["top"]}>
+    <SafeAreaView style={styles.screen} edges={["top", "bottom"]}>
       <Text style={{ ...typography.title, padding: spacing.lg, paddingBottom: spacing.sm }}>Confirm booking</Text>
 
       {loading ? (
-        <View style={{ padding: spacing.lg, gap: spacing.md }}>
-          <SkeletonBlock style={{ height: 80, borderRadius: radius.md }} />
-          <SkeletonBlock style={{ height: 46, borderRadius: radius.sm }} />
+        <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
+          <CarLoader size="lg" />
         </View>
       ) : error || !ride ? (
         <ErrorState message="Couldn't load this ride." onRetry={load} />

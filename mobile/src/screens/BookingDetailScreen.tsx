@@ -1,9 +1,12 @@
 import React, { useState, useCallback } from "react";
-import { View, Text, Pressable, StyleSheet } from "react-native";
+import { View, Text, StyleSheet } from "react-native";
+import { Pressable } from "../components/Pressable";
 import { useFocusEffect } from "@react-navigation/native";
+import { Ionicons } from "@expo/vector-icons";
 import { colors, spacing, radius, typography } from "../theme/theme";
 import { api } from "../lib/api";
 import { CarLoader } from "../components/CarLoader";
+import { StatusBadge } from "../components/StatusBadge";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function BookingDetailScreen({ route, navigation }: any) {
@@ -28,7 +31,7 @@ export default function BookingDetailScreen({ route, navigation }: any) {
 
   if (loading) {
     return (
-      <SafeAreaView style={[styles.screen, { justifyContent: "center", alignItems: "center" }]} edges={["top"]}>
+      <SafeAreaView style={[styles.screen, { justifyContent: "center", alignItems: "center" }]} edges={["top", "bottom"]}>
         <CarLoader />
       </SafeAreaView>
     );
@@ -36,7 +39,7 @@ export default function BookingDetailScreen({ route, navigation }: any) {
 
   if (!booking) {
     return (
-      <SafeAreaView style={[styles.screen, { justifyContent: "center", alignItems: "center" }]} edges={["top"]}>
+      <SafeAreaView style={[styles.screen, { justifyContent: "center", alignItems: "center" }]} edges={["top", "bottom"]}>
         <Text style={styles.notFound}>Booking not found.</Text>
       </SafeAreaView>
     );
@@ -45,7 +48,7 @@ export default function BookingDetailScreen({ route, navigation }: any) {
   const amount = Number(booking.ride.pricePerSeat) * booking.seatsBooked;
 
   return (
-    <SafeAreaView style={styles.screen} edges={["top"]}>
+    <SafeAreaView style={styles.screen} edges={["top", "bottom"]}>
       <Text style={{ ...typography.title, padding: spacing.lg, paddingBottom: spacing.sm }}>Booking</Text>
 
       <View style={styles.body}>
@@ -53,14 +56,31 @@ export default function BookingDetailScreen({ route, navigation }: any) {
         <Text style={styles.date}>{new Date(booking.ride.travelDate).toLocaleString()}</Text>
 
         <View style={styles.card}>
-          <View style={styles.row}>
+          {/* Names link through to the public profile — every other list
+              in the app that shows a driver/passenger already does this;
+              this screen just hadn't caught up. */}
+          <Pressable
+            style={styles.row}
+            disabled={!booking.ride.driver.id}
+            onPress={() => navigation.navigate("PublicProfile", { userId: booking.ride.driver.id })}
+          >
             <Text style={styles.label}>Driver</Text>
-            <Text style={styles.value}>{booking.ride.driver.name || booking.ride.driver.phone}</Text>
-          </View>
-          <View style={styles.row}>
+            <View style={styles.valueRow}>
+              <Text style={styles.value}>{booking.ride.driver.name || booking.ride.driver.phone}</Text>
+              {!!booking.ride.driver.id && <Ionicons name="chevron-forward" size={14} color={colors.textMuted} />}
+            </View>
+          </Pressable>
+          <Pressable
+            style={styles.row}
+            disabled={!booking.passenger.id}
+            onPress={() => navigation.navigate("PublicProfile", { userId: booking.passenger.id })}
+          >
             <Text style={styles.label}>Passenger</Text>
-            <Text style={styles.value}>{booking.passenger.name || booking.passenger.phone}</Text>
-          </View>
+            <View style={styles.valueRow}>
+              <Text style={styles.value}>{booking.passenger.name || booking.passenger.phone}</Text>
+              {!!booking.passenger.id && <Ionicons name="chevron-forward" size={14} color={colors.textMuted} />}
+            </View>
+          </Pressable>
           <View style={styles.row}>
             <Text style={styles.label}>Seats</Text>
             <Text style={styles.value}>{booking.seatsBooked}</Text>
@@ -77,7 +97,7 @@ export default function BookingDetailScreen({ route, navigation }: any) {
           )}
           <View style={[styles.row, { borderBottomWidth: 0 }]}>
             <Text style={styles.label}>Status</Text>
-            <Text style={styles.value}>{booking.status}</Text>
+            <StatusBadge status={booking.status} size="sm" />
           </View>
         </View>
 
@@ -113,6 +133,7 @@ const styles = StyleSheet.create({
   card: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: radius.md, padding: spacing.md },
   row: { flexDirection: "row", justifyContent: "space-between", paddingVertical: spacing.sm, borderBottomWidth: 1, borderBottomColor: colors.border },
   label: { ...typography.caption, color: colors.textSecondary },
+  valueRow: { flexDirection: "row", alignItems: "center", gap: 4 },
   value: typography.body,
   actionButton: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, height: 44, borderRadius: radius.sm, alignItems: "center", justifyContent: "center", marginTop: spacing.md },
   actionButtonText: { ...typography.body, color: colors.accentText },

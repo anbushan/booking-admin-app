@@ -1,6 +1,6 @@
 import React from "react";
-import { KeyboardAvoidingView, Keyboard, Platform, Pressable, View, StyleSheet, ViewStyle } from "react-native";
-
+import { KeyboardAvoidingView, Keyboard, Platform, View, StyleSheet, ViewStyle } from "react-native";
+import { Pressable } from "./Pressable";
 // The one keyboard-avoidance treatment for every screen with a text
 // input. `behavior="padding"` is the standard iOS fix. Android used to
 // get `undefined` here on the theory that app.json's
@@ -33,7 +33,7 @@ export function KeyboardAvoider({ children, style }: { children: React.ReactNode
       style={{ flex: 1 }}
       behavior={Platform.OS === "ios" ? "padding" : "height"}
     >
-      <Pressable style={StyleSheet.absoluteFill} onPress={Keyboard.dismiss} accessible={false} />
+      <Pressable style={StyleSheet.absoluteFill} onPress={Keyboard.dismiss} accessible={false} noFeedback />
       {/* `style` (e.g. a caller's centering/backdrop styles) has to land on
           THIS box — the one actually holding `children` — not the outer
           KeyboardAvoidingView. It used to go on the outer view, which left

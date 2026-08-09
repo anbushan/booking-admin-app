@@ -16,27 +16,453 @@
   animation: shimmer 1.4s ease-in-out infinite;
 }
 
-/* ---------- Responsive admin shell ---------- */
+/* ---------- Toast (ToastHost) ---------- */
+@keyframes toast-in {
+  from { opacity: 0; transform: translate(-50%, 8px); }
+  to { opacity: 1; transform: translate(-50%, 0); }
+}
+
+.admin-toast {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  color: #fff;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.18);
+  animation: toast-in 0.2s ease-out;
+  max-width: calc(100vw - 32px);
+}
+
+.admin-toast-success {
+  background: #1A1A18;
+}
+
+.admin-toast-success svg {
+  color: #7ED07E;
+}
+
+.admin-toast-error {
+  background: #A32D2D;
+}
+
+.admin-toast-error svg {
+  color: #fff;
+}
+
+/* ---------- Confirm modal (ConfirmButton) ---------- */
+.admin-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  background: rgba(22, 33, 58, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+
+.admin-modal {
+  background: #fff;
+  border-radius: 12px;
+  padding: 24px;
+  width: 100%;
+  max-width: 360px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.2);
+}
+
+.admin-modal-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 20px;
+  background: #FCEBEB;
+  color: #A32D2D;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 12px;
+}
+
+.admin-modal-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: #1A1A18;
+}
+
+.admin-modal-message {
+  font-size: 13px;
+  color: #5F5E5A;
+  margin-top: 6px;
+  line-height: 1.5;
+}
+
+.admin-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 20px;
+}
+
+/* ---------- Loading spinner (SubmitButton) ---------- */
+@keyframes admin-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.admin-spin {
+  animation: admin-spin 0.7s linear infinite;
+}
+
+/* ---------- Form controls ---------- */
+/* Every input/select/button across the admin was bare inline styles —
+   fine for base appearance, but that means literally none of them had
+   a hover or focus state; a text field looked identical whether it was
+   focused or not. Real classes here so `:hover`/`:focus` can exist at
+   all (inline `style` objects can't express pseudo-classes), applied
+   on top of/instead of each call site's inline sizing so the look
+   stays the same, it just now actually responds to interaction. */
+.admin-input,
+.admin-select {
+  height: 36px;
+  border: 1px solid #E3E1D8;
+  border-radius: 6px;
+  padding: 0 10px;
+  font-size: 13px;
+  background: #fff;
+  color: #1A1A18;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.admin-input:hover,
+.admin-select:hover {
+  border-color: #C7C4B8;
+}
+
+.admin-input:focus,
+.admin-select:focus {
+  outline: none;
+  border-color: #185FA5;
+  box-shadow: 0 0 0 3px rgba(24, 95, 165, 0.12);
+}
+
+.admin-select {
+  cursor: pointer;
+}
+
+.admin-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 36px;
+  padding: 0 16px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  border: 1px solid transparent;
+  text-decoration: none;
+  transition: background 0.15s ease, border-color 0.15s ease, opacity 0.15s ease;
+}
+
+.admin-btn:focus-visible {
+  outline: 2px solid #185FA5;
+  outline-offset: 2px;
+}
+
+.admin-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.admin-btn-sm {
+  height: 30px;
+  padding: 0 12px;
+  font-size: 12px;
+}
+
+.admin-btn-primary {
+  background: #1A1A18;
+  color: #fff;
+}
+
+.admin-btn-primary:hover:not(:disabled) {
+  background: #33322e;
+}
+
+.admin-btn-secondary {
+  background: #fff;
+  color: #1A1A18;
+  border-color: #E3E1D8;
+}
+
+.admin-btn-secondary:hover:not(:disabled) {
+  background: #F1EFE8;
+}
+
+.admin-btn-danger {
+  background: #A32D2D;
+  color: #fff;
+}
+
+.admin-btn-danger:hover:not(:disabled) {
+  background: #862323;
+}
+
+.admin-btn-danger-outline {
+  background: #fff;
+  color: #A32D2D;
+  border-color: #E3E1D8;
+}
+
+.admin-btn-danger-outline:hover:not(:disabled) {
+  background: #FCEBEB;
+}
+
+/* ---------- Responsive admin shell (YouTube Studio-style: a
+   persistent top bar at every breakpoint, a sidebar that's a fixed
+   drawer on mobile, a full labeled rail on tablet/desktop, and
+   collapsible to an icon-only rail on tablet/desktop via the toggle
+   in the top bar) ---------- */
 
 .admin-shell {
-  display: flex;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  grid-template-rows: auto 1fr;
+  grid-template-areas: "topbar topbar" "sidebar main";
   min-height: 100vh;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  color: #1A1A18;
+}
+
+.admin-topbar {
+  grid-area: topbar;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 16px;
+  border-bottom: 1px solid #E3E1D8;
+  background: #fff;
+  position: sticky;
+  top: 0;
+  z-index: 30;
+}
+
+.admin-topbar-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.admin-brand {
+  font-size: 15px;
+  font-weight: 700;
+  color: #0C447C;
+  letter-spacing: -0.2px;
+}
+
+.admin-avatar-wrap {
+  position: relative;
+}
+
+.admin-avatar-button {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #185FA5 0%, #D97F0A 100%);
+  color: #fff;
+  border: none;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.admin-avatar-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 35;
+}
+
+.admin-avatar-menu {
+  position: absolute;
+  top: 40px;
+  right: 0;
+  z-index: 36;
+  background: #fff;
+  border: 1px solid #E3E1D8;
+  border-radius: 8px;
+  padding: 12px;
+  min-width: 200px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+}
+
+.admin-avatar-menu-email {
+  font-size: 13px;
+  font-weight: 500;
+  color: #1A1A18;
+  word-break: break-all;
+}
+
+.admin-avatar-menu-role {
+  font-size: 11px;
+  color: #888780;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-top: 2px;
+}
+
+.admin-avatar-menu-signout {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid #E3E1D8;
+  background: none;
+  border-left: none;
+  border-right: none;
+  border-bottom: none;
+  font-size: 13px;
+  color: #A32D2D;
+  cursor: pointer;
+}
+
+.admin-avatar-menu-signout:hover {
+  color: #7a2222;
+}
+
+.admin-hamburger,
+.admin-collapse-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  background: none;
+  border: 1px solid #E3E1D8;
+  border-radius: 6px;
+  cursor: pointer;
+  color: #1A1A18;
+}
+
+.admin-hamburger:hover,
+.admin-collapse-toggle:hover {
+  background: #F1EFE8;
+}
+
+/* Icon rail toggle only makes sense where the sidebar is persistent
+   (tablet/desktop) — on mobile it's a drawer instead, so the hamburger
+   takes over there. */
+.admin-hamburger {
+  display: none;
 }
 
 .admin-sidebar {
+  grid-area: sidebar;
   width: 220px;
   border-right: 1px solid #E3E1D8;
-  padding: 16px;
+  padding: 12px 10px;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 14px;
   background: #fff;
   flex-shrink: 0;
+  overflow-y: auto;
+  transition: width 0.15s ease;
+}
+
+.admin-sidebar.admin-sidebar-collapsed {
+  width: 60px;
+}
+
+.admin-section {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.admin-section-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: #888780;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 4px 10px 2px;
+}
+
+.admin-link {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  font-size: 13px;
+  text-decoration: none;
+  color: #1A1A18;
+  white-space: nowrap;
+}
+
+.admin-sidebar-collapsed .admin-link {
+  justify-content: center;
+  padding: 8px;
+}
+
+.admin-link:hover {
+  background: #F1EFE8;
+}
+
+.admin-link-active {
+  color: #0C447C;
+  background: #E6F1FB;
+  font-weight: 500;
+}
+
+.admin-link-active:hover {
+  background: #E6F1FB;
+}
+
+.admin-signout-form {
+  margin-top: auto;
+}
+
+.admin-signout {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 8px 10px;
+  font-size: 13px;
+  background: none;
+  border: 1px solid #E3E1D8;
+  border-radius: 6px;
+  cursor: pointer;
+  color: #A32D2D;
+}
+
+.admin-signout:hover {
+  background: #FCEBEB;
+}
+
+.admin-sidebar-collapsed .admin-signout {
+  justify-content: center;
+  padding: 8px;
 }
 
 .admin-main {
-  flex: 1;
-  min-width: 0; /* allow content, e.g. wide tables, to shrink instead of overflowing the flex row */
+  grid-area: main;
+  min-width: 0; /* allow content, e.g. wide tables, to shrink instead of overflowing the grid column */
 }
 
 .admin-main-inner {
@@ -45,56 +471,40 @@
   margin: 0 auto;
 }
 
-.admin-hamburger {
-  display: none;
-}
-
-.admin-topbar {
-  display: none;
-}
-
 .admin-overlay {
   display: none;
 }
 
-/* Tablet: narrower persistent sidebar */
+/* Tablet: narrower persistent sidebar, hamburger stays hidden (the
+   sidebar's already there, just the collapse toggle applies) */
 @media (min-width: 768px) and (max-width: 1023px) {
   .admin-sidebar {
     width: 180px;
-    padding: 12px;
   }
-  .admin-sidebar .admin-link {
-    font-size: 12px;
-    padding: 7px 8px;
+  .admin-sidebar.admin-sidebar-collapsed {
+    width: 56px;
   }
 }
 
-/* Mobile: sidebar becomes an off-canvas drawer, toggled by a hamburger button */
+/* Mobile: sidebar becomes an off-canvas drawer, toggled by a hamburger
+   button in the top bar; the collapse toggle (a tablet/desktop-only
+   rail interaction) hides in favor of it. */
 @media (max-width: 767px) {
   .admin-shell {
-    flex-direction: column;
-  }
-  .admin-topbar {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 12px 16px;
-    border-bottom: 1px solid #E3E1D8;
-    background: #fff;
-    position: sticky;
-    top: 0;
-    z-index: 30;
+    grid-template-columns: 1fr;
+    grid-template-areas: "topbar" "main";
   }
   .admin-hamburger {
-    display: block;
-    background: none;
-    border: 1px solid #E3E1D8;
-    border-radius: 6px;
-    padding: 6px 10px;
-    font-size: 14px;
-    cursor: pointer;
+    display: flex;
+  }
+  .admin-collapse-toggle {
+    display: none;
+  }
+  .admin-brand {
+    display: none; /* the page title already says where you are; brand + title + hamburger crowds a narrow top bar */
   }
   .admin-sidebar {
+    grid-area: unset;
     position: fixed;
     top: 0;
     left: 0;
@@ -104,7 +514,6 @@
     transform: translateX(-100%);
     transition: transform 0.2s ease;
     z-index: 50;
-    overflow-y: auto;
   }
   .admin-sidebar.admin-sidebar-open {
     transform: translateX(0);

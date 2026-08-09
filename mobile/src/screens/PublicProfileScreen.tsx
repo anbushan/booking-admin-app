@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { View, Text, FlatList, StyleSheet } from "react-native";
+import { Pressable } from "../components/Pressable";
+import { Ionicons } from "@expo/vector-icons";
 import { colors, spacing, radius, typography } from "../theme/theme";
 import { api } from "../lib/api";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -14,10 +16,10 @@ export default function PublicProfileScreen({ route, navigation }: any) {
     api.getReviewsForUser(userId).then(setReviews).catch(() => setReviews([]));
   }, [userId]);
 
-  if (!profile) return <SafeAreaView style={styles.screen} edges={["top"]} />;
+  if (!profile) return <SafeAreaView style={styles.screen} edges={["top", "bottom"]} />;
 
   return (
-    <SafeAreaView style={styles.screen} edges={["top"]}>
+    <SafeAreaView style={styles.screen} edges={["top", "bottom"]}>
       <Text style={{ ...typography.title, padding: spacing.lg, paddingBottom: spacing.sm }}>Profile</Text>
 
       <View style={styles.profileCard}>
@@ -39,13 +41,26 @@ export default function PublicProfileScreen({ route, navigation }: any) {
         data={reviews}
         keyExtractor={(item) => item.id}
         contentContainerStyle={{ paddingHorizontal: spacing.lg, gap: spacing.sm, flexGrow: 1 }}
-        renderItem={({ item }) => (
-          <View style={styles.reviewRow}>
-            <Text style={styles.reviewStars}>{"\u2605".repeat(item.rating)}</Text>
-            {item.comment ? <Text style={styles.reviewComment}>{item.comment}</Text> : null}
-            <Text style={styles.reviewFrom}>{item.fromUser?.name || "Rider"}</Text>
-          </View>
-        )}
+        renderItem={({ item }) => {
+          // Don't bother linking a review back to the profile you're
+          // already looking at \u2014 only reachable if this person reviewed
+          // someone who, in turn, reviewed them back.
+          const canOpen = !!item.fromUser?.id && item.fromUser.id !== userId;
+          return (
+            <Pressable
+              style={styles.reviewRow}
+              disabled={!canOpen}
+              onPress={() => navigation.navigate("PublicProfile", { userId: item.fromUser.id })}
+            >
+              <Text style={styles.reviewStars}>{"\u2605".repeat(item.rating)}</Text>
+              {item.comment ? <Text style={styles.reviewComment}>{item.comment}</Text> : null}
+              <View style={styles.reviewFromRow}>
+                <Text style={styles.reviewFrom}>{item.fromUser?.name || "Rider"}</Text>
+                {canOpen && <Ionicons name="chevron-forward" size={13} color={colors.textMuted} />}
+              </View>
+            </Pressable>
+          );
+        }}
         ListEmptyComponent={<Text style={styles.empty}>No reviews yet.</Text>}
       />
     </SafeAreaView>
@@ -59,7 +74,7 @@ const styles = StyleSheet.create({
   title: typography.title,
   profileCard: { alignItems: "center", padding: spacing.lg },
   avatar: { width: 64, height: 64, borderRadius: 32, backgroundColor: colors.accentBg, alignItems: "center", justifyContent: "center" },
-  avatarText: { fontSize: 22, fontWeight: "500", color: colors.accentText },
+  avatarText: { fontSize: 22, fontWeight: "700", color: colors.accentText },
   name: { ...typography.title, fontSize: 16, marginTop: spacing.sm },
   meta: { ...typography.caption, color: colors.textMuted, marginTop: 2 },
   rating: { ...typography.caption, color: colors.warning, marginTop: 4 },
@@ -68,6 +83,7 @@ const styles = StyleSheet.create({
   reviewRow: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: radius.sm, padding: spacing.md },
   reviewStars: { color: colors.warning, fontSize: 13 },
   reviewComment: { ...typography.caption, marginTop: 4 },
-  reviewFrom: { ...typography.small, color: colors.textMuted, marginTop: 4 },
+  reviewFromRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: 4 },
+  reviewFrom: { ...typography.small, color: colors.textMuted },
   empty: { textAlign: "center", color: colors.textMuted, marginTop: spacing.lg },
 });

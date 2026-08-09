@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { View, Text, Pressable, FlatList, StyleSheet } from "react-native";
+import { View, Text, FlatList, StyleSheet, RefreshControl } from "react-native";
+import { Pressable } from "../components/Pressable";
 import { useFocusEffect } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
 import { colors, spacing, radius, typography } from "../theme/theme";
 import { api } from "../lib/api";
-import { SkeletonBlock } from "../components/Skeleton";
+import { CarLoader } from "../components/CarLoader";
 import { EmptyState } from "../components/EmptyState";
 import { ErrorState } from "../components/ErrorState";
 import { useToast } from "../components/Toast";
@@ -27,6 +28,7 @@ export default function EarningsScreen({ navigation }: any) {
   const [data, setData] = useState<Earnings | null>(null);
   const [profile, setProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(false);
   const { showError } = useToast();
 
@@ -34,10 +36,11 @@ export default function EarningsScreen({ navigation }: any) {
     api.getMyProfile().then(setProfile).catch(() => {});
   }, []);
 
-  function load() {
-    setLoading(true);
+  function load(isRefresh = false) {
+    if (isRefresh) setRefreshing(true);
+    else setLoading(true);
     setError(false);
-    api.getEarnings().then(setData).catch(() => setError(true)).finally(() => setLoading(false));
+    api.getEarnings().then(setData).catch(() => setError(true)).finally(() => { setLoading(false); setRefreshing(false); });
   }
 
   useFocusEffect(useCallback(load, []));
@@ -56,9 +59,8 @@ export default function EarningsScreen({ navigation }: any) {
       <Text style={{ ...typography.title, padding: spacing.lg, paddingBottom: spacing.sm }}>Earnings</Text>
 
       {loading ? (
-        <View style={{ padding: spacing.lg, gap: spacing.md }}>
-          <SkeletonBlock style={{ height: 100, borderRadius: radius.md }} />
-          <SkeletonBlock style={{ height: 60, borderRadius: radius.sm }} />
+        <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
+          <CarLoader size="lg" />
         </View>
       ) : error ? (
         <ErrorState message="Couldn't load earnings." onRetry={load} />
@@ -94,9 +96,13 @@ export default function EarningsScreen({ navigation }: any) {
             style={{ flex: 1 }}
             data={data?.recentTrips || []}
             keyExtractor={(item) => item.id}
+            refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => load(true)} colors={[colors.accent]} tintColor={colors.accent} />}
             contentContainerStyle={{ paddingHorizontal: spacing.lg, flexGrow: 1 }}
             renderItem={({ item, index }) => (
-              <View style={styles.tripRow}>
+              // Whole row opens the full booking detail — "mark
+              // collected" and "Rate passenger" stay their own
+              // Pressables and still fire independently on their own tap.
+              <Pressable style={styles.tripRow} onPress={() => navigation.navigate("BookingDetail", { bookingId: item.id })}>
                 <View style={styles.tripTopRow}>
                   <View style={styles.tripIconWrap}>
                     <Ionicons name="car-outline" size={14} color={colors.textSecondary} />
@@ -130,7 +136,7 @@ export default function EarningsScreen({ navigation }: any) {
                     <Text style={styles.rateLink}>Rate {item.passengerName || "passenger"}</Text>
                   </Pressable>
                 )}
-              </View>
+              </Pressable>
             )}
             ListEmptyComponent={<EmptyState icon="wallet-outline" title="No trips yet this month" />}
           />
@@ -146,13 +152,13 @@ const styles = StyleSheet.create({
   summaryCard: { backgroundColor: colors.surface, margin: spacing.lg, borderRadius: radius.md, padding: spacing.lg, alignItems: "center" },
   summaryIconWrap: { width: 44, height: 44, borderRadius: 22, backgroundColor: colors.textPrimary, alignItems: "center", justifyContent: "center", marginBottom: spacing.sm },
   summaryLabel: { ...typography.small, color: colors.textMuted },
-  summaryValue: { fontSize: 24, fontWeight: "500", marginTop: 4 },
+  summaryValue: { fontSize: 24, fontWeight: "700", marginTop: 4 },
   summarySub: { ...typography.small, color: colors.success, marginTop: 2 },
   notice: { flexDirection: "row", gap: spacing.sm, alignItems: "flex-start", backgroundColor: colors.accentBg, borderRadius: radius.sm, padding: spacing.md, marginHorizontal: spacing.lg, marginTop: spacing.md },
   noticeText: { ...typography.small, color: colors.accentText, flex: 1, lineHeight: 17 },
   statsRow: { flexDirection: "row", gap: spacing.sm, marginHorizontal: spacing.lg },
   statBox: { flex: 1, backgroundColor: colors.surface, borderRadius: radius.sm, padding: spacing.md, alignItems: "center", gap: 2 },
-  statValue: { fontSize: 16, fontWeight: "500" },
+  statValue: { fontSize: 16, fontWeight: "700" },
   statLabel: { ...typography.small, color: colors.textMuted, marginTop: 2 },
   sectionLabel: { ...typography.title, fontSize: 13, marginHorizontal: spacing.lg, marginTop: spacing.lg, marginBottom: spacing.xs },
   tripRow: { paddingVertical: spacing.sm, borderBottomWidth: 1, borderBottomColor: colors.border, gap: spacing.xs },

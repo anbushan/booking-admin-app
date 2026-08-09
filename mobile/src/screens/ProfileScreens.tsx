@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
-import { View, Text, TextInput, Pressable, ScrollView, StyleSheet } from "react-native";
+import { View, Text, TextInput, ScrollView, StyleSheet } from "react-native";
+import { Pressable } from "../components/Pressable";
 import { Ionicons } from "@expo/vector-icons";
 import { showAlert } from "../lib/alert";
 import { colors, spacing, radius, typography } from "../theme/theme";
@@ -184,13 +185,13 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  avatarText: { fontSize: 26, fontWeight: "600", color: "#FFFFFF" },
+  avatarText: { fontSize: 26, fontWeight: "700", color: "#FFFFFF" },
   name: { ...typography.title, fontSize: 18, color: "#FFFFFF", marginTop: spacing.sm },
   metaRow: { flexDirection: "row", alignItems: "center", gap: 4, marginTop: 2 },
   meta: { ...typography.caption, color: "rgba(255,255,255,0.75)" },
   chipRow: { flexDirection: "row", flexWrap: "wrap", gap: spacing.xs, marginTop: spacing.md, justifyContent: "center" },
   chip: { flexDirection: "row", alignItems: "center", gap: 4, backgroundColor: "rgba(255,255,255,0.16)", borderRadius: radius.sm, paddingVertical: 4, paddingHorizontal: spacing.sm },
-  chipText: { ...typography.small, color: "#FFFFFF", fontWeight: "600" },
+  chipText: { ...typography.small, color: "#FFFFFF", fontWeight: "700" },
   list: { padding: spacing.md, gap: spacing.sm, marginTop: spacing.xs },
   row: { flexDirection: "row", alignItems: "center", gap: spacing.sm, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: radius.md, padding: spacing.md },
   rowIconWrap: { width: 32, height: 32, borderRadius: 10, backgroundColor: colors.accentBg, alignItems: "center", justifyContent: "center" },

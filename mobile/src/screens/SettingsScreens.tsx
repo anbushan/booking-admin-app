@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
-import { View, Text, Pressable, ScrollView, StyleSheet, Linking } from "react-native";
+import { View, Text, ScrollView, StyleSheet, Linking } from "react-native";
+import { Pressable } from "../components/Pressable";
 import { Ionicons } from "@expo/vector-icons";
 import { showAlert } from "../lib/alert";
 import { colors, spacing, radius, typography } from "../theme/theme";
@@ -111,7 +112,7 @@ export function AboutScreen({ navigation }: any) {
     <SafeAreaView style={styles.screen} edges={["top"]}>
       <Text style={{ ...typography.title, padding: spacing.lg, paddingBottom: spacing.sm }}>About & terms</Text>
       <View style={styles.body}>
-        <Text style={styles.paragraph}>Carpool v0.1.0</Text>
+        <Text style={styles.paragraph}>NanbaGO v0.1.0</Text>
         <Pressable style={styles.linkRow} onPress={() => Linking.openURL("https://example.com/terms")}>
           <Ionicons name="document-outline" size={15} color={colors.accentText} />
           <Text style={styles.link}>Terms of Service</Text>

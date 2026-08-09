@@ -3,6 +3,10 @@ import { getSession, requireRole } from "../../../lib/session";
 import { redirect } from "next/navigation";
 import AdminShell from "../../../components/AdminShell";
 import { EmptyState } from "../../../components/EmptyState";
+import { PageHeader } from "../../../components/PageHeader";
+import { StatCard } from "../../../components/StatCard";
+import { Badge } from "../../../components/Badge";
+import { Car, ArrowLeft, Wallet, Route, AlertTriangle } from "lucide-react";
 
 export const dynamic = "force-dynamic";
 
@@ -38,53 +42,25 @@ export default async function DriverDetailPage({ params }: { params: { id: strin
 
   return (
     <AdminShell activeHref="/users">
-      <div style={{ padding: 24, fontFamily: "sans-serif" }}>
-        <a href="/users" style={{ fontSize: 13, color: "#5F5E5A" }}>{"< Back to users"}</a>
-        <h1 style={{ fontSize: 20, fontWeight: 500, marginTop: 8 }}>{driver.name || driver.phone}</h1>
-        <div style={{ fontSize: 13, color: "#5F5E5A", marginTop: 4 }}>
-          {driver.phone} · {driver.ratingAvg ? `${driver.ratingAvg.toFixed(1)} rating` : "No rating yet"}
+      <div style={{ padding: 24 }}>
+        <a href="/users" style={{ fontSize: 13, color: "#5F5E5A", display: "inline-flex", alignItems: "center", gap: 4 }}>
+          <ArrowLeft size={14} /> Back to users
+        </a>
+        <div style={{ marginTop: 12 }}>
+          <PageHeader icon={Car} title={driver.name || driver.phone} />
         </div>
-        <span
-          style={{
-            display: "inline-block",
-            marginTop: 8,
-            fontSize: 12,
-            padding: "2px 8px",
-            borderRadius: 6,
-            background: isVerified ? "#EAF3DE" : "#FAEEDA",
-            color: isVerified ? "#3B6D11" : "#854F0B",
-          }}
-        >
-          {isVerified ? "Verified" : "Verification pending"}
-        </span>
-        {isBlocked && (
-          <span style={{ display: "inline-block", marginTop: 8, marginLeft: 8, fontSize: 12, padding: "2px 8px", borderRadius: 6, background: "#FBE1E1", color: "#A32D2D" }}>
-            Blocked until {driver.strikeBlockedUntil!.toLocaleString()}
-          </span>
-        )}
-        {!isBlocked && driver.strikeFlagged && (
-          <span style={{ display: "inline-block", marginTop: 8, marginLeft: 8, fontSize: 12, padding: "2px 8px", borderRadius: 6, background: "#FAEEDA", color: "#854F0B" }}>
-            Final warning issued
-          </span>
-        )}
+        <div style={{ fontSize: 13, color: "#5F5E5A", marginTop: -12, display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+          <span>{driver.phone} · {driver.ratingAvg ? `${driver.ratingAvg.toFixed(1)} rating` : "No rating yet"}</span>
+          <Badge tone={isVerified ? "success" : "warning"}>{isVerified ? "Verified" : "Verification pending"}</Badge>
+          {isBlocked && <Badge tone="danger">{`Blocked until ${driver.strikeBlockedUntil!.toLocaleString()}`}</Badge>}
+          {!isBlocked && driver.strikeFlagged && <Badge tone="warning">Final warning issued</Badge>}
+        </div>
 
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12, marginTop: 20 }}>
-          <div style={{ background: "#F1EFE8", borderRadius: 8, padding: 16 }}>
-            <div style={{ fontSize: 12, color: "#888780" }}>Total earnings</div>
-            <div style={{ fontSize: 20, fontWeight: 500 }}>Rs {totalEarnings.toLocaleString()}</div>
-          </div>
-          <div style={{ background: "#F1EFE8", borderRadius: 8, padding: 16 }}>
-            <div style={{ fontSize: 12, color: "#888780" }}>Trips completed</div>
-            <div style={{ fontSize: 20, fontWeight: 500 }}>{completedBookings.length}</div>
-          </div>
-          <div style={{ background: "#F1EFE8", borderRadius: 8, padding: 16 }}>
-            <div style={{ fontSize: 12, color: "#888780" }}>Vehicles</div>
-            <div style={{ fontSize: 20, fontWeight: 500 }}>{vehicles.length}</div>
-          </div>
-          <div style={{ background: "#F1EFE8", borderRadius: 8, padding: 16 }}>
-            <div style={{ fontSize: 12, color: "#888780" }}>Strikes (last {rollingWindowDays}d)</div>
-            <div style={{ fontSize: 20, fontWeight: 500 }}>{activeStrikeCount}</div>
-          </div>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 12, marginTop: 20 }}>
+          <StatCard icon={Wallet} label="Total earnings" value={`Rs ${totalEarnings.toLocaleString()}`} tone="success" />
+          <StatCard icon={Route} label="Trips completed" value={completedBookings.length} tone="accent" />
+          <StatCard icon={Car} label="Vehicles" value={vehicles.length} tone="neutral" />
+          <StatCard icon={AlertTriangle} label={`Strikes (last ${rollingWindowDays}d)`} value={activeStrikeCount} tone={activeStrikeCount > 0 ? "warning" : "neutral"} />
         </div>
 
         <h2 style={{ fontSize: 15, fontWeight: 500, marginTop: 24 }}>Strikes</h2>
@@ -103,19 +79,20 @@ export default async function DriverDetailPage({ params }: { params: { id: strin
 
         <h2 style={{ fontSize: 15, fontWeight: 500, marginTop: 24 }}>Documents</h2>
         {documents.map((d) => (
-          <div key={d.id} style={{ fontSize: 13, padding: "8px 0", borderBottom: "1px solid #E3E1D8" }}>
-            {d.docType} — {d.status}
+          <div key={d.id} style={{ fontSize: 13, padding: "8px 0", borderBottom: "1px solid #E3E1D8", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, flexWrap: "wrap" }}>
+            <span>{d.docType}</span>
+            <Badge>{d.status}</Badge>
           </div>
         ))}
         {documents.length === 0 && <EmptyState title="No documents uploaded yet" />}
 
         <h2 style={{ fontSize: 15, fontWeight: 500, marginTop: 24 }}>Recent rides</h2>
         {rides.map((r) => (
-          <div key={r.id} style={{ fontSize: 13, padding: "8px 0", borderBottom: "1px solid #E3E1D8" }}>
+          <div key={r.id} style={{ fontSize: 13, padding: "8px 0", borderBottom: "1px solid #E3E1D8", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, flexWrap: "wrap" }}>
             <a href={`/rides/${r.id}`} style={{ color: "#0C447C" }}>
               {r.sourceAddress} to {r.destAddress}
-            </a>{" "}
-            — {r.status}
+            </a>
+            <Badge>{r.status}</Badge>
           </div>
         ))}
         {rides.length === 0 && <EmptyState title="No rides published yet" />}

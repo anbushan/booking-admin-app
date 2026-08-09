@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useRef, useState } from "react";
-import { Animated, Text, StyleSheet, View } from "react-native";
+import { Animated, Text, StyleSheet, View, Modal } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { colors, spacing, radius, typography } from "../theme/theme";
@@ -54,24 +54,39 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
     >
       {children}
       {toast && (
-        // A solid dark bar rather than a tinted/outlined box — the type
-        // reads from the icon's color, not the whole snackbar changing
-        // background, closer to how BlaBlaCar's own confirmation
-        // snackbars read (one consistent bar, an accent color doing the
-        // signaling) than a loud red/green box every time.
-        <Animated.View
-          pointerEvents="none"
-          style={[styles.toast, { bottom: insets.bottom + 76, opacity, transform: [{ translateY }] }]}
-        >
-          <View style={[styles.iconWrap, toast.type === "success" ? styles.iconWrapSuccess : styles.iconWrapError]}>
-            <Ionicons
-              name={toast.type === "success" ? "checkmark" : "close"}
-              size={13}
-              color="#FFFFFF"
-            />
+        // Wrapped in its own transparent Modal — SideMenu (and any other
+        // overlay in this app) is itself a Modal, which on Android opens
+        // a separate native window above the whole app; a plain View here
+        // only stacks via `elevation`, which can't compete with another
+        // window at all. That mismatch was invisible in Expo Go's more
+        // forgiving debug rendering and only showed up as the two
+        // fighting for the top layer in a real release build. Giving the
+        // toast a Modal of its own means it always gets a genuine
+        // top-level window, so it reliably renders above the sidebar (or
+        // anything else) instead of z-fighting with it.
+        <Modal transparent visible animationType="none" statusBarTranslucent onRequestClose={() => {}}>
+          <View style={StyleSheet.absoluteFill} pointerEvents="box-none">
+            {/* A solid dark bar rather than a tinted/outlined box — the
+                type reads from the icon's color, not the whole snackbar
+                changing background, closer to how BlaBlaCar's own
+                confirmation snackbars read (one consistent bar, an accent
+                color doing the signaling) than a loud red/green box every
+                time. */}
+            <Animated.View
+              pointerEvents="none"
+              style={[styles.toast, { bottom: insets.bottom + 76, opacity, transform: [{ translateY }] }]}
+            >
+              <View style={[styles.iconWrap, toast.type === "success" ? styles.iconWrapSuccess : styles.iconWrapError]}>
+                <Ionicons
+                  name={toast.type === "success" ? "checkmark" : "close"}
+                  size={13}
+                  color="#FFFFFF"
+                />
+              </View>
+              <Text style={styles.text} numberOfLines={2}>{toast.message}</Text>
+            </Animated.View>
           </View>
-          <Text style={styles.text} numberOfLines={2}>{toast.message}</Text>
-        </Animated.View>
+        </Modal>
       )}
     </ToastContext.Provider>
   );
@@ -102,5 +117,5 @@ const styles = StyleSheet.create({
   iconWrap: { width: 22, height: 22, borderRadius: 11, alignItems: "center", justifyContent: "center", flex: 0 },
   iconWrapSuccess: { backgroundColor: colors.success },
   iconWrapError: { backgroundColor: colors.danger },
-  text: { ...typography.caption, color: "#FFFFFF", fontWeight: "500", flex: 1 },
+  text: { ...typography.caption, color: "#FFFFFF", fontWeight: "700", flex: 1 },
 });

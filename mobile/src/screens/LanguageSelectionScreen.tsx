@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
-import { View, Text, Pressable, FlatList, StyleSheet } from "react-native";
+import { View, Text, FlatList, StyleSheet } from "react-native";
+import { Pressable } from "../components/Pressable";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { colors, spacing, radius, typography } from "../theme/theme";
 import { Analytics } from "../lib/analytics";
@@ -35,7 +36,7 @@ export default function LanguageSelectionScreen({ navigation }: any) {
   }
 
   return (
-    <SafeAreaView style={styles.screen} edges={["top"]}>
+    <SafeAreaView style={styles.screen} edges={["top", "bottom"]}>
       <Text style={{ ...typography.title, padding: spacing.lg, paddingBottom: spacing.sm }}>Language</Text>
 
       <FlatList
@@ -60,5 +61,5 @@ const styles = StyleSheet.create({
   title: typography.title,
   row: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: radius.md, padding: spacing.md },
   rowText: typography.body,
-  checkmark: { color: colors.accentText, fontWeight: "500" },
+  checkmark: { color: colors.accentText, fontWeight: "700" },
 });

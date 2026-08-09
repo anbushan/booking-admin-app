@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useCallback } from "react";
-import { View, Text, FlatList, Pressable, StyleSheet, RefreshControl } from "react-native";
+import { View, Text, FlatList, StyleSheet, RefreshControl } from "react-native";
+import { Pressable } from "../components/Pressable";
 import { useFocusEffect } from "@react-navigation/native";
 import { colors, spacing, radius, typography } from "../theme/theme";
 import { api } from "../lib/api";
@@ -95,7 +96,7 @@ export default function ChatListScreen({ navigation, route }: any) {
   );
 
   return (
-    <SafeAreaView style={styles.screen} edges={["top"]}>
+    <SafeAreaView style={styles.screen} edges={["top", "bottom"]}>
       <Text style={{ ...typography.title, padding: spacing.lg, paddingBottom: spacing.sm }}>Messages</Text>
       {loading ? (
         <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
@@ -158,7 +159,7 @@ const styles = StyleSheet.create({
     padding: spacing.md,
   },
   avatar: { width: 36, height: 36, borderRadius: 18, backgroundColor: colors.accentBg, alignItems: "center", justifyContent: "center" },
-  avatarText: { color: colors.accentText, fontWeight: "500" },
+  avatarText: { color: colors.accentText, fontWeight: "700" },
   name: { ...typography.title, fontSize: 14 },
   route: { ...typography.small, color: colors.textMuted, marginTop: 2 },
   empty: { textAlign: "center", marginTop: spacing.xl, color: colors.textMuted, paddingHorizontal: spacing.lg },

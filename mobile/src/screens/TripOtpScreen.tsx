@@ -1,5 +1,6 @@
-import React, { useEffect, useState } from "react";
-import { View, Text, Pressable, Linking, StyleSheet } from "react-native";
+import React, { useEffect, useRef, useState } from "react";
+import { View, Text, Linking, StyleSheet } from "react-native";
+import { Pressable } from "../components/Pressable";
 import { Ionicons } from "@expo/vector-icons";
 import { colors, spacing, radius, typography } from "../theme/theme";
 import { api } from "../lib/api";
@@ -16,6 +17,7 @@ export default function TripOtpScreen({ route, navigation }: any) {
   const [driverRating, setDriverRating] = useState<number | null>(null);
   const [routeLabel, setRouteLabel] = useState<string | null>(null);
   const [calling, setCalling] = useState(false);
+  const navigatedAway = useRef(false);
   const { showError } = useToast();
 
   useEffect(() => {
@@ -33,6 +35,28 @@ export default function TripOtpScreen({ route, navigation }: any) {
       .catch(() => {});
   }, [bookingId]);
 
+  // No more manual "Track this trip" button — the moment the driver
+  // actually verifies the code on their end (booking flips to
+  // IN_PROGRESS), this screen jumps straight to live tracking on its
+  // own. Polling rather than waiting for a push notification keeps this
+  // working even if notification permission was denied.
+  useEffect(() => {
+    const poll = setInterval(async () => {
+      if (navigatedAway.current) return;
+      try {
+        const track = await api.trackTrip(bookingId);
+        if (track.status === "IN_PROGRESS") {
+          navigatedAway.current = true;
+          clearInterval(poll);
+          primeLocationIfNeeded(navigation, "LiveTracking", { bookingId, role: "PASSENGER" });
+        }
+      } catch {
+        // swallow — a missed poll just tries again in 3s
+      }
+    }, 3000);
+    return () => clearInterval(poll);
+  }, [bookingId]);
+
   async function handleCall() {
     setCalling(true);
     try {
@@ -48,7 +72,7 @@ export default function TripOtpScreen({ route, navigation }: any) {
   const digits = (otp || "").padEnd(OTP_LENGTH, " ").slice(0, OTP_LENGTH).split("");
 
   return (
-    <SafeAreaView style={styles.screen} edges={["top"]}>
+    <SafeAreaView style={styles.screen} edges={["top", "bottom"]}>
       <Text style={{ ...typography.title, padding: spacing.lg, paddingBottom: spacing.sm }}>Your driver has arrived</Text>
 
       <View style={styles.body}>
@@ -104,13 +128,10 @@ export default function TripOtpScreen({ route, navigation }: any) {
         </Pressable>
       </View>
 
-      <Pressable
-        style={styles.trackButton}
-        onPress={() => primeLocationIfNeeded(navigation, "LiveTracking", { bookingId, role: "PASSENGER" })}
-      >
-        <Ionicons name="locate-outline" size={18} color="#FFFFFF" />
-        <Text style={styles.trackButtonText}>Track this trip</Text>
-      </Pressable>
+      <View style={styles.waitingRow}>
+        <Ionicons name="time-outline" size={15} color={colors.textMuted} />
+        <Text style={styles.waitingText}>You'll be taken to live tracking as soon as the trip starts</Text>
+      </View>
     </SafeAreaView>
   );
 }
@@ -138,18 +159,18 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  otpDigit: { fontSize: 28, fontWeight: "600", color: colors.accentText },
+  otpDigit: { fontSize: 28, fontWeight: "700", color: colors.accentText },
   infoRow: { flexDirection: "row", alignItems: "flex-start", gap: 6, marginTop: spacing.md, maxWidth: 300 },
   hint: { ...typography.small, color: colors.textMuted, flex: 1 },
   altHint: { ...typography.small, color: colors.textMuted, flex: 1 },
   routeLabel: { ...typography.caption, color: colors.textSecondary, flex: 1 },
   driverBar: { flexDirection: "row", alignItems: "center", gap: spacing.sm, padding: spacing.lg, borderTopWidth: 1, borderTopColor: colors.border, backgroundColor: colors.surface },
   avatar: { width: 44, height: 44, borderRadius: 22, backgroundColor: colors.accentBg, alignItems: "center", justifyContent: "center" },
-  avatarText: { color: colors.accentText, fontWeight: "600", fontSize: 16 },
-  driverName: { ...typography.body, fontWeight: "500" },
+  avatarText: { color: colors.accentText, fontWeight: "700", fontSize: 16 },
+  driverName: { ...typography.body, fontWeight: "700" },
   ratingRow: { flexDirection: "row", alignItems: "center", gap: 3, marginTop: 1 },
   driverMeta: { ...typography.small, color: colors.textMuted },
   iconButton: { width: 36, height: 36, borderRadius: 18, backgroundColor: colors.accentBg, alignItems: "center", justifyContent: "center" },
-  trackButton: { flexDirection: "row", gap: spacing.xs, backgroundColor: colors.textPrimary, height: 48, borderRadius: radius.sm, alignItems: "center", justifyContent: "center", margin: spacing.lg },
-  trackButtonText: { color: "#FFFFFF", ...typography.title },
+  waitingRow: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, margin: spacing.lg, marginTop: spacing.sm },
+  waitingText: { ...typography.small, color: colors.textMuted, textAlign: "center", flexShrink: 1 },
 });

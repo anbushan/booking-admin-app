@@ -1,5 +1,6 @@
 import React, { useState } from "react";
-import { View, Text, TextInput, Pressable, ScrollView, StyleSheet } from "react-native";
+import { View, Text, TextInput, ScrollView, StyleSheet } from "react-native";
+import { Pressable } from "../components/Pressable";
 import { Ionicons } from "@expo/vector-icons";
 import { showAlert } from "../lib/alert";
 import { colors, spacing, radius, typography } from "../theme/theme";
@@ -46,7 +47,7 @@ export default function AddVehicleScreen({ navigation }: any) {
   }
 
   return (
-    <SafeAreaView style={styles.screen} edges={["top"]}>
+    <SafeAreaView style={styles.screen} edges={["top", "bottom"]}>
       <Text style={{ ...typography.title, padding: spacing.lg, paddingBottom: spacing.sm }}>Add your vehicle</Text>
 
       <KeyboardAvoider>
@@ -144,7 +145,7 @@ const styles = StyleSheet.create({
   typeChipActive: { backgroundColor: colors.successBg, borderColor: colors.success },
   typeChipDisabled: { opacity: 0.5 },
   typeChipText: { ...typography.caption, color: colors.textSecondary },
-  typeChipTextActive: { color: colors.success, fontWeight: "500" },
+  typeChipTextActive: { color: colors.success, fontWeight: "700" },
   comingSoonBadge: { ...typography.small, color: colors.textMuted, marginTop: 2, fontSize: 10 },
   seatChip: {
     backgroundColor: colors.surface,

@@ -1,5 +1,6 @@
 import React, { useState } from "react";
-import { View, Text, TextInput, Pressable, StyleSheet } from "react-native";
+import { View, Text, TextInput, StyleSheet } from "react-native";
+import { Pressable } from "../components/Pressable";
 import { showAlert } from "../lib/alert";
 import { colors, spacing, radius, typography } from "../theme/theme";
 import { api } from "../lib/api";
@@ -37,7 +38,7 @@ export default function EditVehicleScreen({ route, navigation }: any) {
   }
 
   return (
-    <SafeAreaView style={styles.screen} edges={["top"]}>
+    <SafeAreaView style={styles.screen} edges={["top", "bottom"]}>
       <Text style={{ ...typography.title, padding: spacing.lg, paddingBottom: spacing.sm }}>Edit vehicle</Text>
 
       <KeyboardAvoider>
@@ -105,7 +106,7 @@ const styles = StyleSheet.create({
   seatChip: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: radius.sm, paddingVertical: spacing.xs, paddingHorizontal: spacing.md },
   seatChipActive: { backgroundColor: colors.successBg, borderColor: colors.success },
   seatChipText: { ...typography.caption, color: colors.textSecondary },
-  seatChipTextActive: { color: colors.success, fontWeight: "500" },
+  seatChipTextActive: { color: colors.success, fontWeight: "700" },
   button: { backgroundColor: colors.textPrimary, height: 46, borderRadius: radius.sm, alignItems: "center", justifyContent: "center", marginTop: spacing.xl },
   buttonText: { color: "#FFFFFF", ...typography.title },
 });

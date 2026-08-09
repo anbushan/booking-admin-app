@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { prisma } from "../lib/prisma.js";
 import { requireAuth } from "../middleware/auth.js";
+import { notify } from "../lib/notify.js";
 
 const router = Router();
 
@@ -50,6 +51,19 @@ router.post("/:bookingId/messages", requireAuth, async (req, res) => {
   const message = await prisma.chatMessage.create({
     data: { bookingId: req.params.bookingId, senderId: req.user.id, text, type: type || "TEXT" },
   });
+
+  // Realtime delivery happens via Socket.IO (see lib/socket.js) for
+  // whoever's actively connected — but that's it. Nothing here ever
+  // told the other side a message had arrived if their app wasn't open
+  // and connected right then, so a driver/passenger who'd backgrounded
+  // the app simply never found out. notify() covers both: an in-app
+  // Notification row (shows in the list, drives the badge, works even
+  // with push permission denied) and a push if they have a token on file.
+  const recipientId = participant.role === "PASSENGER" ? participant.booking.ride.driverId : participant.booking.passengerId;
+  const sender = await prisma.user.findUnique({ where: { id: req.user.id }, select: { name: true } });
+  const preview = message.type === "LOCATION" ? "Shared their location" : text.length > 80 ? `${text.slice(0, 80)}…` : text;
+  await notify(recipientId, "NEW_MESSAGE", `New message from ${sender?.name || "them"}`, preview, req.params.bookingId);
+
   // Realtime delivery happens via Socket.IO (see lib/socket.js) — this
   // REST endpoint is the durable write path / fallback for clients not
   // currently connected to the socket.

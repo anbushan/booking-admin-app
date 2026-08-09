@@ -64,7 +64,17 @@ export default function App() {
     <NavigationContainer>
       <StatusBar style="dark" translucent backgroundColor="transparent" />
       <AlertModalHost />
-      <Stack.Navigator initialRouteName="Splash" screenOptions={{ headerShown: false }}>
+      {/* Explicit slide_from_right rather than the platform "default" —
+          Android's default native-stack transition combines a fade with a
+          scale, which is more expensive to composite and reads as choppy
+          on mid-range devices (this app runs with New Architecture off,
+          for react-native-razorpay compat, so there's no Fabric perf
+          headroom to hide that). A single-axis translateX slide is cheap,
+          GPU-friendly, and applies consistently on both push and
+          navigation.replace() calls — this app leans on replace() a lot
+          (Splash→Home, OTP→Home, TripOtp→LiveTracking, ...), and those
+          were the transitions most likely to read as an abrupt cut. */}
+      <Stack.Navigator initialRouteName="Splash" screenOptions={{ headerShown: false, animation: "slide_from_right" }}>
         {/* Launch */}
         <Stack.Screen name="Splash" component={SplashScreen} />
         <Stack.Screen name="Onboarding" component={OnboardingScreen} />
