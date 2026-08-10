@@ -97,13 +97,13 @@ export function PhoneEntryScreen({ navigation }: any) {
     // no previous screen in the stack to return to.
     <SafeAreaView style={styles.screen} edges={["top", "bottom"]}>
       <KeyboardAvoider>
-        <View style={styles.heroBand}>
+        <View style={styles.heroBandTop}>
           <View style={styles.brandIconLg}>
             <Ionicons name="car-sport" size={30} color="#FFFFFF" />
           </View>
           <Text style={styles.brandName}>NanbaGO</Text>
         </View>
-        <View style={styles.centerContent}>
+        <View style={[styles.centerContent, styles.topAligned]}>
           <Text style={styles.title}>Enter your mobile number</Text>
           <Text style={styles.subtitle}>
             {mode === "otp"
@@ -327,6 +327,12 @@ const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.bg },
   backButtonWrap: { padding: spacing.lg, paddingBottom: 0 },
   heroBand: { alignItems: "center", paddingTop: spacing.xl, paddingBottom: spacing.lg },
+  // Sits right under the safe area, not floating mid-screen — the
+  // vertically-centered form below it used to push the logo down with
+  // it (centerContent covers the rest of the screen and was previously
+  // used alone, with nothing pinning the brand mark above it).
+  heroBandTop: { alignItems: "center", paddingTop: spacing.sm, paddingBottom: spacing.md },
+  topAligned: { justifyContent: "flex-start", paddingTop: spacing.md },
   brandIconLg: {
     width: 64, height: 64, borderRadius: 32, backgroundColor: colors.accent,
     alignItems: "center", justifyContent: "center", marginBottom: spacing.sm,

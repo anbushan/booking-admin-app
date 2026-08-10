@@ -33,9 +33,14 @@ async function saveConfig(formData: FormData) {
   "use server";
   const existing = await prisma.appConfig.findFirst();
 
-  const data = Object.fromEntries(
+  const data: Record<string, unknown> = Object.fromEntries(
     NUMERIC_KEYS.map((key) => [key, Number(formData.get(key))])
   );
+  // Checkboxes only appear in FormData at all when checked — an absent
+  // key means "off", not "leave unchanged", since this is the only form
+  // that ever sets this field.
+  data.maintenanceMode = formData.get("maintenanceMode") === "on";
+  data.maintenanceMessage = String(formData.get("maintenanceMessage") || "").trim() || null;
 
   if (existing) {
     await prisma.appConfig.update({ where: { id: existing.id }, data });
@@ -113,6 +118,27 @@ export default async function AppConfigPage() {
         </p>
 
         <form action={saveConfig} style={{ marginTop: 16, display: "flex", flexDirection: "column", gap: 28, maxWidth: 520 }}>
+          <div style={{ border: "1px solid #FAEEDA", background: "#FFFCF5", borderRadius: 10, padding: 16 }}>
+            <h2 style={{ fontSize: 14, fontWeight: 600, marginBottom: 4 }}>Maintenance mode</h2>
+            <p style={{ fontSize: 12, color: "#854F0B", marginBottom: 12 }}>
+              Blocks every app launch (signed in or not) with a message instead of the normal app —
+              checked once on the mobile app's splash screen, so this takes effect for anyone opening
+              the app fresh without needing a store update.
+            </p>
+            <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, fontWeight: 500, marginBottom: 12 }}>
+              <input type="checkbox" name="maintenanceMode" defaultChecked={config!.maintenanceMode} style={{ width: 16, height: 16 }} />
+              Put the app in maintenance mode
+            </label>
+            <label style={{ fontSize: 13, fontWeight: 500, display: "block", marginBottom: 4 }}>Message shown to users</label>
+            <textarea
+              name="maintenanceMessage"
+              defaultValue={config!.maintenanceMessage || ""}
+              placeholder="NanbaGO is down for scheduled maintenance right now. Please check back shortly."
+              className="admin-input"
+              style={{ width: "100%", minHeight: 64, resize: "vertical", fontFamily: "inherit" }}
+            />
+          </div>
+
           {groups.map((group) => (
             <div key={group.heading}>
               <h2 style={{ fontSize: 14, fontWeight: 600, marginBottom: 12 }}>{group.heading}</h2>

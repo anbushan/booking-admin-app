@@ -42,6 +42,11 @@ async function request(path: string, options: RequestInit = {}) {
 }
 
 export const api = {
+  // Public, no auth — checked once at launch (SplashScreen) so a
+  // maintenance-mode toggle in admin blocks the app without needing an
+  // app-store update.
+  getAppStatus: () => request("/api/app-status"),
+
   sendOtp: (phone: string) =>
     request("/api/auth/send-otp", { method: "POST", body: JSON.stringify({ phone }) }),
 
@@ -58,7 +63,7 @@ export const api = {
   revokePasscode: () =>
     request("/api/auth/passcode/revoke", { method: "POST" }),
 
-  updateProfile: (payload: { name: string; email?: string; role: "PASSENGER" | "DRIVER" }) =>
+  updateProfile: (payload: { name: string; email?: string; role: "PASSENGER" | "DRIVER"; whatsappOptIn?: boolean }) =>
     request("/api/users/me", { method: "PUT", body: JSON.stringify(payload) }),
 
   // Switches which profile is active on this phone number, or sets up

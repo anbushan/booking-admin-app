@@ -37,6 +37,13 @@ model User {
   passcodeHash      String?
   passcodeCreatedAt DateTime?
 
+  // Consent flag for WhatsApp messaging — opt-in, defaults off. Purely
+  // a preference the user controls (checkbox at signup, editable later
+  // from Profile); nothing in this codebase sends WhatsApp messages
+  // yet, but whatever eventually does must check this first rather
+  // than messaging everyone who has a phone number on file.
+  whatsappOptIn Boolean @default(false)
+
   // Passenger repeat-cancel cooldown (3rd late-cancel in N days -> blocked
   // from booking for a period). Just a timestamp, so it auto-lifts on its own.
   bookingCooldownUntil DateTime?
@@ -310,6 +317,13 @@ model AppConfig {
   strikeBlockThreshold        Int @default(7)
   strikeBlockDays             Int @default(2)
   strikeRollingWindowDays     Int @default(30)
+
+  // Mobile checks this on launch (GET /api/app-status, no auth) and
+  // shows a blocking maintenance screen instead of the app when true —
+  // for planned downtime (DB migration, provider outage) without
+  // needing an app-store update to communicate it.
+  maintenanceMode    Boolean @default(false)
+  maintenanceMessage String?
 
   updatedAt           DateTime @updatedAt
 }

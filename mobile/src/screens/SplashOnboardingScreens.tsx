@@ -7,6 +7,7 @@ import * as Location from "expo-location";
 import { Ionicons } from "@expo/vector-icons";
 import { colors, spacing, radius, typography } from "../theme/theme";
 import { Analytics } from "../lib/analytics";
+import { api } from "../lib/api";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 const { width } = Dimensions.get("window");
@@ -49,6 +50,22 @@ export function SplashScreen({ navigation }: any) {
       .catch(() => {});
 
     const timer = setTimeout(async () => {
+      // Checked before anything else — a maintenance-mode toggle in
+      // admin should block every launch, signed in or not, not just
+      // fresh signups. Network failure here (offline, backend down)
+      // deliberately falls through to normal routing rather than
+      // stranding someone on a maintenance screen that can't even
+      // confirm maintenance is real.
+      try {
+        const status = await api.getAppStatus();
+        if (status.maintenanceMode) {
+          navigation.replace("Maintenance", { message: status.maintenanceMessage });
+          return;
+        }
+      } catch {
+        // fall through
+      }
+
       const seenOnboarding = await AsyncStorage.getItem("seenOnboarding");
       const token = await AsyncStorage.getItem("authToken");
 

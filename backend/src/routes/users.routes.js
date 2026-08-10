@@ -9,7 +9,7 @@ const router = Router();
 // PUT /api/users/me — completes registration (name/email/role) after
 // first-time OTP verification.
 router.put("/me", requireAuth, async (req, res) => {
-  const { name, email, role } = req.body;
+  const { name, email, role, whatsappOptIn } = req.body;
 
   const errors = validate(req.body, [
     { field: "name", check: (v) => isNonEmptyString(v, 100), message: "Name is required." },
@@ -26,6 +26,11 @@ router.put("/me", requireAuth, async (req, res) => {
       role,
       isDriver: role === "DRIVER" ? true : req.user.isDriver,
       isPassenger: role === "PASSENGER" ? true : req.user.isPassenger,
+      // Left untouched (keeps whatever it already was) when the caller
+      // doesn't send it at all, rather than silently resetting consent
+      // to false on every unrelated profile edit — only actually
+      // updated when explicitly present in the request body.
+      ...(whatsappOptIn === undefined ? {} : { whatsappOptIn: !!whatsappOptIn }),
     },
   });
   res.json(serializeUser(updated));

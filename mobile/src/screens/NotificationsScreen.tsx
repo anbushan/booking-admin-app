@@ -44,6 +44,7 @@ function notifIcon(type: string): keyof typeof Ionicons.glyphMap {
   if (type === "BOOKING_REJECTED" || type === "BOOKING_CANCELLED") return "close-circle-outline";
   if (type === "TRIP_COMPLETED") return "flag-outline";
   if (type === "NEW_MESSAGE") return "chatbubble-ellipses-outline";
+  if (type === "PROMOTION") return "megaphone-outline";
   return "notifications-outline";
 }
 

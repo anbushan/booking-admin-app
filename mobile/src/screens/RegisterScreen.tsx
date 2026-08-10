@@ -21,6 +21,10 @@ export default function RegisterScreen({ navigation }: any) {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [role, setRole] = useState<"PASSENGER" | "DRIVER" | null>(null);
+  // Opt-in, defaults unchecked — nothing in this codebase sends WhatsApp
+  // messages yet (see User.whatsappOptIn in the schema), but whatever
+  // eventually does should only message people who actually asked for it.
+  const [whatsappOptIn, setWhatsappOptIn] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [errors, setErrors] = useState<{ name?: string; email?: string; role?: string }>({});
 
@@ -38,7 +42,7 @@ export default function RegisterScreen({ navigation }: any) {
     if (!validateForm()) return;
     setSubmitting(true);
     try {
-      await api.updateProfile({ name: name.trim(), email: email.trim(), role: role! });
+      await api.updateProfile({ name: name.trim(), email: email.trim(), role: role!, whatsappOptIn });
       Analytics.signUp(role!);
       navigation.reset({
         index: 0,
@@ -118,6 +122,13 @@ export default function RegisterScreen({ navigation }: any) {
           </View>
           <FieldError message={errors.role} />
 
+          <Pressable style={styles.checkboxRow} onPress={() => setWhatsappOptIn((v) => !v)}>
+            <View style={[styles.checkbox, whatsappOptIn && styles.checkboxChecked]}>
+              {whatsappOptIn && <Ionicons name="checkmark" size={13} color="#FFFFFF" />}
+            </View>
+            <Text style={styles.checkboxLabel}>Get WhatsApp updates</Text>
+          </Pressable>
+
           <Pressable style={styles.button} onPress={handleSubmit} disabled={submitting}>
             {!submitting && <Ionicons name="arrow-forward-circle-outline" size={18} color="#FFFFFF" />}
             <Text style={styles.buttonText}>{submitting ? "Saving..." : "Continue"}</Text>
@@ -172,6 +183,13 @@ const styles = StyleSheet.create({
   roleText: { ...typography.title, fontSize: 14 },
   roleTextActive: { color: colors.accentText },
   roleSub: { ...typography.small, color: colors.textMuted, marginTop: 2, textAlign: "center" },
+  checkboxRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm, marginTop: spacing.lg, padding: spacing.xs },
+  checkbox: {
+    width: 20, height: 20, borderRadius: 5, borderWidth: 1.5, borderColor: colors.border,
+    backgroundColor: colors.surface, alignItems: "center", justifyContent: "center",
+  },
+  checkboxChecked: { backgroundColor: colors.accent, borderColor: colors.accent },
+  checkboxLabel: { ...typography.caption, color: colors.textSecondary },
   button: {
     flexDirection: "row",
     gap: spacing.xs,

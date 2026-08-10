@@ -18,6 +18,7 @@ import {
   UserCog,
   Settings as SettingsIcon,
   Bell,
+  Megaphone,
   Menu,
   PanelLeftClose,
   PanelLeftOpen,
@@ -67,6 +68,12 @@ const SECTIONS: { label: string; links: { href: string; label: string; icon: Luc
     links: [
       { href: "/reports", label: "Reports", icon: BarChart3 },
       { href: "/reports/daily", label: "Daily / monthly", icon: CalendarRange },
+    ],
+  },
+  {
+    label: "Communication",
+    links: [
+      { href: "/notifications/broadcast", label: "Send notification", icon: Megaphone },
     ],
   },
   {

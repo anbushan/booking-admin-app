@@ -118,13 +118,14 @@ export function EditProfileScreen({ route, navigation }: any) {
   const { profile } = route.params;
   const [name, setName] = useState(profile.name || "");
   const [email, setEmail] = useState(profile.email || "");
+  const [whatsappOptIn, setWhatsappOptIn] = useState(!!profile.whatsappOptIn);
   const [submitting, setSubmitting] = useState(false);
   const { showSuccess } = useToast();
 
   async function handleSave() {
     setSubmitting(true);
     try {
-      await api.updateProfile({ name, email, role: profile.role });
+      await api.updateProfile({ name, email, role: profile.role, whatsappOptIn });
       showSuccess("Profile updated");
       navigation.goBack();
     } catch (err: any) {
@@ -143,6 +144,12 @@ export function EditProfileScreen({ route, navigation }: any) {
         <TextInput style={styles.input} value={name} onChangeText={setName} />
         <Text style={styles.label}>Email</Text>
         <TextInput style={styles.input} value={email} onChangeText={setEmail} keyboardType="email-address" autoCapitalize="none" />
+        <Pressable style={styles.checkboxRow} onPress={() => setWhatsappOptIn((v) => !v)}>
+          <View style={[styles.checkbox, whatsappOptIn && styles.checkboxChecked]}>
+            {whatsappOptIn && <Ionicons name="checkmark" size={13} color="#FFFFFF" />}
+          </View>
+          <Text style={styles.checkboxLabel}>Get WhatsApp updates</Text>
+        </Pressable>
         <Pressable style={styles.editButton} onPress={handleSave} disabled={submitting}>
           <Ionicons name="checkmark-outline" size={16} color="#FFFFFF" />
           <Text style={styles.editButtonText}>{submitting ? "Saving..." : "Save"}</Text>
@@ -196,6 +203,13 @@ const styles = StyleSheet.create({
   row: { flexDirection: "row", alignItems: "center", gap: spacing.sm, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: radius.md, padding: spacing.md },
   rowIconWrap: { width: 32, height: 32, borderRadius: 10, backgroundColor: colors.accentBg, alignItems: "center", justifyContent: "center" },
   rowText: { ...typography.body, flex: 1 },
+  checkboxRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm, marginTop: spacing.md, alignSelf: "stretch" },
+  checkbox: {
+    width: 20, height: 20, borderRadius: 5, borderWidth: 1.5, borderColor: colors.border,
+    backgroundColor: colors.surface, alignItems: "center", justifyContent: "center",
+  },
+  checkboxChecked: { backgroundColor: colors.accent, borderColor: colors.accent },
+  checkboxLabel: { ...typography.caption, color: colors.textSecondary },
   editButton: { flexDirection: "row", gap: spacing.xs, backgroundColor: colors.textPrimary, height: 44, borderRadius: radius.sm, alignItems: "center", justifyContent: "center", marginTop: spacing.lg, alignSelf: "stretch" },
   editButtonText: { ...typography.title, color: "#FFFFFF" },
   label: { ...typography.caption, color: colors.textSecondary, alignSelf: "flex-start", marginTop: spacing.md, marginBottom: spacing.xs },

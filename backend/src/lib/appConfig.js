@@ -35,6 +35,8 @@ const DEFAULTS = {
   strikeBlockThreshold: 7,
   strikeBlockDays: 2,
   strikeRollingWindowDays: 30,
+  maintenanceMode: false,
+  maintenanceMessage: null,
 };
 
 export async function getAppConfig() {

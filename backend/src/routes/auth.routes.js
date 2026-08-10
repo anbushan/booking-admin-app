@@ -23,7 +23,7 @@ const PASSCODE_LOCKOUT_SECONDS = 900; // 15 minutes
 
 function signInResponse(user, isNewUser) {
   const token = jwt.sign({ userId: user.id, role: user.role }, process.env.JWT_SECRET, {
-    expiresIn: "30d",
+    expiresIn: "365d",
   });
   return {
     success: true,

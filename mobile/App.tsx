@@ -5,6 +5,7 @@ import { StatusBar } from "expo-status-bar";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
 import { SplashScreen, OnboardingScreen } from "./src/screens/SplashOnboardingScreens";
+import MaintenanceScreen from "./src/screens/MaintenanceScreen";
 import { PhoneEntryScreen, OtpVerifyScreen } from "./src/screens/OtpScreens";
 import RegisterScreen from "./src/screens/RegisterScreen";
 import SwitchRoleScreen from "./src/screens/SwitchRoleScreen";
@@ -79,6 +80,7 @@ export default function App() {
       <Stack.Navigator initialRouteName="Splash" screenOptions={{ headerShown: false, animation: "slide_from_right" }}>
         {/* Launch */}
         <Stack.Screen name="Splash" component={SplashScreen} />
+        <Stack.Screen name="Maintenance" component={MaintenanceScreen} />
         <Stack.Screen name="Onboarding" component={OnboardingScreen} />
 
         {/* Auth */}

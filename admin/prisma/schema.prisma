@@ -12,12 +12,37 @@ model User {
   phone       String   @unique
   name        String?
   email       String?
-  role        String   @default("PASSENGER") // PASSENGER, DRIVER, ADMIN
+  role        String   @default("PASSENGER") // PASSENGER, DRIVER, ADMIN — whichever one is currently active
+  // Same phone number can register/operate as both a driver and a
+  // passenger — `role` above is just which one is active right now
+  // (switchable, see PUT /api/users/me/role); these two track which
+  // profile(s) actually exist so login knows whether to ask which one
+  // to use, and so switching to a role for the first time is
+  // distinguishable from switching back to one already set up.
+  isDriver    Boolean  @default(false)
+  isPassenger Boolean  @default(false)
   photoUrl    String?
   ratingAvg   Float?
   disabled    Boolean  @default(false)
   fcmToken    String?
   createdAt   DateTime @default(now())
+
+  // Alternative to requesting a fresh SMS OTP every login — a static
+  // 6-digit code the user downloads once (see POST /api/auth/passcode)
+  // and can log in with directly from any device. Hashed like a
+  // password, never stored or re-shown in plaintext after generation.
+  // Deliberately weaker than OTP (it doesn't expire on its own), which
+  // is why it can be revoked independently — see
+  // POST /api/auth/passcode/revoke — without touching OTP login at all.
+  passcodeHash      String?
+  passcodeCreatedAt DateTime?
+
+  // Consent flag for WhatsApp messaging — opt-in, defaults off. Purely
+  // a preference the user controls (checkbox at signup, editable later
+  // from Profile); nothing in this codebase sends WhatsApp messages
+  // yet, but whatever eventually does must check this first rather
+  // than messaging everyone who has a phone number on file.
+  whatsappOptIn Boolean @default(false)
 
   // Passenger repeat-cancel cooldown (3rd late-cancel in N days -> blocked
   // from booking for a period). Just a timestamp, so it auto-lifts on its own.
@@ -292,6 +317,13 @@ model AppConfig {
   strikeBlockThreshold        Int @default(7)
   strikeBlockDays             Int @default(2)
   strikeRollingWindowDays     Int @default(30)
+
+  // Mobile checks this on launch (GET /api/app-status, no auth) and
+  // shows a blocking maintenance screen instead of the app when true —
+  // for planned downtime (DB migration, provider outage) without
+  // needing an app-store update to communicate it.
+  maintenanceMode    Boolean @default(false)
+  maintenanceMessage String?
 
   updatedAt           DateTime @updatedAt
 }
