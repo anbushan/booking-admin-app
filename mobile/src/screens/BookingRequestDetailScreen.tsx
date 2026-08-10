@@ -101,7 +101,7 @@ const styles = StyleSheet.create({
   sectionLabel: { ...typography.title, fontSize: 13, marginTop: spacing.lg, marginBottom: spacing.sm },
   trackerCard: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: radius.md, padding: spacing.md },
   acceptButton: { flexDirection: "row", gap: spacing.xs, backgroundColor: colors.accent, height: 46, borderRadius: radius.sm, alignItems: "center", justifyContent: "center", marginTop: spacing.xl },
-  acceptButtonText: { color: "#FFFFFF", ...typography.title },
+  acceptButtonText: { ...typography.title, color: "#FFFFFF" },
   declineButton: { flexDirection: "row", gap: 6, alignItems: "center", justifyContent: "center", marginTop: spacing.md, paddingVertical: spacing.xs },
   declineButtonText: { ...typography.caption, color: colors.danger, fontWeight: "700" },
 });

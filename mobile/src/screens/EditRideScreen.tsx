@@ -114,7 +114,7 @@ const styles = StyleSheet.create({
   inputError: { borderColor: colors.danger },
   hint: { ...typography.small, color: colors.textMuted, marginTop: spacing.xs },
   saveButton: { backgroundColor: colors.textPrimary, height: 46, borderRadius: radius.sm, alignItems: "center", justifyContent: "center", marginTop: spacing.xl },
-  saveButtonText: { color: "#FFFFFF", ...typography.title },
+  saveButtonText: { ...typography.title, color: "#FFFFFF" },
   cancelRideButton: { alignItems: "center", marginTop: spacing.lg },
   cancelRideButtonText: { ...typography.caption, color: colors.danger },
 });

@@ -137,5 +137,5 @@ const styles = StyleSheet.create({
   stepTitle: { ...typography.body, fontWeight: "700" },
   stepDescription: { ...typography.small, color: colors.textMuted, marginTop: 2, lineHeight: 17 },
   gotItButton: { backgroundColor: colors.textPrimary, height: 46, borderRadius: radius.sm, alignItems: "center", justifyContent: "center", marginTop: spacing.md },
-  gotItText: { color: "#FFFFFF", ...typography.title },
+  gotItText: { ...typography.title, color: "#FFFFFF" },
 });

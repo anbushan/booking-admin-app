@@ -197,7 +197,7 @@ const styles = StyleSheet.create({
   rowIconWrap: { width: 32, height: 32, borderRadius: 10, backgroundColor: colors.accentBg, alignItems: "center", justifyContent: "center" },
   rowText: { ...typography.body, flex: 1 },
   editButton: { flexDirection: "row", gap: spacing.xs, backgroundColor: colors.textPrimary, height: 44, borderRadius: radius.sm, alignItems: "center", justifyContent: "center", marginTop: spacing.lg, alignSelf: "stretch" },
-  editButtonText: { color: "#FFFFFF", ...typography.title },
+  editButtonText: { ...typography.title, color: "#FFFFFF" },
   label: { ...typography.caption, color: colors.textSecondary, alignSelf: "flex-start", marginTop: spacing.md, marginBottom: spacing.xs },
   input: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: radius.sm, height: 44, paddingHorizontal: spacing.md, alignSelf: "stretch", color: colors.textPrimary },
 });

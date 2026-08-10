@@ -116,7 +116,7 @@ const styles = StyleSheet.create({
   iconWrap: { width: 30, height: 30, borderRadius: 10, backgroundColor: colors.accentBg, alignItems: "center", justifyContent: "center" },
   rowLabel: { ...typography.body, flex: 1 },
   uploadButton: { backgroundColor: colors.textPrimary, paddingVertical: spacing.xs, paddingHorizontal: spacing.md, borderRadius: radius.sm },
-  uploadButtonText: { color: "#FFFFFF", ...typography.small, fontWeight: "700" },
+  uploadButtonText: { ...typography.small, color: "#FFFFFF", fontWeight: "700" },
   pendingTag: { flexDirection: "row", alignItems: "center", gap: 4, backgroundColor: colors.warningBg, paddingVertical: 4, paddingHorizontal: 8, borderRadius: 6 },
   pendingTagText: { ...typography.small, color: colors.warning },
 });

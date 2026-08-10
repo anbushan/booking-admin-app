@@ -40,11 +40,22 @@ export const radius = {
   lg: 20,
 };
 
+// Every entry carries its own default `color` now, not just size/weight.
+// Previously it didn't, so any style that did `{ ...typography.title }`
+// without also adding its own `color` fell back to Android's platform
+// default text color — normally harmless (defaults to black), but a
+// standalone release APK also gets Android's "Force Dark" auto-inversion
+// turned on by default (see plugins/withDisableForceDark.js for the
+// other half of this fix), which specifically targets Text nodes with no
+// explicit color and can flip them to white on views it can't reliably
+// read the background of. That's exactly the "labels are invisible in
+// the built APK" bug — an explicit color here means there's nothing
+// ambiguous left for either the OS or a missed style to guess at.
 export const typography = {
-  title: { fontSize: 16, fontWeight: "500" as const },
-  body: { fontSize: 14, fontWeight: "400" as const },
-  caption: { fontSize: 12, fontWeight: "400" as const },
-  small: { fontSize: 11, fontWeight: "400" as const },
+  title: { fontSize: 16, fontWeight: "700" as const, color: colors.textPrimary },
+  body: { fontSize: 14, fontWeight: "400" as const, color: colors.textPrimary },
+  caption: { fontSize: 12, fontWeight: "400" as const, color: colors.textPrimary },
+  small: { fontSize: 11, fontWeight: "400" as const, color: colors.textMuted },
 };
 
 // One entry per ride/booking status string this app actually uses

@@ -107,9 +107,10 @@ export default function MyRequestsScreen({ navigation }: any) {
                       bookingId: item.id,
                       amount: Number(item.platformFeeAmount),
                       description: "Platform fee",
+                      retry: item.status === "PAYMENT_PENDING",
                     })}
                   >
-                    <Text style={styles.payButtonText}>Pay now</Text>
+                    <Text style={styles.payButtonText}>{item.status === "PAYMENT_PENDING" ? "Retry payment" : "Pay now"}</Text>
                   </Pressable>
                 )}
                 {item.status === "CONFIRMED" && (
@@ -154,5 +155,5 @@ const styles = StyleSheet.create({
   countdown: { ...typography.small, color: colors.textMuted },
   status: { ...typography.small, color: colors.warning, backgroundColor: colors.warningBg, alignSelf: "flex-start", paddingVertical: 2, paddingHorizontal: 6, borderRadius: 6 },
   payButton: { backgroundColor: colors.textPrimary, height: 38, borderRadius: radius.sm, alignItems: "center", justifyContent: "center", marginTop: spacing.xs },
-  payButtonText: { color: "#FFFFFF", ...typography.caption, fontWeight: "700" },
+  payButtonText: { ...typography.caption, color: "#FFFFFF", fontWeight: "700" },
 });

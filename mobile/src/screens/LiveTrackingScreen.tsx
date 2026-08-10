@@ -468,7 +468,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  completeButtonText: { color: "#FFFFFF", ...typography.title },
+  completeButtonText: { ...typography.title, color: "#FFFFFF" },
   sosButton: {
     flexDirection: "row", gap: 6,
     backgroundColor: colors.dangerBg,
@@ -478,5 +478,5 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   sosButtonHolding: { backgroundColor: colors.danger },
-  sosText: { color: colors.danger, ...typography.title, fontSize: 13 },
+  sosText: { ...typography.title, color: colors.danger, fontSize: 13 },
 });

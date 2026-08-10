@@ -110,5 +110,5 @@ const styles = StyleSheet.create({
   name: { ...typography.title, fontSize: 14 },
   meta: { ...typography.small, color: colors.textMuted, marginTop: 2 },
   addButton: { flexDirection: "row", gap: spacing.xs, backgroundColor: colors.textPrimary, height: 46, borderRadius: radius.sm, alignItems: "center", justifyContent: "center", margin: spacing.lg },
-  addButtonText: { color: "#FFFFFF", ...typography.title },
+  addButtonText: { ...typography.title, color: "#FFFFFF" },
 });

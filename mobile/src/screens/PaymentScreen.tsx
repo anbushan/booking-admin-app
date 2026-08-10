@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { View, Text, StyleSheet } from "react-native";
 import { Pressable } from "../components/Pressable";
+import { Ionicons } from "@expo/vector-icons";
 import { showAlert } from "../lib/alert";
 import RazorpayCheckout from "react-native-razorpay";
 import { colors, spacing, radius, typography } from "../theme/theme";
@@ -23,14 +24,14 @@ export default function PaymentScreen({ route, navigation }: any) {
   // this screen only ever charges the platform fee now (the remaining
   // fare is settled directly with the driver, never charged in-app), so
   // callers should pass "Platform fee", but default to it too.
-  const { bookingId, amount, description = "Platform fee" } = route.params;
+  const { bookingId, amount, description = "Platform fee", retry } = route.params;
   const [paying, setPaying] = useState(false);
   const [mocking, setMocking] = useState(false);
 
   async function handlePay() {
     setPaying(true);
     try {
-      const order = await api.chargeBooking(bookingId);
+      const order = await (retry ? api.retryPayment(bookingId) : api.chargeBooking(bookingId));
 
       const result = await RazorpayCheckout.open({
         key: order.keyId,
@@ -104,6 +105,13 @@ export default function PaymentScreen({ route, navigation }: any) {
       <BackHeader title={description} onBack={() => navigation.goBack()} />
 
       <View style={styles.body}>
+        {!!retry && (
+          <View style={styles.retryNotice}>
+            <Ionicons name="alert-circle-outline" size={16} color={colors.danger} />
+            <Text style={styles.retryNoticeText}>Your last payment attempt didn't go through — no amount was deducted. Try again below.</Text>
+          </View>
+        )}
+
         <View style={styles.summary}>
           <View style={styles.row}>
             <Text style={styles.label}>{description}</Text>
@@ -116,7 +124,9 @@ export default function PaymentScreen({ route, navigation }: any) {
         </View>
 
         <Pressable style={styles.payButton} onPress={handlePay} disabled={paying}>
-          <Text style={styles.payButtonText}>{paying ? "Processing..." : `Pay Rs ${amount}`}</Text>
+          <Text style={styles.payButtonText}>
+            {paying ? "Processing..." : retry ? `Retry payment · Rs ${amount}` : `Pay Rs ${amount}`}
+          </Text>
         </Pressable>
         <Text style={styles.securedBy}>Secured by Razorpay</Text>
 
@@ -146,6 +156,8 @@ const styles = StyleSheet.create({
   back: { fontSize: 18 },
   title: typography.title,
   body: { padding: spacing.lg },
+  retryNotice: { flexDirection: "row", gap: spacing.sm, alignItems: "flex-start", backgroundColor: colors.dangerBg, borderRadius: radius.sm, padding: spacing.md, marginBottom: spacing.md },
+  retryNoticeText: { ...typography.small, color: colors.danger, flex: 1, lineHeight: 17 },
   summary: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: radius.md, padding: spacing.md },
   row: { flexDirection: "row", justifyContent: "space-between", paddingVertical: spacing.sm, borderBottomWidth: 1, borderBottomColor: colors.border },
   label: { ...typography.caption, color: colors.textSecondary },
@@ -160,7 +172,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     marginTop: spacing.lg,
   },
-  payButtonText: { color: "#FFFFFF", ...typography.title },
+  payButtonText: { ...typography.title, color: "#FFFFFF" },
   securedBy: { textAlign: "center", ...typography.small, color: colors.textMuted, marginTop: spacing.sm },
   mockButton: {
     borderWidth: 1,
@@ -171,5 +183,5 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     marginTop: spacing.lg,
   },
-  mockButtonText: { color: colors.warning, ...typography.caption, fontWeight: "700" },
+  mockButtonText: { ...typography.caption, color: colors.warning, fontWeight: "700" },
 });

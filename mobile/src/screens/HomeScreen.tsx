@@ -369,7 +369,7 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(255,255,255,0.16)",
     alignItems: "center", justifyContent: "center",
   },
-  avatarButtonText: { color: "#FFFFFF", ...typography.title, fontSize: 15 },
+  avatarButtonText: { ...typography.title, color: "#FFFFFF", fontSize: 15 },
   greeting: { color: "#FFFFFF", opacity: 0.8, fontSize: 13 },
   name: { color: "#FFFFFF", fontSize: 18, fontWeight: "700", marginTop: 2 },
   searchCard: {
@@ -424,7 +424,7 @@ const styles = StyleSheet.create({
     height: 46,
     borderRadius: radius.sm,
   },
-  ctaText: { color: "#FFFFFF", ...typography.title },
+  ctaText: { ...typography.title, color: "#FFFFFF" },
   driverPanel: { marginHorizontal: spacing.lg, marginTop: -spacing.lg },
   driverActionRow: {
     flexDirection: "row",

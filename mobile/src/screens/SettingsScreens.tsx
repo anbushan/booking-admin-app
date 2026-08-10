@@ -25,6 +25,7 @@ export function SettingsScreen({ navigation }: any) {
     { label: "Your ratings", icon: "star-outline", onPress: () => navigation.navigate("RatingsReceived") },
     { label: "Payment history", icon: "receipt-outline", onPress: () => navigation.navigate("PaymentHistory") },
     { label: "Emergency contacts", icon: "shield-checkmark-outline", onPress: () => navigation.navigate("EmergencyContacts") },
+    { label: "Login passcode", icon: "key-outline", onPress: () => navigation.navigate("LoginPasscode") },
     { label: "Language", icon: "language-outline", onPress: () => navigation.navigate("LanguageSelection") },
     { label: "Notifications", icon: "notifications-outline", onPress: () => navigation.navigate("Notifications") },
     { label: "Help & support", icon: "help-circle-outline", onPress: () => navigation.navigate("HelpSupport") },

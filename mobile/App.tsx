@@ -7,6 +7,7 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 import { SplashScreen, OnboardingScreen } from "./src/screens/SplashOnboardingScreens";
 import { PhoneEntryScreen, OtpVerifyScreen } from "./src/screens/OtpScreens";
 import RegisterScreen from "./src/screens/RegisterScreen";
+import SwitchRoleScreen from "./src/screens/SwitchRoleScreen";
 import HomeScreen from "./src/screens/HomeScreen";
 import SearchResultsScreen from "./src/screens/SearchResultsScreen";
 import BookingConfirmScreen from "./src/screens/BookingConfirmScreen";
@@ -42,6 +43,7 @@ import PublicProfileScreen from "./src/screens/PublicProfileScreen";
 import { ToastProvider } from "./src/components/Toast";
 
 import { SettingsScreen, HelpSupportScreen, AboutScreen } from "./src/screens/SettingsScreens";
+import LoginPasscodeScreen from "./src/screens/LoginPasscodeScreen";
 import LanguageSelectionScreen from "./src/screens/LanguageSelectionScreen";
 
 import RatingsReceivedScreen from "./src/screens/RatingsReceivedScreen";
@@ -83,6 +85,7 @@ export default function App() {
         <Stack.Screen name="PhoneEntry" component={PhoneEntryScreen} />
         <Stack.Screen name="OtpVerify" component={OtpVerifyScreen} />
         <Stack.Screen name="Register" component={RegisterScreen} />
+        <Stack.Screen name="SwitchRole" component={SwitchRoleScreen} />
 
         {/* Passenger */}
         <Stack.Screen name="Home" component={HomeScreen} />
@@ -133,6 +136,7 @@ export default function App() {
 
         {/* Settings + static pages */}
         <Stack.Screen name="Settings" component={SettingsScreen} />
+        <Stack.Screen name="LoginPasscode" component={LoginPasscodeScreen} />
         <Stack.Screen name="LanguageSelection" component={LanguageSelectionScreen} />
         <Stack.Screen name="HelpSupport" component={HelpSupportScreen} />
         <Stack.Screen name="About" component={AboutScreen} />

@@ -247,5 +247,5 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     marginTop: spacing.lg,
   },
-  buttonText: { color: "#FFFFFF", ...typography.title },
+  buttonText: { ...typography.title, color: "#FFFFFF" },
 });

@@ -188,7 +188,7 @@ const styles = StyleSheet.create({
   trackerWrap: { marginTop: spacing.md, paddingTop: spacing.md, borderTopWidth: 1, borderTopColor: colors.border },
   actionRow: { flexDirection: "row", gap: spacing.sm, marginTop: spacing.md },
   acceptButton: { flex: 1, flexDirection: "row", gap: 6, backgroundColor: colors.accent, height: 40, borderRadius: radius.sm, alignItems: "center", justifyContent: "center" },
-  acceptText: { color: "#FFFFFF", ...typography.caption, fontWeight: "700" },
+  acceptText: { ...typography.caption, color: "#FFFFFF", fontWeight: "700" },
   declineButton: { flex: 1, flexDirection: "row", gap: 6, backgroundColor: colors.bg, borderWidth: 1, borderColor: colors.border, height: 40, borderRadius: radius.sm, alignItems: "center", justifyContent: "center" },
   declineText: { ...typography.caption, color: colors.textSecondary, fontWeight: "700" },
 });

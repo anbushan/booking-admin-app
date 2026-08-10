@@ -182,7 +182,7 @@ export default function HistoryScreen({ navigation, route }: any) {
                 <StepTracker steps={bookingJourneySteps(item.status)} />
               </View>
 
-              {(item.status === "AWAITING_PAYMENT" || item.status === "CONFIRMED" || item.status === "IN_PROGRESS" || CANCELLABLE_STATUSES.includes(item.status)) && (
+              {(item.status === "AWAITING_PAYMENT" || item.status === "PAYMENT_PENDING" || item.status === "CONFIRMED" || item.status === "IN_PROGRESS" || CANCELLABLE_STATUSES.includes(item.status)) && (
                 <View style={styles.actionRow}>
                   {item.status === "AWAITING_PAYMENT" && (
                     <ActionChip
@@ -193,6 +193,25 @@ export default function HistoryScreen({ navigation, route }: any) {
                         bookingId: item.id,
                         amount: Number(item.platformFeeAmount),
                         description: "Platform fee",
+                      })}
+                    />
+                  )}
+                  {/* PAYMENT_PENDING means the last charge attempt
+                      failed (see PaymentQueueScreen's own label for
+                      this status) — previously this status showed the
+                      step tracker and then nothing, no way back to
+                      Payment at all short of finding this booking from
+                      MyRequestsScreen instead. */}
+                  {item.status === "PAYMENT_PENDING" && (
+                    <ActionChip
+                      icon="refresh-outline"
+                      label="Retry payment"
+                      primary
+                      onPress={() => navigation.navigate("Payment", {
+                        bookingId: item.id,
+                        amount: Number(item.platformFeeAmount),
+                        description: "Platform fee",
+                        retry: true,
                       })}
                     />
                   )}

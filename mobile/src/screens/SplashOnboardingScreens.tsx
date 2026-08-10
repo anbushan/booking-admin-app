@@ -198,5 +198,5 @@ const styles = StyleSheet.create({
   footer: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", padding: spacing.lg },
   skip: { ...typography.caption, color: colors.textMuted },
   nextButton: { flexDirection: "row", alignItems: "center", gap: 6, backgroundColor: colors.accent, paddingVertical: spacing.sm, paddingHorizontal: spacing.lg, borderRadius: radius.sm },
-  nextButtonText: { color: "#FFFFFF", ...typography.caption, fontWeight: "700" },
+  nextButtonText: { ...typography.caption, color: "#FFFFFF", fontWeight: "700" },
 });

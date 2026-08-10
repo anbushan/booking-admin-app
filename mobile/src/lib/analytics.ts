@@ -66,4 +66,5 @@ export const Analytics = {
   emergencyContactAdded: () => logEvent("emergency_contact_added"),
   documentUploaded: (docType: string) => logEvent("document_uploaded", { doc_type: docType }),
   languageChanged: (locale: string) => logEvent("language_changed", { locale }),
+  roleSwitched: (role: string) => logEvent("role_switched", { role }),
 };

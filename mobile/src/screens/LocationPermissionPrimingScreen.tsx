@@ -69,7 +69,7 @@ const styles = StyleSheet.create({
   title: { ...typography.title, fontSize: 18, textAlign: "center" },
   description: { ...typography.caption, color: colors.textSecondary, textAlign: "center", marginTop: spacing.sm, lineHeight: 20 },
   allowButton: { backgroundColor: colors.textPrimary, height: 46, borderRadius: radius.sm, alignItems: "center", justifyContent: "center", marginTop: spacing.xl, alignSelf: "stretch" },
-  allowButtonText: { color: "#FFFFFF", ...typography.title },
+  allowButtonText: { ...typography.title, color: "#FFFFFF" },
   skipButton: { marginTop: spacing.md },
   skipButtonText: { ...typography.caption, color: colors.textMuted },
 });

@@ -158,7 +158,7 @@ const styles = StyleSheet.create({
   pendingCaption: { ...typography.small, color: colors.textMuted, marginTop: spacing.sm },
   actionRow: { flexDirection: "row", gap: spacing.sm, marginTop: spacing.sm },
   actionButton: { backgroundColor: colors.textPrimary, height: 40, borderRadius: radius.sm, alignItems: "center", justifyContent: "center" },
-  actionButtonText: { color: "#FFFFFF", ...typography.caption, fontWeight: "700" },
+  actionButtonText: { ...typography.caption, color: "#FFFFFF", fontWeight: "700" },
   chatButton: { flex: 0, paddingHorizontal: spacing.md, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
-  chatButtonText: { color: colors.accentText, ...typography.caption, fontWeight: "700" },
+  chatButtonText: { ...typography.caption, color: colors.accentText, fontWeight: "700" },
 });

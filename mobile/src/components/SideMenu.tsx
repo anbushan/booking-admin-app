@@ -26,7 +26,7 @@ type Props = {
   visible: boolean;
   onClose: () => void;
   navigation: any;
-  profile: { id?: string; name?: string; role?: string } | null;
+  profile: { id?: string; name?: string; role?: string; isDriver?: boolean; isPassenger?: boolean } | null;
   unreadCount?: number;
   upcomingTripsCount?: number;
 };
@@ -85,6 +85,7 @@ export default function SideMenu({ visible, onClose, navigation, profile, unread
   if (!mounted) return null;
 
   const isDriver = profile?.role === "DRIVER";
+  const otherRoleHasProfile = isDriver ? profile?.isPassenger : profile?.isDriver;
 
   return (
     <Modal visible transparent animationType="none" onRequestClose={onClose}>
@@ -142,6 +143,15 @@ export default function SideMenu({ visible, onClose, navigation, profile, unread
           )}
 
           <Text style={styles.sectionLabel}>Account</Text>
+          {/* Same phone number can be both a driver and a passenger —
+              this is the one entry point to switch which one is active,
+              or set up the other for the first time if it hasn't been
+              used before (labeled distinctly so it's clear it's new). */}
+          <MenuRow
+            icon="swap-horizontal-outline"
+            label={isDriver ? (otherRoleHasProfile ? "Switch to passenger" : "Also ride as a passenger") : (otherRoleHasProfile ? "Switch to driver" : "Also drive with NanbaGO")}
+            onPress={() => go("SwitchRole")}
+          />
           <MenuRow icon="settings-outline" label="Settings" onPress={() => go("Settings")} />
 
           <Pressable style={styles.logoutRow} onPress={handleLogout}>

@@ -157,5 +157,5 @@ const styles = StyleSheet.create({
     backgroundColor: colors.textPrimary, height: 48, borderRadius: radius.sm,
     alignItems: "center", justifyContent: "center", width: "100%",
   },
-  buttonText: { color: "#FFFFFF", ...typography.title },
+  buttonText: { ...typography.title, color: "#FFFFFF" },
 });

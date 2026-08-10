@@ -205,7 +205,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     margin: spacing.lg,
   },
-  addButtonText: { color: "#FFFFFF", ...typography.title },
+  addButtonText: { ...typography.title, color: "#FFFFFF" },
   input: {
     backgroundColor: colors.surface,
     borderWidth: 1,

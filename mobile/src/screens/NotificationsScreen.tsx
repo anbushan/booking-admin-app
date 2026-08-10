@@ -178,7 +178,7 @@ export default function NotificationsScreen({ navigation }: any) {
         }
       />
       )}
-      <AppBottomNav navigation={navigation} profile={profile} active="menu" />
+      <AppBottomNav navigation={navigation} profile={profile} active="menu" unreadCountOverride={unreadCount} />
     </SafeAreaView>
   );
 }

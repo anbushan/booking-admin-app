@@ -2,6 +2,7 @@ import { Router } from "express";
 import { prisma } from "../lib/prisma.js";
 import { requireAuth } from "../middleware/auth.js";
 import { validate, isNonEmptyString, isEmail, isOneOf } from "../lib/validate.js";
+import { serializeUser } from "../lib/serializeUser.js";
 
 const router = Router();
 
@@ -19,13 +20,44 @@ router.put("/me", requireAuth, async (req, res) => {
 
   const updated = await prisma.user.update({
     where: { id: req.user.id },
-    data: { name, email, role },
+    data: {
+      name,
+      email,
+      role,
+      isDriver: role === "DRIVER" ? true : req.user.isDriver,
+      isPassenger: role === "PASSENGER" ? true : req.user.isPassenger,
+    },
   });
-  res.json(updated);
+  res.json(serializeUser(updated));
 });
 
 router.get("/me", requireAuth, async (req, res) => {
-  res.json(req.user);
+  res.json(serializeUser(req.user));
+});
+
+// PUT /api/users/me/role — switches which profile (driver/passenger) is
+// active on this account, or activates the other one for the first time
+// if this phone hasn't used it before. Deliberately not a new JWT/login —
+// requireAuth always re-reads role from the DB on every request (see
+// middleware/auth.js), so flipping this column is the entire effect; the
+// client just needs to know to re-fetch the profile and re-route into
+// the right home screen afterward.
+router.put("/me/role", requireAuth, async (req, res) => {
+  const { role } = req.body;
+  const errors = validate(req.body, [
+    { field: "role", check: (v) => isOneOf(v, ["DRIVER", "PASSENGER"]), message: "Role must be DRIVER or PASSENGER." },
+  ]);
+  if (errors.length) return res.status(400).json({ errors });
+
+  const updated = await prisma.user.update({
+    where: { id: req.user.id },
+    data: {
+      role,
+      isDriver: role === "DRIVER" ? true : req.user.isDriver,
+      isPassenger: role === "PASSENGER" ? true : req.user.isPassenger,
+    },
+  });
+  res.json(serializeUser(updated));
 });
 
 // GET /api/users/:id/public — shown to the other party in a booking

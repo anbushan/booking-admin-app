@@ -48,8 +48,23 @@ export const api = {
   verifyOtp: (phone: string, otp: string) =>
     request("/api/auth/verify-otp", { method: "POST", body: JSON.stringify({ phone, otp }) }),
 
+  // Alternative to OTP for a returning login — see auth.routes.js.
+  verifyPasscode: (phone: string, passcode: string) =>
+    request("/api/auth/verify-passcode", { method: "POST", body: JSON.stringify({ phone, passcode }) }),
+
+  generatePasscode: () =>
+    request("/api/auth/passcode/generate", { method: "POST" }),
+
+  revokePasscode: () =>
+    request("/api/auth/passcode/revoke", { method: "POST" }),
+
   updateProfile: (payload: { name: string; email?: string; role: "PASSENGER" | "DRIVER" }) =>
     request("/api/users/me", { method: "PUT", body: JSON.stringify(payload) }),
+
+  // Switches which profile is active on this phone number, or sets up
+  // the other one for the first time — see users.routes.js PUT /me/role.
+  switchRole: (role: "PASSENGER" | "DRIVER") =>
+    request("/api/users/me/role", { method: "PUT", body: JSON.stringify({ role }) }),
 
   addVehicle: (payload: { make: string; model: string; regNumber: string; color?: string; seatCapacity?: number }) =>
     request("/api/vehicles", { method: "POST", body: JSON.stringify(payload) }),
@@ -147,6 +162,13 @@ export const api = {
 
   chargeBooking: (bookingId: string) =>
     request(`/api/payments/${bookingId}/charge`, { method: "POST" }),
+
+  // Distinct from chargeBooking — the backend route this hits only
+  // accepts a booking already sitting in PAYMENT_PENDING (a previous
+  // charge attempt that actually failed), as opposed to charging a
+  // booking for the first time from AWAITING_PAYMENT.
+  retryPayment: (bookingId: string) =>
+    request(`/api/payments/${bookingId}/retry`, { method: "POST" }),
 
   // Dev-only — stands in for a real Razorpay Checkout + webhook round
   // trip so the booking flow can be tested end-to-end in Expo Go/web,

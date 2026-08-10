@@ -109,5 +109,5 @@ const styles = StyleSheet.create({
   seatChipText: { ...typography.caption, color: colors.textSecondary },
   seatChipTextActive: { color: colors.success, fontWeight: "700" },
   button: { backgroundColor: colors.textPrimary, height: 46, borderRadius: radius.sm, alignItems: "center", justifyContent: "center", marginTop: spacing.xl },
-  buttonText: { color: "#FFFFFF", ...typography.title },
+  buttonText: { ...typography.title, color: "#FFFFFF" },
 });

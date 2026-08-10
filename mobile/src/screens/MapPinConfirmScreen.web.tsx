@@ -70,5 +70,5 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     marginTop: spacing.xl,
   },
-  confirmButtonText: { color: "#FFFFFF", ...typography.title },
+  confirmButtonText: { ...typography.title, color: "#FFFFFF" },
 });

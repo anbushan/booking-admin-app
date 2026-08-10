@@ -115,5 +115,5 @@ const styles = StyleSheet.create({
   summary: { ...typography.title, fontSize: 14 },
   meta: { ...typography.small, color: colors.textMuted },
   button: { backgroundColor: colors.textPrimary, height: 44, borderRadius: radius.sm, alignItems: "center", justifyContent: "center", marginTop: spacing.xs },
-  buttonText: { color: "#FFFFFF", ...typography.body, fontWeight: "700" },
+  buttonText: { ...typography.body, color: "#FFFFFF", fontWeight: "700" },
 });

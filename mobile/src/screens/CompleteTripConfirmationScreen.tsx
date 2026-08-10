@@ -65,7 +65,7 @@ const styles = StyleSheet.create({
   title: { ...typography.title, fontSize: 18, textAlign: "center" },
   description: { ...typography.caption, color: colors.textSecondary, textAlign: "center", marginTop: spacing.sm, lineHeight: 20 },
   confirmButton: { backgroundColor: colors.textPrimary, height: 46, borderRadius: radius.sm, alignItems: "center", justifyContent: "center", marginTop: spacing.xl, alignSelf: "stretch" },
-  confirmButtonText: { color: "#FFFFFF", ...typography.title },
+  confirmButtonText: { ...typography.title, color: "#FFFFFF" },
   cancelButton: { marginTop: spacing.md },
   cancelButtonText: { ...typography.caption, color: colors.textMuted },
 });

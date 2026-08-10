@@ -14,11 +14,19 @@ import { api } from "../lib/api";
 // (if any) to highlight — no per-screen badge-fetching duplication.
 type Props = {
   navigation: any;
-  profile: { id?: string; name?: string; role?: string } | null;
+  profile: { id?: string; name?: string; role?: string; isDriver?: boolean; isPassenger?: boolean } | null;
   active?: string;
+  // NotificationsScreen mounts its own AppBottomNav instance, with its
+  // own independent unreadCount fetched once on focus — marking things
+  // read while already on that screen updated its own list instantly
+  // but left this instance's sidebar badge showing the stale count from
+  // whenever it first loaded, only catching up after leaving and coming
+  // back (a different hub screen's own instance) to trigger a refetch.
+  // Passing the screen's own live count in skips that whole round trip.
+  unreadCountOverride?: number;
 };
 
-export function AppBottomNav({ navigation, profile, active = "" }: Props) {
+export function AppBottomNav({ navigation, profile, active = "", unreadCountOverride }: Props) {
   const [menuVisible, setMenuVisible] = useState(false);
   const [pendingRequestCount, setPendingRequestCount] = useState(0);
   const [myRequestsCount, setMyRequestsCount] = useState(0);
@@ -88,7 +96,7 @@ export function AppBottomNav({ navigation, profile, active = "" }: Props) {
         onClose={() => setMenuVisible(false)}
         navigation={navigation}
         profile={profile}
-        unreadCount={unreadCount}
+        unreadCount={unreadCountOverride ?? unreadCount}
         upcomingTripsCount={upcomingTripsCount}
       />
     </>

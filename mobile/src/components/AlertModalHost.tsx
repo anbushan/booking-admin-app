@@ -80,7 +80,7 @@ const styles = StyleSheet.create({
   button: { flex: 1, backgroundColor: colors.accent, height: 44, borderRadius: radius.sm, alignItems: "center", justifyContent: "center" },
   buttonCancel: { backgroundColor: colors.bg, borderWidth: 1, borderColor: colors.border },
   buttonDestructive: { backgroundColor: colors.danger },
-  buttonText: { color: "#FFFFFF", ...typography.caption, fontWeight: "700" },
+  buttonText: { ...typography.caption, color: "#FFFFFF", fontWeight: "700" },
   buttonTextCancel: { color: colors.textSecondary },
   buttonTextDestructive: { color: "#FFFFFF" },
 });

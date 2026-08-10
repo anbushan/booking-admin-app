@@ -16,9 +16,36 @@ import { SafeAreaView } from "react-native-safe-area-context";
 // actually accept another request, not a guess.
 const RESEND_COOLDOWN_SECONDS = 30;
 const OTP_LENGTH = 6;
+const PASSCODE_LENGTH = 6;
+
+// Shared by both login paths (OTP verify below, and PhoneEntryScreen's
+// passcode mode) — same token storage, push-permission prompt, analytics
+// event, and post-login routing either way; only how the phone number
+// got verified differs.
+async function completeLogin(result: any, navigation: any) {
+  await setAuthToken(result.token);
+  setupPushNotifications().catch(() => {});
+  Analytics.login();
+  navigation.reset({
+    index: 0,
+    // Every returning login goes through SwitchRole now, not just the
+    // (rarer) case where both a driver and a passenger profile already
+    // exist — continuing as your current role is a single tap there
+    // (it's shown pre-marked "Current"), and it's also where "use this
+    // number as the other role too, for the first time" is offered
+    // right at login instead of only being reachable later from the
+    // side menu.
+    routes: [{
+      name: result.isNewUser ? "Register" : "SwitchRole",
+      params: result.isNewUser ? undefined : { forced: true },
+    }],
+  });
+}
 
 export function PhoneEntryScreen({ navigation }: any) {
   const [phone, setPhone] = useState("");
+  const [passcode, setPasscode] = useState("");
+  const [mode, setMode] = useState<"otp" | "passcode">("otp");
   const [touched, setTouched] = useState(false);
   const [sending, setSending] = useState(false);
   const inputRef = useRef<TextInput>(null);
@@ -34,6 +61,7 @@ export function PhoneEntryScreen({ navigation }: any) {
 
   const isValid = /^\d{10}$/.test(phone);
   const showError = touched && phone.length > 0 && !isValid;
+  const isPasscodeValid = /^\d{6}$/.test(passcode);
 
   async function handleSendOtp() {
     setTouched(true);
@@ -44,6 +72,20 @@ export function PhoneEntryScreen({ navigation }: any) {
       navigation.navigate("OtpVerify", { phone });
     } catch (err: any) {
       showAlert("Couldn't send OTP", err.message);
+    } finally {
+      setSending(false);
+    }
+  }
+
+  async function handlePasscodeLogin() {
+    setTouched(true);
+    if (!isValid || !isPasscodeValid) return;
+    setSending(true);
+    try {
+      const result = await api.verifyPasscode(phone, passcode);
+      await completeLogin(result, navigation);
+    } catch (err: any) {
+      showAlert("Couldn't log in", err.message);
     } finally {
       setSending(false);
     }
@@ -63,7 +105,11 @@ export function PhoneEntryScreen({ navigation }: any) {
         </View>
         <View style={styles.centerContent}>
           <Text style={styles.title}>Enter your mobile number</Text>
-          <Text style={styles.subtitle}>We'll text you a one-time code to continue — as a driver or a passenger, same first step.</Text>
+          <Text style={styles.subtitle}>
+            {mode === "otp"
+              ? "We'll text you a one-time code to continue — as a driver or a passenger, same first step."
+              : "Enter the passcode you downloaded from Settings on this account."}
+          </Text>
           <Pressable
             style={[styles.inputWrap, showError && styles.inputWrapError]}
             onPress={() => inputRef.current?.focus()}
@@ -97,17 +143,58 @@ export function PhoneEntryScreen({ navigation }: any) {
               <Text style={styles.fieldErrorText}>Enter a valid 10-digit mobile number.</Text>
             </View>
           )}
-          <Pressable style={[styles.button, phone.length !== 10 && styles.buttonDisabled]} onPress={handleSendOtp} disabled={sending || phone.length !== 10}>
-            {!sending && <Ionicons name="arrow-forward-circle-outline" size={18} color="#FFFFFF" />}
-            <Text style={styles.buttonText}>{sending ? "Sending..." : "Send OTP"}</Text>
-          </Pressable>
-          <View style={styles.signupLink}>
-            <Ionicons name="sparkles-outline" size={13} color={colors.textMuted} />
-            <Text style={styles.signupLinkText}>
-              New here? <Text style={styles.signupLinkAccent}>Signing up</Text> uses this same number and step —
-              you'll choose driver or passenger right after.
+
+          {mode === "passcode" && (
+            <TextInput
+              style={styles.passcodeInput}
+              keyboardType="number-pad"
+              maxLength={PASSCODE_LENGTH}
+              placeholder="6-digit passcode"
+              placeholderTextColor={colors.textMuted}
+              value={passcode}
+              onChangeText={(v) => setPasscode(v.replace(/\D/g, "").slice(0, PASSCODE_LENGTH))}
+              secureTextEntry
+            />
+          )}
+
+          {mode === "otp" ? (
+            <Pressable style={[styles.button, phone.length !== 10 && styles.buttonDisabled]} onPress={handleSendOtp} disabled={sending || phone.length !== 10}>
+              {!sending && <Ionicons name="arrow-forward-circle-outline" size={18} color="#FFFFFF" />}
+              <Text style={styles.buttonText}>{sending ? "Sending..." : "Send OTP"}</Text>
+            </Pressable>
+          ) : (
+            <Pressable
+              style={[styles.button, (phone.length !== 10 || !isPasscodeValid) && styles.buttonDisabled]}
+              onPress={handlePasscodeLogin}
+              disabled={sending || phone.length !== 10 || !isPasscodeValid}
+            >
+              {!sending && <Ionicons name="log-in-outline" size={18} color="#FFFFFF" />}
+              <Text style={styles.buttonText}>{sending ? "Logging in..." : "Log in"}</Text>
+            </Pressable>
+          )}
+
+          {/* Only makes sense once a passcode has actually been
+              generated (Settings > Login passcode, requires being
+              logged in first) — offering it unconditionally here would
+              be a dead end for the far more common brand-new-number
+              case, so it's a quiet toggle, not a competing primary
+              action next to Send OTP. */}
+          <Pressable onPress={() => setMode(mode === "otp" ? "passcode" : "otp")} hitSlop={6} style={styles.modeToggle}>
+            <Ionicons name={mode === "otp" ? "key-outline" : "chatbox-ellipses-outline"} size={13} color={colors.accentText} />
+            <Text style={styles.modeToggleText}>
+              {mode === "otp" ? "Log in with passcode instead" : "Use OTP instead"}
             </Text>
-          </View>
+          </Pressable>
+
+          {mode === "otp" && (
+            <View style={styles.signupLink}>
+              <Ionicons name="sparkles-outline" size={13} color={colors.textMuted} />
+              <Text style={styles.signupLinkText}>
+                New here? <Text style={styles.signupLinkAccent}>Signing up</Text> uses this same number and step —
+                you'll choose driver or passenger right after.
+              </Text>
+            </View>
+          )}
         </View>
       </KeyboardAvoider>
     </SafeAreaView>
@@ -135,16 +222,7 @@ export function OtpVerifyScreen({ route, navigation }: any) {
     setVerifying(true);
     try {
       const result = await api.verifyOtp(phone, code);
-      await setAuthToken(result.token);
-      // Request push permission right after a successful login — natural
-      // point in the flow, and registerDevice(null) still fires if the
-      // user declines, so the backend knows not to attempt push.
-      setupPushNotifications().catch(() => {});
-      Analytics.login();
-      navigation.reset({
-        index: 0,
-        routes: [{ name: result.isNewUser ? "Register" : "Home" }],
-      });
+      await completeLogin(result, navigation);
     } catch (err: any) {
       showAlert("Verification failed", err.message);
     } finally {
@@ -268,6 +346,14 @@ const styles = StyleSheet.create({
   signupLink: { flexDirection: "row", gap: 6, marginTop: spacing.lg, paddingHorizontal: spacing.sm },
   signupLinkText: { ...typography.caption, color: colors.textSecondary, flex: 1, lineHeight: 18 },
   signupLinkAccent: { color: colors.accentText, fontWeight: "700" },
+  passcodeInput: {
+    width: "100%",
+    backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border,
+    borderRadius: radius.sm, height: 52, marginBottom: spacing.md, paddingHorizontal: spacing.md,
+    ...typography.body, color: colors.textPrimary, letterSpacing: 4,
+  },
+  modeToggle: { flexDirection: "row", alignItems: "center", gap: 5, alignSelf: "center", marginTop: spacing.md, padding: spacing.xs },
+  modeToggleText: { ...typography.small, color: colors.accentText, fontWeight: "700" },
   inputWrap: {
     flexDirection: "row", alignItems: "center", width: "100%",
     backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border,
@@ -300,7 +386,7 @@ const styles = StyleSheet.create({
     width: "100%",
   },
   buttonDisabled: { opacity: 0.5 },
-  buttonText: { color: "#FFFFFF", ...typography.title },
+  buttonText: { ...typography.title, color: "#FFFFFF" },
   resendRow: { flexDirection: "row", alignItems: "center", gap: 5, marginTop: spacing.lg, padding: spacing.xs },
   resendText: { ...typography.caption, color: colors.textMuted },
   resendTextActive: { color: colors.accentText, fontWeight: "700" },
