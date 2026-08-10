@@ -139,9 +139,16 @@ router.post("/", requireAuth, requireRole("DRIVER"), async (req, res) => {
   // nothing for the passenger to be picked up in. If they own more than
   // one, they have to say which this ride uses (search shows the real
   // vehicle per ride, not a guess); with exactly one, it's auto-picked.
-  const vehicles = await prisma.vehicle.findMany({ where: { driverId: req.user.id } });
-  if (!vehicles.length) {
+  // Only APPROVED vehicles count here — a vehicle sits PENDING until an
+  // admin reviews it (see vehicles.routes.js POST /), so a driver who
+  // just added one can't immediately publish with it.
+  const allVehicles = await prisma.vehicle.findMany({ where: { driverId: req.user.id } });
+  if (!allVehicles.length) {
     return res.status(400).json({ error: "Add a vehicle before publishing a ride." });
+  }
+  const vehicles = allVehicles.filter((v) => v.status === "APPROVED");
+  if (!vehicles.length) {
+    return res.status(400).json({ error: "Your vehicle hasn't been approved yet — you can publish once it's reviewed." });
   }
   let vehicle;
   if (vehicles.length === 1) {

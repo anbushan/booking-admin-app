@@ -22,6 +22,12 @@ model User {
   isDriver    Boolean  @default(false)
   isPassenger Boolean  @default(false)
   photoUrl    String?
+  // R2 object key for an uploaded profile photo — photoUrl above was
+  // never actually wired up to anything (nothing ever set it), and
+  // isn't reusable as-is since this app's R2 bucket is private (same
+  // as Document uploads): a real display URL has to be a short-lived
+  // signed one generated on read, not a stored permanent link.
+  photoR2Key  String?
   ratingAvg   Float?
   disabled    Boolean  @default(false)
   fcmToken    String?
@@ -76,6 +82,29 @@ model Vehicle {
   // cap Ride.seatsAvailable and shown to passengers in search ("5-seater").
   seatCapacity  Int?
   createdAt     DateTime @default(now())
+
+  // R2 object keys — same private-bucket + signed-view-URL pattern as
+  // Document (see documents.routes.js), scoped to this vehicle instead
+  // of the driver generally, since a driver can have more than one
+  // vehicle and each needs its own RC. photoR2Key is the only optional
+  // one of the three; the app enforces rcR2Key as required on new
+  // submissions (nullable here only so this migration doesn't break on
+  // existing rows).
+  photoR2Key    String?
+  rcR2Key       String?
+  dlR2Key       String?
+
+  // A vehicle can't be used to publish a ride until an admin approves
+  // it (see rides.routes.js's create-ride check) — existing vehicles
+  // get backfilled straight to APPROVED by this migration so no
+  // currently-active driver is retroactively blocked.
+  status        String    @default("PENDING") // PENDING, APPROVED, REJECTED
+  reviewedAt    DateTime?
+  reviewedBy    String?
+  // Set by admin when rejecting — shown to the driver so re-uploading
+  // isn't a guess. Cleared automatically whenever the driver resubmits
+  // (see vehicles.routes.js PUT /:id).
+  rejectionReason String?
 
   rides         Ride[]
 }

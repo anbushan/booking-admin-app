@@ -53,6 +53,12 @@
           "locationAlwaysAndWhenInUsePermission": "We use your location during an active trip so the other rider can track progress and to power the SOS button."
         }
       ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Used to attach your profile photo, a car photo, and vehicle documents (RC, license) when adding a vehicle."
+        }
+      ],
       "expo-font",
       "./plugins/withDisableForceDark"
     ],

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { View, Text, FlatList, StyleSheet } from "react-native";
+import { View, Text, Image, FlatList, StyleSheet } from "react-native";
 import { Pressable } from "../components/Pressable";
 import { Ionicons } from "@expo/vector-icons";
 import { colors, spacing, radius, typography } from "../theme/theme";
@@ -33,7 +33,11 @@ export default function PublicProfileScreen({ route, navigation }: any) {
 
       <View style={styles.profileCard}>
         <View style={styles.avatar}>
-          <Text style={styles.avatarText}>{(profile.name || "?")[0]}</Text>
+          {profile.photoViewUrl ? (
+            <Image source={{ uri: profile.photoViewUrl }} style={styles.avatarImage} />
+          ) : (
+            <Text style={styles.avatarText}>{(profile.name || "?")[0]}</Text>
+          )}
         </View>
         <Text style={styles.name}>{profile.name}</Text>
         <Text style={styles.meta}>{profile.role === "DRIVER" ? "Driver" : "Passenger"}</Text>
@@ -82,7 +86,8 @@ const styles = StyleSheet.create({
   back: { fontSize: 18 },
   title: typography.title,
   profileCard: { alignItems: "center", padding: spacing.lg },
-  avatar: { width: 64, height: 64, borderRadius: 32, backgroundColor: colors.accentBg, alignItems: "center", justifyContent: "center" },
+  avatar: { width: 64, height: 64, borderRadius: 32, backgroundColor: colors.accentBg, alignItems: "center", justifyContent: "center", overflow: "hidden" },
+  avatarImage: { width: "100%", height: "100%", borderRadius: 32 },
   avatarText: { fontSize: 22, fontWeight: "700", color: colors.accentText },
   name: { ...typography.title, fontSize: 16, marginTop: spacing.sm },
   meta: { ...typography.caption, color: colors.textMuted, marginTop: 2 },

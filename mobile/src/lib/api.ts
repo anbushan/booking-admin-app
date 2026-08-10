@@ -72,8 +72,21 @@ export const api = {
   switchRole: (role: "PASSENGER" | "DRIVER") =>
     request("/api/users/me/role", { method: "PUT", body: JSON.stringify({ role }) }),
 
-  addVehicle: (payload: { make: string; model: string; regNumber: string; color?: string; seatCapacity?: number }) =>
+  addVehicle: (payload: {
+    make: string; model: string; regNumber: string; color?: string; seatCapacity?: number;
+    photoR2Key?: string; rcR2Key: string; dlR2Key?: string;
+  }) =>
     request("/api/vehicles", { method: "POST", body: JSON.stringify(payload) }),
+
+  // kind: "PHOTO" | "RC" | "DL" — see vehicles.routes.js.
+  getVehicleUploadUrl: (kind: "PHOTO" | "RC" | "DL") =>
+    request("/api/vehicles/upload-url", { method: "POST", body: JSON.stringify({ kind }) }),
+
+  getVehicleViewUrls: (vehicleId: string) =>
+    request(`/api/vehicles/${vehicleId}/view-urls`),
+
+  getProfilePhotoUploadUrl: () =>
+    request("/api/users/me/photo-upload-url", { method: "POST" }),
 
   createRide: (payload: {
     sourceLat: number; sourceLng: number; sourceAddress: string;

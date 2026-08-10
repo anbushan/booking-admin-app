@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { View, Text, TextInput, ScrollView, StyleSheet } from "react-native";
+import { View, Text, TextInput, ScrollView, Image, StyleSheet } from "react-native";
 import { Pressable } from "../components/Pressable";
 import { Ionicons } from "@expo/vector-icons";
 import { showAlert } from "../lib/alert";
@@ -11,6 +11,7 @@ import { AppBottomNav } from "../components/AppBottomNav";
 import { KeyboardAvoider } from "../components/KeyboardAvoider";
 import { CarLoader } from "../components/CarLoader";
 import { useScreenView } from "../lib/useScreenView";
+import { pickImage, uploadToSignedUrl } from "../lib/imageUpload";
 
 function memberSince(createdAt?: string) {
   if (!createdAt) return null;
@@ -71,7 +72,11 @@ export function ProfileScreen({ navigation }: any) {
           </Pressable>
 
           <View style={styles.avatar}>
-            <Text style={styles.avatarText}>{(profile.name || "?")[0]?.toUpperCase()}</Text>
+            {profile.photoViewUrl ? (
+              <Image source={{ uri: profile.photoViewUrl }} style={styles.avatarImage} />
+            ) : (
+              <Text style={styles.avatarText}>{(profile.name || "?")[0]?.toUpperCase()}</Text>
+            )}
           </View>
           <Text style={styles.name}>{profile.name}</Text>
           <View style={styles.metaRow}>
@@ -122,8 +127,29 @@ export function EditProfileScreen({ route, navigation }: any) {
   const [name, setName] = useState(profile.name || "");
   const [email, setEmail] = useState(profile.email || "");
   const [whatsappOptIn, setWhatsappOptIn] = useState(!!profile.whatsappOptIn);
+  const [photoUri, setPhotoUri] = useState<string | null>(profile.photoViewUrl || null);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const { showSuccess } = useToast();
+  const { showSuccess, showError } = useToast();
+
+  // Uploads immediately on pick, independent of the Save button below —
+  // matches AddVehicleScreen's own upload-then-submit-the-rest pattern,
+  // and means leaving without tapping Save still keeps a photo you just
+  // picked (nothing to lose by not "saving" a photo specifically).
+  async function handleChangePhoto() {
+    try {
+      const picked = await pickImage();
+      if (!picked) return;
+      setUploadingPhoto(true);
+      const { uploadUrl } = await api.getProfilePhotoUploadUrl();
+      await uploadToSignedUrl(uploadUrl, picked.uri, picked.mimeType);
+      setPhotoUri(picked.uri);
+    } catch (err: any) {
+      showError(err.message || "Couldn't update your photo");
+    } finally {
+      setUploadingPhoto(false);
+    }
+  }
 
   async function handleSave() {
     setSubmitting(true);
@@ -143,6 +169,22 @@ export function EditProfileScreen({ route, navigation }: any) {
       <Text style={{ ...typography.title, padding: spacing.lg, paddingBottom: spacing.sm }}>Edit profile</Text>
       <KeyboardAvoider>
       <View style={styles.body}>
+        <Pressable style={styles.editAvatarWrap} onPress={handleChangePhoto} disabled={uploadingPhoto}>
+          <View style={styles.editAvatar}>
+            {uploadingPhoto ? (
+              <CarLoader size="sm" />
+            ) : photoUri ? (
+              <Image source={{ uri: photoUri }} style={styles.avatarImage} />
+            ) : (
+              <Text style={[styles.avatarText, { color: colors.accentText }]}>{(name || "?")[0]?.toUpperCase()}</Text>
+            )}
+          </View>
+          <View style={styles.editAvatarBadge}>
+            <Ionicons name="camera" size={13} color="#FFFFFF" />
+          </View>
+        </Pressable>
+        <Text style={styles.changePhotoText}>{photoUri ? "Change photo" : "Add a photo"}</Text>
+
         <Text style={styles.label}>Name</Text>
         <TextInput style={styles.input} value={name} onChangeText={setName} />
         <Text style={styles.label}>Email</Text>
@@ -196,6 +238,18 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   avatarText: { fontSize: 26, fontWeight: "700", color: "#FFFFFF" },
+  avatarImage: { width: "100%", height: "100%", borderRadius: 999 },
+  editAvatarWrap: { width: 76, height: 76, marginBottom: spacing.xs },
+  editAvatar: {
+    width: 76, height: 76, borderRadius: 38, backgroundColor: colors.accentBg,
+    borderWidth: 1, borderColor: colors.border, alignItems: "center", justifyContent: "center", overflow: "hidden",
+  },
+  editAvatarBadge: {
+    position: "absolute", bottom: 0, right: 0, width: 26, height: 26, borderRadius: 13,
+    backgroundColor: colors.textPrimary, borderWidth: 2, borderColor: colors.bg,
+    alignItems: "center", justifyContent: "center",
+  },
+  changePhotoText: { ...typography.small, color: colors.accentText, fontWeight: "700", marginBottom: spacing.sm },
   name: { ...typography.title, fontSize: 18, color: "#FFFFFF", marginTop: spacing.sm },
   metaRow: { flexDirection: "row", alignItems: "center", gap: 4, marginTop: 2 },
   meta: { ...typography.caption, color: "rgba(255,255,255,0.75)" },

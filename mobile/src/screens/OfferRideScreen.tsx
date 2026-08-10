@@ -1,6 +1,7 @@
-import React, { useEffect, useState } from "react";
-import { View, Text, TextInput, ScrollView, StyleSheet } from "react-native";
+import React, { useEffect, useRef, useState } from "react";
+import { View, Text, TextInput, ScrollView, RefreshControl, Animated, Easing, StyleSheet } from "react-native";
 import { Pressable } from "../components/Pressable";
+import { Ionicons } from "@expo/vector-icons";
 import { showAlert } from "../lib/alert";
 import { colors, spacing, radius, typography } from "../theme/theme";
 import { api } from "../lib/api";
@@ -23,6 +24,88 @@ const PREFERENCE_OPTIONS = [
 type Point = { lat: number; lng: number; address: string };
 
 const DEFAULT_SOURCE: Point = { lat: 12.9352, lng: 77.6146, address: "Koramangala, Bengaluru" };
+
+const APPROVAL_FLOW_STEPS: { icon: keyof typeof Ionicons.glyphMap; label: string }[] = [
+  { icon: "add-circle-outline", label: "Add vehicle" },
+  { icon: "shield-checkmark-outline", label: "Admin verifies" },
+  { icon: "checkmark-circle-outline", label: "Approved" },
+  { icon: "car-sport-outline", label: "Offer ride" },
+];
+
+// Same idea as HomeScreen's passenger-side "Why ride with NanbaGO"
+// widget — makes an otherwise-invisible backend process (a vehicle
+// sitting PENDING until an admin looks at it) visible as a concrete,
+// small number of steps — and the same order-tracking language
+// StepTracker already uses for a booking's journey (a car literally
+// sliding along the line to wherever things actually are right now,
+// not just a static row of icons), just laid out horizontally instead
+// of vertically since this is a compact card, not a full detail
+// screen. currentStep is 1-indexed and marks the step just completed/
+// in progress — sits literally between "Admin verifies" and "Approved"
+// while a vehicle is PENDING (currentStep=2), not just colored done.
+function VehicleApprovalFlow({ currentStep }: { currentStep: number }) {
+  const [stepCenters, setStepCenters] = useState<number[]>([]);
+  const carX = useRef(new Animated.Value(0)).current;
+  const activeIndex = currentStep - 1;
+
+  function handleStepLayout(index: number, x: number, width: number) {
+    setStepCenters((prev) => {
+      const next = [...prev];
+      next[index] = x + width / 2 - 12; // center the 24px car badge on the step
+      return next;
+    });
+  }
+
+  useEffect(() => {
+    if (activeIndex < 0 || stepCenters.length !== APPROVAL_FLOW_STEPS.length || stepCenters.some((x) => x == null)) return;
+    Animated.timing(carX, {
+      toValue: stepCenters[activeIndex],
+      duration: 900,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: true,
+    }).start();
+  }, [activeIndex, stepCenters.length, stepCenters[activeIndex]]);
+
+  return (
+    <View style={styles.flowCard}>
+      <Text style={styles.flowTitle}>How this works</Text>
+      <View style={{ position: "relative" }}>
+        {activeIndex >= 0 && stepCenters.length === APPROVAL_FLOW_STEPS.length && (
+          <Animated.View style={[styles.flowCarBadge, { transform: [{ translateX: carX }] }]} pointerEvents="none">
+            <Ionicons name="car-sport" size={13} color="#FFFFFF" />
+          </Animated.View>
+        )}
+        <View style={styles.flowRow}>
+          {APPROVAL_FLOW_STEPS.map((step, i) => {
+            const stepNum = i + 1;
+            const done = stepNum < currentStep;
+            const active = stepNum === currentStep;
+            return (
+              <React.Fragment key={step.label}>
+                <View
+                  style={styles.flowStep}
+                  onLayout={(e) => handleStepLayout(i, e.nativeEvent.layout.x, e.nativeEvent.layout.width)}
+                >
+                  <View style={[styles.flowStepIconWrap, done && styles.flowStepIconWrapDone, active && styles.flowStepIconWrapActive]}>
+                    {done ? (
+                      <Ionicons name="checkmark" size={16} color={colors.success} />
+                    ) : (
+                      <Ionicons name={step.icon} size={16} color={active ? colors.accentText : colors.textMuted} />
+                    )}
+                  </View>
+                  <Text style={[styles.flowStepLabel, active && styles.flowStepLabelActive]}>{step.label}</Text>
+                </View>
+                {i < APPROVAL_FLOW_STEPS.length - 1 && (
+                  <View style={[styles.flowConnector, done && styles.flowConnectorDone]} />
+                )}
+              </React.Fragment>
+            );
+          })}
+        </View>
+      </View>
+    </View>
+  );
+}
 
 export default function OfferRideScreen({ navigation }: any) {
   useScreenView("OfferRideScreen");
@@ -50,18 +133,36 @@ export default function OfferRideScreen({ navigation }: any) {
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
 
-  const [vehicles, setVehicles] = useState<any[] | null>(null); // null = still loading
+  const [vehicles, setVehicles] = useState<any[] | null>(null); // null = still loading; APPROVED only
+  // Distinguishes "never added a vehicle" from "added one, still
+  // waiting on review" — same underlying emptiness (nothing to select)
+  // but a very different thing to tell the driver about it.
+  const [hasUnapprovedVehicle, setHasUnapprovedVehicle] = useState(false);
   const [vehiclesError, setVehiclesError] = useState(false);
   const [vehicleId, setVehicleId] = useState<string | null>(null);
   const [profile, setProfile] = useState<any>(null);
+  const [refreshing, setRefreshing] = useState(false);
 
-  useEffect(() => {
+  // Pulled out so pull-to-refresh can call the exact same fetch as the
+  // initial load — most relevant while sitting on the pending-review
+  // empty state, where the whole point is checking whether an admin
+  // has approved the vehicle yet without leaving the screen.
+  function loadVehicles(isRefresh = false) {
+    if (isRefresh) setRefreshing(true);
     api.getVehicles()
       .then((list) => {
-        setVehicles(list);
-        if (list.length === 1) setVehicleId(list[0].id);
+        const approved = list.filter((v: any) => v.status === "APPROVED");
+        setVehicles(approved);
+        setHasUnapprovedVehicle(approved.length === 0 && list.length > 0);
+        if (approved.length === 1) setVehicleId(approved[0].id);
+        setVehiclesError(false);
       })
-      .catch(() => setVehiclesError(true));
+      .catch(() => setVehiclesError(true))
+      .finally(() => setRefreshing(false));
+  }
+
+  useEffect(() => {
+    loadVehicles();
     api.getMyProfile().then(setProfile).catch(() => {});
   }, []);
 
@@ -122,14 +223,30 @@ export default function OfferRideScreen({ navigation }: any) {
         <View style={styles.centerState}>
           <CarLoader />
         </View>
+      ) : vehicles !== null && vehicles.length === 0 && hasUnapprovedVehicle ? (
+        <ScrollView
+          contentContainerStyle={styles.centerState}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => loadVehicles(true)} colors={[colors.accent]} tintColor={colors.accent} />}
+        >
+          <Text style={styles.noVehicleTitle}>Your vehicle is pending review</Text>
+          <Text style={styles.noVehicleSubtitle}>An admin needs to approve it before you can publish rides — pull down to check again.</Text>
+          <Pressable style={styles.button} onPress={() => navigation.navigate("VehicleList")}>
+            <Text style={styles.buttonText}>View your vehicles</Text>
+          </Pressable>
+          <VehicleApprovalFlow currentStep={2} />
+        </ScrollView>
       ) : vehicles !== null && vehicles.length === 0 ? (
-        <View style={styles.centerState}>
+        <ScrollView
+          contentContainerStyle={styles.centerState}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => loadVehicles(true)} colors={[colors.accent]} tintColor={colors.accent} />}
+        >
           <Text style={styles.noVehicleTitle}>Add a vehicle to publish rides</Text>
           <Text style={styles.noVehicleSubtitle}>Passengers need to know what they're getting picked up in.</Text>
           <Pressable style={styles.button} onPress={() => navigation.navigate("AddVehicle")}>
             <Text style={styles.buttonText}>Add vehicle</Text>
           </Pressable>
-        </View>
+          <VehicleApprovalFlow currentStep={1} />
+        </ScrollView>
       ) : (
       <KeyboardAvoider>
       <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
@@ -251,7 +368,13 @@ const styles = StyleSheet.create({
   back: { fontSize: 18 },
   title: typography.title,
   body: { padding: spacing.lg },
-  centerState: { flex: 1, alignItems: "center", justifyContent: "center", padding: spacing.xl, gap: spacing.md },
+  // Used both as a plain View style (the initial loading spinner) and
+  // as a ScrollView's contentContainerStyle (the two empty states,
+  // now pull-to-refreshable) — flexGrow alongside flex covers both:
+  // a ScrollView's content container needs flexGrow (not just flex)
+  // to actually fill and center short content instead of collapsing
+  // to its own height.
+  centerState: { flex: 1, flexGrow: 1, alignItems: "center", justifyContent: "center", padding: spacing.xl, gap: spacing.md },
   noVehicleTitle: { ...typography.title, fontSize: 16, textAlign: "center" },
   noVehicleSubtitle: { ...typography.caption, color: colors.textSecondary, textAlign: "center" },
   routeCard: {
@@ -303,7 +426,36 @@ const styles = StyleSheet.create({
     borderRadius: radius.sm,
     alignItems: "center",
     justifyContent: "center",
+    paddingHorizontal: spacing.xl,
     marginTop: spacing.xl,
   },
   buttonText: { ...typography.title, color: "#FFFFFF" },
+  flowCard: {
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.md,
+    padding: spacing.md,
+    marginTop: spacing.lg,
+    width: "100%",
+  },
+  flowTitle: { ...typography.caption, fontWeight: "700", color: colors.textPrimary, marginBottom: spacing.md, textAlign: "center" },
+  flowRow: { flexDirection: "row", alignItems: "flex-start" },
+  flowStep: { alignItems: "center", gap: 5, width: 64 },
+  flowStepIconWrap: { width: 24, height: 24, borderRadius: 12, backgroundColor: colors.surface, borderWidth: 2, borderColor: colors.border, alignItems: "center", justifyContent: "center" },
+  flowStepIconWrapDone: { backgroundColor: colors.successBg, borderColor: colors.success },
+  flowStepIconWrapActive: { backgroundColor: colors.accentBg, borderColor: colors.accent },
+  flowStepLabel: { ...typography.small, color: colors.textMuted, textAlign: "center", fontSize: 10, lineHeight: 12 },
+  flowStepLabelActive: { color: colors.accentText, fontWeight: "700" },
+  flowConnector: { flex: 1, height: 2, backgroundColor: colors.border, marginHorizontal: -2, marginTop: 11 },
+  flowConnectorDone: { backgroundColor: colors.success },
+  // Same visual convention as StepTracker's own carBadge — marigold
+  // circle, white shadow border, sitting exactly on top of whichever
+  // step is currently active.
+  flowCarBadge: {
+    position: "absolute", left: 0, top: 0, width: 24, height: 24, borderRadius: 12,
+    backgroundColor: colors.marigold, alignItems: "center", justifyContent: "center",
+    borderWidth: 2, borderColor: colors.surface, zIndex: 2,
+    shadowColor: "#000", shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.2, shadowRadius: 3, elevation: 3,
+  },
 });

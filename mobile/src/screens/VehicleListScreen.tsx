@@ -13,6 +13,48 @@ import { useToast } from "../components/Toast";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { AppBottomNav } from "../components/AppBottomNav";
 import { useScreenView } from "../lib/useScreenView";
+import { VEHICLE_REVIEW_SLA_MESSAGE } from "./EditVehicleScreen";
+
+// Same PENDING/APPROVED/REJECTED wording and warning/success/danger
+// coloring DocumentUploadScreen's own "Pending review" tag already
+// established — a vehicle can't be used to publish a ride (see
+// rides.routes.js) until it's APPROVED, so this is the one thing
+// worth surfacing on every card, not buried in an edit screen.
+function VehicleStatusTag({ item, onNavigate }: { item: any; onNavigate: () => void }) {
+  const { status, rejectionReason } = item;
+  if (status === "APPROVED") {
+    return (
+      <View style={[styles.statusTag, styles.statusApproved]}>
+        <Ionicons name="checkmark-circle" size={11} color={colors.success} />
+        <Text style={[styles.statusTagText, { color: colors.success }]}>Approved</Text>
+      </View>
+    );
+  }
+  if (status === "REJECTED") {
+    return (
+      <Pressable
+        style={[styles.statusTag, styles.statusRejected]}
+        onPress={() => showAlert("Not approved", rejectionReason || "No reason was given.", [
+          { text: "Later", style: "cancel" },
+          { text: "Fix and resubmit", onPress: onNavigate },
+        ])}
+      >
+        <Ionicons name="close-circle" size={11} color={colors.danger} />
+        <Text style={[styles.statusTagText, { color: colors.danger }]}>Rejected — why?</Text>
+      </Pressable>
+    );
+  }
+  return (
+    <Pressable
+      style={[styles.statusTag, styles.statusPending]}
+      onPress={() => showAlert("Pending review", VEHICLE_REVIEW_SLA_MESSAGE)}
+    >
+      <Ionicons name="time-outline" size={11} color={colors.warning} />
+      <Text style={[styles.statusTagText, { color: colors.warning }]}>Pending review</Text>
+      <Ionicons name="information-circle-outline" size={12} color={colors.warning} />
+    </Pressable>
+  );
+}
 
 export default function VehicleListScreen({ navigation }: any) {
   useScreenView("VehicleListScreen");
@@ -80,6 +122,7 @@ export default function VehicleListScreen({ navigation }: any) {
             <View style={{ flex: 1 }}>
               <Text style={styles.name}>{item.make} {item.model}</Text>
               <Text style={styles.meta}>{item.regNumber} {item.color ? `· ${item.color}` : ""}</Text>
+              <VehicleStatusTag item={item} onNavigate={() => navigation.navigate("EditVehicle", { vehicle: item })} />
             </View>
             <View style={{ flexDirection: "row", gap: spacing.sm }}>
               <Pressable style={styles.iconButton} onPress={() => navigation.navigate("EditVehicle", { vehicle: item })} hitSlop={4}>
@@ -111,6 +154,11 @@ const styles = StyleSheet.create({
   iconButton: { width: 30, height: 30, borderRadius: 15, backgroundColor: colors.bg, alignItems: "center", justifyContent: "center" },
   name: { ...typography.title, fontSize: 14 },
   meta: { ...typography.small, color: colors.textMuted, marginTop: 2 },
+  statusTag: { flexDirection: "row", alignItems: "center", gap: 4, alignSelf: "flex-start", marginTop: 4, paddingVertical: 2, paddingHorizontal: 7, borderRadius: 999 },
+  statusTagText: { ...typography.small, fontWeight: "700" },
+  statusPending: { backgroundColor: colors.warningBg },
+  statusApproved: { backgroundColor: colors.successBg },
+  statusRejected: { backgroundColor: colors.dangerBg },
   addButton: { flexDirection: "row", gap: spacing.xs, backgroundColor: colors.textPrimary, height: 46, borderRadius: radius.sm, alignItems: "center", justifyContent: "center", margin: spacing.lg },
   addButtonText: { ...typography.title, color: "#FFFFFF" },
 });

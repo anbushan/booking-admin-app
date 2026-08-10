@@ -43,6 +43,7 @@ const SECTIONS: { label: string; links: { href: string; label: string; icon: Luc
     links: [
       { href: "/users", label: "Users", icon: Users },
       { href: "/drivers/verification-queue", label: "Driver verification", icon: ShieldCheck },
+      { href: "/drivers/vehicle-verification-queue", label: "Vehicle verification", icon: Car },
       { href: "/reviews", label: "Reviews", icon: Star },
       { href: "/reviews/flagged", label: "Flagged reviews", icon: Flag },
       { href: "/sos-alerts", label: "SOS alerts", icon: AlertTriangle },
