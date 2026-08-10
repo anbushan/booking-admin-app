@@ -9,10 +9,12 @@ import { colors, spacing, radius, typography } from "../theme/theme";
 import { Analytics } from "../lib/analytics";
 import { api } from "../lib/api";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { useScreenView } from "../lib/useScreenView";
 
 const { width } = Dimensions.get("window");
 
 export function SplashScreen({ navigation }: any) {
+  useScreenView("SplashScreen");
   const badgeScale = useRef(new Animated.Value(0.6)).current;
   const badgeOpacity = useRef(new Animated.Value(0)).current;
   const taglineOpacity = useRef(new Animated.Value(0)).current;
@@ -136,6 +138,7 @@ const SLIDES = [
 ];
 
 export function OnboardingScreen({ navigation }: any) {
+  useScreenView("OnboardingScreen");
   const [index, setIndex] = useState(0);
   const listRef = useRef<FlatList>(null);
 

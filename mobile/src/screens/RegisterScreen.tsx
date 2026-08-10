@@ -9,6 +9,7 @@ import { Analytics } from "../lib/analytics";
 import { FieldError } from "../components/FieldError";
 import { KeyboardAvoider } from "../components/KeyboardAvoider";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { useScreenView } from "../lib/useScreenView";
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -18,6 +19,7 @@ const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 // passenger" actually gets decided; everything else in the app assumes
 // it's already been answered.
 export default function RegisterScreen({ navigation }: any) {
+  useScreenView("RegisterScreen");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [role, setRole] = useState<"PASSENGER" | "DRIVER" | null>(null);
@@ -193,7 +195,7 @@ const styles = StyleSheet.create({
   button: {
     flexDirection: "row",
     gap: spacing.xs,
-    backgroundColor: colors.accent,
+    backgroundColor: colors.textPrimary,
     height: 48,
     borderRadius: radius.sm,
     alignItems: "center",

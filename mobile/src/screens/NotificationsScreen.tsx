@@ -10,28 +10,10 @@ import { EmptyState } from "../components/EmptyState";
 import { ErrorState } from "../components/ErrorState";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { AppBottomNav } from "../components/AppBottomNav";
+import { resolveNotificationTarget } from "../lib/notificationTargets";
+import { useScreenView } from "../lib/useScreenView";
 
 type Notif = { id: string; type: string; title: string; body: string; bookingId: string | null; read: boolean; createdAt: string };
-
-// Tapping a notification used to just mark it read and go nowhere — the
-// whole point of "New booking request" is to get the driver to the
-// screen where they can actually accept/reject it, not to sit there
-// read. Every type below either has an obvious, more useful destination
-// than a generic "view this booking" screen (a driver needs to act on a
-// new request; a passenger mid-pickup needs the OTP), or falls through
-// to BookingDetail, which needs nothing but the bookingId already on
-// every booking-scoped notification. Account-level notices (driver
-// strikes, passenger cooldown) have no bookingId and no natural
-// destination — those just mark read in place.
-function resolveTarget(notif: Notif, myRole?: string): { screen: string; params?: Record<string, any> } | null {
-  if (notif.type === "NEW_BOOKING_REQUEST") return { screen: "BookingRequests" };
-  if (!notif.bookingId) return null;
-  if (notif.type === "DRIVER_ARRIVED") return { screen: "TripOtp", params: { bookingId: notif.bookingId } };
-  if (notif.type === "NEW_MESSAGE") {
-    return { screen: "ChatDetail", params: { bookingId: notif.bookingId, calleeRole: myRole === "DRIVER" ? "PASSENGER" : "DRIVER" } };
-  }
-  return { screen: "BookingDetail", params: { bookingId: notif.bookingId } };
-}
 
 // One glyph per notification family so the list reads at a glance,
 // same idea as the driver action rows on Home — a word takes a beat to
@@ -84,6 +66,7 @@ function groupByDate(notifications: Notif[]) {
 }
 
 export default function NotificationsScreen({ navigation }: any) {
+  useScreenView("NotificationsScreen");
   const [notifications, setNotifications] = useState<Notif[]>([]);
   const [profile, setProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -123,7 +106,7 @@ export default function NotificationsScreen({ navigation }: any) {
 
   function handlePress(notif: Notif) {
     markRead(notif.id);
-    const target = resolveTarget(notif, profile?.role);
+    const target = resolveNotificationTarget(notif.type, notif.bookingId, profile?.role);
     if (target) navigation.navigate(target.screen, target.params);
   }
 

@@ -8,8 +8,10 @@ import { api } from "../lib/api";
 import { StepTracker, bookingJourneySteps } from "../components/StepTracker";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { BackHeader } from "../components/BackHeader";
+import { useScreenView } from "../lib/useScreenView";
 
 export default function BookingRequestDetailScreen({ route, navigation }: any) {
+  useScreenView("BookingRequestDetailScreen");
   const { request } = route.params;
   const [responding, setResponding] = useState(false);
 
@@ -100,7 +102,7 @@ const styles = StyleSheet.create({
   infoValue: typography.body,
   sectionLabel: { ...typography.title, fontSize: 13, marginTop: spacing.lg, marginBottom: spacing.sm },
   trackerCard: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: radius.md, padding: spacing.md },
-  acceptButton: { flexDirection: "row", gap: spacing.xs, backgroundColor: colors.accent, height: 46, borderRadius: radius.sm, alignItems: "center", justifyContent: "center", marginTop: spacing.xl },
+  acceptButton: { flexDirection: "row", gap: spacing.xs, backgroundColor: colors.textPrimary, height: 46, borderRadius: radius.sm, alignItems: "center", justifyContent: "center", marginTop: spacing.xl },
   acceptButtonText: { ...typography.title, color: "#FFFFFF" },
   declineButton: { flexDirection: "row", gap: 6, alignItems: "center", justifyContent: "center", marginTop: spacing.md, paddingVertical: spacing.xs },
   declineButtonText: { ...typography.caption, color: colors.danger, fontWeight: "700" },

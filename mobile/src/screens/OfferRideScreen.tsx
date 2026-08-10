@@ -12,6 +12,7 @@ import SearchOptionsModal, { formatSearchDate } from "../components/SearchOption
 import { SafeAreaView } from "react-native-safe-area-context";
 import { AppBottomNav } from "../components/AppBottomNav";
 import { KeyboardAvoider } from "../components/KeyboardAvoider";
+import { useScreenView } from "../lib/useScreenView";
 
 const PREFERENCE_OPTIONS = [
   { key: "music", label: "Music ok" },
@@ -24,6 +25,7 @@ type Point = { lat: number; lng: number; address: string };
 const DEFAULT_SOURCE: Point = { lat: 12.9352, lng: 77.6146, address: "Koramangala, Bengaluru" };
 
 export default function OfferRideScreen({ navigation }: any) {
+  useScreenView("OfferRideScreen");
   const [source, setSource] = useState<Point>(DEFAULT_SOURCE);
   const [destination, setDestination] = useState<Point | null>(null);
   const [travelDate, setTravelDate] = useState(() => {

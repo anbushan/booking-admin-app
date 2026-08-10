@@ -7,9 +7,11 @@ import { colors, spacing, radius, typography } from "../theme/theme";
 import { api, setAuthToken } from "../lib/api";
 import { setupPushNotifications } from "../lib/pushNotifications";
 import { Analytics } from "../lib/analytics";
+import { appEvents } from "../lib/appEvents";
 import { useToast } from "../components/Toast";
 import { KeyboardAvoider } from "../components/KeyboardAvoider";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { useScreenView } from "../lib/useScreenView";
 
 // Matches the backend's own RESEND_COOLDOWN_SECONDS (auth.routes.js) —
 // the resend button becomes tappable exactly when the backend would
@@ -26,6 +28,11 @@ async function completeLogin(result: any, navigation: any) {
   await setAuthToken(result.token);
   setupPushNotifications().catch(() => {});
   Analytics.login();
+  // Tells AppSocketBridge to (re)connect right now, rather than waiting
+  // for the next app-foreground event — without this, a fresh login
+  // partway through a session would sit with no live connection until
+  // the app happened to background/foreground once.
+  appEvents.emit("auth:login");
   navigation.reset({
     index: 0,
     // Every returning login goes through SwitchRole now, not just the
@@ -43,11 +50,15 @@ async function completeLogin(result: any, navigation: any) {
 }
 
 export function PhoneEntryScreen({ navigation }: any) {
+  useScreenView("PhoneEntryScreen");
   const [phone, setPhone] = useState("");
   const [passcode, setPasscode] = useState("");
   const [mode, setMode] = useState<"otp" | "passcode">("otp");
   const [touched, setTouched] = useState(false);
   const [sending, setSending] = useState(false);
+  // Default checked — see OtpVerifyScreen's matching state for why this
+  // one defaults on where RegisterScreen's own checkbox defaults off.
+  const [whatsappOptIn, setWhatsappOptIn] = useState(true);
   const inputRef = useRef<TextInput>(null);
 
   // Strips anything that isn't a digit — the on-screen numeric keypad
@@ -69,7 +80,10 @@ export function PhoneEntryScreen({ navigation }: any) {
     setSending(true);
     try {
       await api.sendOtp(phone);
-      navigation.navigate("OtpVerify", { phone });
+      // Carries the checkbox's value forward instead of asking again on
+      // the very next screen — asking twice in the same flow is exactly
+      // the "repeat" this consolidated onto one screen to avoid.
+      navigation.navigate("OtpVerify", { phone, whatsappOptIn });
     } catch (err: any) {
       showAlert("Couldn't send OTP", err.message);
     } finally {
@@ -82,7 +96,7 @@ export function PhoneEntryScreen({ navigation }: any) {
     if (!isValid || !isPasscodeValid) return;
     setSending(true);
     try {
-      const result = await api.verifyPasscode(phone, passcode);
+      const result = await api.verifyPasscode(phone, passcode, whatsappOptIn);
       await completeLogin(result, navigation);
     } catch (err: any) {
       showAlert("Couldn't log in", err.message);
@@ -96,14 +110,18 @@ export function PhoneEntryScreen({ navigation }: any) {
     // from Splash/Onboarding (see SplashOnboardingScreens.tsx), so there's
     // no previous screen in the stack to return to.
     <SafeAreaView style={styles.screen} edges={["top", "bottom"]}>
-      <KeyboardAvoider>
-        <View style={styles.heroBandTop}>
+      <KeyboardAvoider style={styles.centerContent}>
+        {/* Logo is part of the same centered column as the form now, not
+            pinned separately above it — the whole block (brand mark
+            through the signup line at the bottom) moves and centers as
+            one unit. */}
+        <View style={styles.heroBand}>
           <View style={styles.brandIconLg}>
             <Ionicons name="car-sport" size={30} color="#FFFFFF" />
           </View>
           <Text style={styles.brandName}>NanbaGO</Text>
         </View>
-        <View style={[styles.centerContent, styles.topAligned]}>
+        <View style={styles.formBlock}>
           <Text style={styles.title}>Enter your mobile number</Text>
           <Text style={styles.subtitle}>
             {mode === "otp"
@@ -157,6 +175,16 @@ export function PhoneEntryScreen({ navigation }: any) {
             />
           )}
 
+          {/* Asked once here regardless of mode, not repeated on the
+              next screen — OtpVerifyScreen carries this value forward
+              via route param instead of asking again. */}
+          <Pressable style={styles.checkboxRow} onPress={() => setWhatsappOptIn((v) => !v)}>
+            <View style={[styles.checkbox, whatsappOptIn && styles.checkboxChecked]}>
+              {whatsappOptIn && <Ionicons name="checkmark" size={13} color="#FFFFFF" />}
+            </View>
+            <Text style={styles.checkboxLabel}>Get WhatsApp updates</Text>
+          </Pressable>
+
           {mode === "otp" ? (
             <Pressable style={[styles.button, phone.length !== 10 && styles.buttonDisabled]} onPress={handleSendOtp} disabled={sending || phone.length !== 10}>
               {!sending && <Ionicons name="arrow-forward-circle-outline" size={18} color="#FFFFFF" />}
@@ -204,7 +232,12 @@ export function PhoneEntryScreen({ navigation }: any) {
 // Same screen handles both signup and login — the backend decides which
 // based on whether the phone number already has a User record.
 export function OtpVerifyScreen({ route, navigation }: any) {
-  const { phone } = route.params;
+  useScreenView("OtpVerifyScreen");
+  // whatsappOptIn was already asked and answered on PhoneEntryScreen,
+  // carried forward here rather than asked a second time in the same
+  // flow — falls back to checked if this screen is ever reached some
+  // other way that skipped that step.
+  const { phone, whatsappOptIn = true } = route.params;
   const [otp, setOtp] = useState("");
   const [verifying, setVerifying] = useState(false);
   const [resending, setResending] = useState(false);
@@ -221,7 +254,7 @@ export function OtpVerifyScreen({ route, navigation }: any) {
   async function handleVerify(code: string) {
     setVerifying(true);
     try {
-      const result = await api.verifyOtp(phone, code);
+      const result = await api.verifyOtp(phone, code, whatsappOptIn);
       await completeLogin(result, navigation);
     } catch (err: any) {
       showAlert("Verification failed", err.message);
@@ -326,13 +359,8 @@ export function OtpVerifyScreen({ route, navigation }: any) {
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.bg },
   backButtonWrap: { padding: spacing.lg, paddingBottom: 0 },
-  heroBand: { alignItems: "center", paddingTop: spacing.xl, paddingBottom: spacing.lg },
-  // Sits right under the safe area, not floating mid-screen — the
-  // vertically-centered form below it used to push the logo down with
-  // it (centerContent covers the rest of the screen and was previously
-  // used alone, with nothing pinning the brand mark above it).
-  heroBandTop: { alignItems: "center", paddingTop: spacing.sm, paddingBottom: spacing.md },
-  topAligned: { justifyContent: "flex-start", paddingTop: spacing.md },
+  heroBand: { alignItems: "center", paddingBottom: spacing.lg },
+  formBlock: { width: "100%", alignItems: "center" },
   brandIconLg: {
     width: 64, height: 64, borderRadius: 32, backgroundColor: colors.accent,
     alignItems: "center", justifyContent: "center", marginBottom: spacing.sm,
@@ -352,6 +380,13 @@ const styles = StyleSheet.create({
   signupLink: { flexDirection: "row", gap: 6, marginTop: spacing.lg, paddingHorizontal: spacing.sm },
   signupLinkText: { ...typography.caption, color: colors.textSecondary, flex: 1, lineHeight: 18 },
   signupLinkAccent: { color: colors.accentText, fontWeight: "700" },
+  checkboxRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm, marginBottom: spacing.md, alignSelf: "flex-start" },
+  checkbox: {
+    width: 20, height: 20, borderRadius: 5, borderWidth: 1.5, borderColor: colors.border,
+    backgroundColor: colors.surface, alignItems: "center", justifyContent: "center",
+  },
+  checkboxChecked: { backgroundColor: colors.accent, borderColor: colors.accent },
+  checkboxLabel: { ...typography.caption, color: colors.textSecondary },
   passcodeInput: {
     width: "100%",
     backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border,
@@ -384,7 +419,7 @@ const styles = StyleSheet.create({
   button: {
     flexDirection: "row",
     gap: spacing.xs,
-    backgroundColor: colors.accent,
+    backgroundColor: colors.textPrimary,
     height: 50,
     borderRadius: radius.sm,
     alignItems: "center",

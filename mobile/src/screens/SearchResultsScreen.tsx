@@ -12,6 +12,7 @@ import { Analytics } from "../lib/analytics";
 import { SafeAreaView } from "react-native-safe-area-context";
 import SearchOptionsModal, { formatSearchDate } from "../components/SearchOptionsModal";
 import { RouteTimeline } from "../components/RouteTimeline";
+import { useScreenView } from "../lib/useScreenView";
 
 type RideResult = {
   id: string;
@@ -37,6 +38,7 @@ const SORT_OPTIONS: { key: SortKey; label: string }[] = [
 ];
 
 export default function SearchResultsScreen({ navigation, route }: any) {
+  useScreenView("SearchResultsScreen");
   const {
     sourceLat = 12.9352,
     sourceLng = 77.6146,

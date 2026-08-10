@@ -9,8 +9,10 @@ import { CarLoader } from "../components/CarLoader";
 import { StatusBadge } from "../components/StatusBadge";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { BackHeader } from "../components/BackHeader";
+import { useScreenView } from "../lib/useScreenView";
 
 export default function BookingDetailScreen({ route, navigation }: any) {
+  useScreenView("BookingDetailScreen");
   const { bookingId } = route.params;
   const [booking, setBooking] = useState<any>(null);
   const [loading, setLoading] = useState(true);

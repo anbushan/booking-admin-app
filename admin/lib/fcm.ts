@@ -23,10 +23,11 @@ function ensureInitialized() {
   initialized = true;
 }
 
-export async function sendPush(fcmToken: string, title: string, body: string) {
+export async function sendPush(fcmToken: string, title: string, body: string, data?: Record<string, string>) {
   ensureInitialized();
   return admin.messaging().send({
     token: fcmToken,
     notification: { title, body },
+    ...(data ? { data } : {}),
   });
 }

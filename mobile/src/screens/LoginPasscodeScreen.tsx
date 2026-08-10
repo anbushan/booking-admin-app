@@ -15,6 +15,7 @@ import { useToast } from "../components/Toast";
 import { CarLoader } from "../components/CarLoader";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { BackHeader } from "../components/BackHeader";
+import { useScreenView } from "../lib/useScreenView";
 
 // A static, non-expiring alternative to requesting a fresh SMS OTP every
 // login (see auth.routes.js's own comment on why it's kept separate from
@@ -40,6 +41,7 @@ function passcodeFileContents(phone: string, passcode: string) {
 }
 
 export default function LoginPasscodeScreen({ navigation }: any) {
+  useScreenView("LoginPasscodeScreen");
   const [profile, setProfile] = useState<{ phone: string; hasPasscode: boolean } | null>(null);
   const [busy, setBusy] = useState(false);
   const { showSuccess, showError } = useToast();

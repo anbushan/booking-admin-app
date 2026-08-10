@@ -93,7 +93,7 @@ router.post("/send-otp", async (req, res) => {
 // Same verification path for both signup and login — the branch happens
 // below, after OTP is confirmed, based on whether the user already exists.
 router.post("/verify-otp", async (req, res) => {
-  const { phone, otp } = req.body;
+  const { phone, otp, whatsappOptIn } = req.body;
   if (!isPhone(phone) || !/^\d{4,6}$/.test(otp || "")) {
     return res.status(400).json({ error: "Enter a valid phone number and OTP." });
   }
@@ -126,6 +126,13 @@ router.post("/verify-otp", async (req, res) => {
 
   if (user.disabled) {
     return res.status(403).json({ error: "This account has been suspended." });
+  }
+
+  // Shown as a checkbox right on this login step (not just at signup/in
+  // Settings) — only touched when the client actually sends it, so a
+  // login request with no opinion on the flag never resets it.
+  if (whatsappOptIn !== undefined) {
+    user = await prisma.user.update({ where: { id: user.id }, data: { whatsappOptIn: !!whatsappOptIn } });
   }
 
   return res.json(signInResponse(user, isNewUser));
@@ -168,7 +175,7 @@ router.post("/passcode/revoke", requireAuth, async (req, res) => {
 // above for why a static, non-expiring code needs a stricter guard than
 // an OTP that's already gone in 5 minutes regardless.
 router.post("/verify-passcode", async (req, res) => {
-  const { phone, passcode } = req.body;
+  const { phone, passcode, whatsappOptIn } = req.body;
   if (!isPhone(phone) || !/^\d{6}$/.test(passcode || "")) {
     return res.status(400).json({ error: "Enter a valid phone number and passcode." });
   }
@@ -198,7 +205,13 @@ router.post("/verify-passcode", async (req, res) => {
   }
 
   await redis.del(attemptsKey);
-  return res.json(signInResponse(user, false));
+
+  let updatedUser = user;
+  if (whatsappOptIn !== undefined) {
+    updatedUser = await prisma.user.update({ where: { id: user.id }, data: { whatsappOptIn: !!whatsappOptIn } });
+  }
+
+  return res.json(signInResponse(updatedUser, false));
 });
 
 export default router;

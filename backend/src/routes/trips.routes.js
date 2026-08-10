@@ -6,6 +6,7 @@ import { sendSmsViaMsg91 } from "../lib/msg91.js";
 import { clearChatForBooking } from "../lib/chat.js";
 import { closeRideIfNoActiveBookings } from "../lib/rideLifecycle.js";
 import { validate, isLat, isLng } from "../lib/validate.js";
+import { getIO } from "../lib/socket.js";
 
 const router = Router();
 
@@ -37,6 +38,12 @@ router.post("/:bookingId/start", requireAuth, requireRole("DRIVER"), async (req,
 
   await notify(booking.passengerId, "DRIVER_ARRIVED", "Your driver has arrived",
     "Share the pickup code shown in the app to start your trip.", booking.id);
+
+  // Live push into the passenger's app, wherever they currently are in
+  // it — push notifications alone would need them to tap it (and
+  // depend on FCM being configured/permission granted); this fires
+  // regardless, as long as their app is open and connected.
+  getIO()?.to(`user:${booking.passengerId}`).emit("trip:started", { bookingId: booking.id });
 
   res.json({ bookingId: updated.id }); // OTP itself goes to the passenger's own screen, not this response
 });

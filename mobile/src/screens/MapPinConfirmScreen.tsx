@@ -7,8 +7,10 @@ import { colors, spacing, radius, typography } from "../theme/theme";
 import { api } from "../lib/api";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { BackHeader } from "../components/BackHeader";
+import { useScreenView } from "../lib/useScreenView";
 
 export default function MapPinConfirmScreen({ route, navigation }: any) {
+  useScreenView("MapPinConfirmScreen");
   const { lat, lng, address, onSelect } = route.params;
   const [position, setPosition] = useState({ lat, lng });
   const [currentAddress, setCurrentAddress] = useState(address);
@@ -101,7 +103,7 @@ const styles = StyleSheet.create({
   confirmButton: {
     flexDirection: "row",
     gap: spacing.xs,
-    backgroundColor: colors.accent,
+    backgroundColor: colors.textPrimary,
     height: 46,
     borderRadius: radius.sm,
     alignItems: "center",

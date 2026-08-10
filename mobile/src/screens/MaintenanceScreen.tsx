@@ -5,6 +5,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { colors, spacing, radius, typography } from "../theme/theme";
 import { api } from "../lib/api";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { useScreenView } from "../lib/useScreenView";
 
 // Full-stop screen — no bottom nav, no back button, deliberately. There
 // is nothing else to do here but wait and retry; see admin's Settings >
@@ -12,6 +13,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 // SplashOnboardingScreens.tsx for where this gets checked (once, at
 // launch).
 export default function MaintenanceScreen({ navigation, route }: any) {
+  useScreenView("MaintenanceScreen");
   const { message } = route.params || {};
   const [checking, setChecking] = useState(false);
 

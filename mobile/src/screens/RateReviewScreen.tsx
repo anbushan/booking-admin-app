@@ -9,8 +9,10 @@ import { Analytics } from "../lib/analytics";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { KeyboardAvoider } from "../components/KeyboardAvoider";
 import { BackHeader } from "../components/BackHeader";
+import { useScreenView } from "../lib/useScreenView";
 
 export default function RateReviewScreen({ route, navigation }: any) {
+  useScreenView("RateReviewScreen");
   const { bookingId, toUserId, toUserName } = route.params;
   const [rating, setRating] = useState(0);
   const [comment, setComment] = useState("");

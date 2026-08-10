@@ -10,8 +10,10 @@ import { FieldError } from "../components/FieldError";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { KeyboardAvoider } from "../components/KeyboardAvoider";
 import { BackHeader } from "../components/BackHeader";
+import { useScreenView } from "../lib/useScreenView";
 
 export default function EditRideScreen({ route, navigation }: any) {
+  useScreenView("EditRideScreen");
   const { ride } = route.params;
   const [seats, setSeats] = useState(String(ride.seatsAvailable));
   const [price, setPrice] = useState(String(ride.pricePerSeat));

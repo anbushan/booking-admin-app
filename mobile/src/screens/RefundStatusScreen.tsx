@@ -3,6 +3,7 @@ import { View, Text, StyleSheet } from "react-native";
 import { colors, spacing, radius, typography } from "../theme/theme";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { BackHeader } from "../components/BackHeader";
+import { useScreenView } from "../lib/useScreenView";
 
 const STATUS_COPY: Record<string, string> = {
   INITIATED: "Your refund has been initiated.",
@@ -12,6 +13,7 @@ const STATUS_COPY: Record<string, string> = {
 };
 
 export default function RefundStatusScreen({ route, navigation }: any) {
+  useScreenView("RefundStatusScreen");
   const { refund } = route.params;
 
   return (

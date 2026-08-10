@@ -8,6 +8,7 @@ import { useToast } from "../components/Toast";
 import { CarLoader } from "../components/CarLoader";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { BackHeader } from "../components/BackHeader";
+import { useScreenView } from "../lib/useScreenView";
 
 // Web build of LoginPasscodeScreen — expo-file-system/expo-sharing's
 // native share sheet doesn't exist on web, so this downloads the same
@@ -43,6 +44,7 @@ function downloadTextFile(filename: string, contents: string) {
 }
 
 export default function LoginPasscodeScreen({ navigation }: any) {
+  useScreenView("LoginPasscodeScreen");
   const [profile, setProfile] = useState<{ phone: string; hasPasscode: boolean } | null>(null);
   const [busy, setBusy] = useState(false);
   const { showSuccess, showError } = useToast();

@@ -12,8 +12,10 @@ import { ErrorState } from "../components/ErrorState";
 import { useToast } from "../components/Toast";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { AppBottomNav } from "../components/AppBottomNav";
+import { useScreenView } from "../lib/useScreenView";
 
 export default function VehicleListScreen({ navigation }: any) {
+  useScreenView("VehicleListScreen");
   const [vehicles, setVehicles] = useState<any[]>([]);
   const [profile, setProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);

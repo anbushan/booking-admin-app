@@ -4,6 +4,7 @@ import { Pressable } from "../components/Pressable";
 import * as Location from "expo-location";
 import { colors, spacing, radius, typography } from "../theme/theme";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { useScreenView } from "../lib/useScreenView";
 
 // Shown once, contextually right before the first trip start — not
 // buried in onboarding where it's easy to deny reflexively. Only after
@@ -11,6 +12,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 // This two-step pattern is what iOS App Store review expects for
 // background location justification.
 export default function LocationPermissionPrimingScreen({ navigation, route }: any) {
+  useScreenView("LocationPermissionPrimingScreen");
   const { onContinue } = route.params || {};
   const [requesting, setRequesting] = useState(false);
 

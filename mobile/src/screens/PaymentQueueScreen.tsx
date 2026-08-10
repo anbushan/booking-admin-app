@@ -13,6 +13,7 @@ import { AppBottomNav } from "../components/AppBottomNav";
 import { CompactStepTracker } from "../components/CompactStepTracker";
 import { bookingJourneySteps } from "../components/StepTracker";
 import { groupByRide } from "../lib/groupByRide";
+import { useScreenView } from "../lib/useScreenView";
 
 // Bookings a driver has already accepted where the passenger still owes
 // the platform fee — a focused queue separate from "Upcoming trips"
@@ -45,6 +46,7 @@ function minutesLeft(expiresAt: string | null) {
 }
 
 export default function PaymentQueueScreen({ navigation }: any) {
+  useScreenView("PaymentQueueScreen");
   const [bookings, setBookings] = useState<QueuedBooking[]>([]);
   const [profile, setProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);

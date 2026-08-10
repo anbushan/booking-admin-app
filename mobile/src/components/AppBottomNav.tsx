@@ -1,8 +1,9 @@
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { useFocusEffect } from "@react-navigation/native";
 import SideMenu from "./SideMenu";
 import { BottomNavBar } from "./BottomNavBar";
 import { api } from "../lib/api";
+import { appEvents } from "../lib/appEvents";
 
 // The persistent chrome for every "hub" screen (Home, My bookings,
 // Requests, Notifications, Settings, Profile, Earnings, ...) — screens
@@ -34,30 +35,36 @@ export function AppBottomNav({ navigation, profile, active = "", unreadCountOver
   const [upcomingTripsCount, setUpcomingTripsCount] = useState(0);
   const isDriver = profile?.role === "DRIVER";
 
+  const refresh = useCallback(() => {
+    if (!profile?.role) return;
+    if (isDriver) {
+      api.getDriverPendingRequests().then((list: any[]) => setPendingRequestCount(list.length)).catch(() => {});
+      // Same filter UpcomingTripsScreen itself uses — the badge counts
+      // exactly what you'd see if you tapped through, same as every
+      // other badge in this app.
+      api.getDriverActiveBookings()
+        .then((list: any[]) => setUpcomingTripsCount(list.filter((t) => ["AWAITING_PAYMENT", "CONFIRMED", "IN_PROGRESS"].includes(t.status)).length))
+        .catch(() => {});
+    } else {
+      api.getMyBookings()
+        .then((list: any[]) => setMyRequestsCount(list.filter((b) => ["BOOKED", "AWAITING_PAYMENT", "PAYMENT_PENDING"].includes(b.status)).length))
+        .catch(() => {});
+    }
+    api.getNotifications().then((list: any[]) => setUnreadCount(list.filter((n) => !n.read).length)).catch(() => {});
+  }, [profile?.role, isDriver]);
+
   // Refetch every time a hub screen regains focus, not just once on
   // mount — otherwise a badge stays stuck at whatever it was when the
   // app launched even after you've gone and cleared it (accepted the
   // pending request, read the notification, etc.), which is exactly
   // what "reset to 0 after viewing" needs.
-  useFocusEffect(
-    useCallback(() => {
-      if (!profile?.role) return;
-      if (isDriver) {
-        api.getDriverPendingRequests().then((list: any[]) => setPendingRequestCount(list.length)).catch(() => {});
-        // Same filter UpcomingTripsScreen itself uses — the badge counts
-        // exactly what you'd see if you tapped through, same as every
-        // other badge in this app.
-        api.getDriverActiveBookings()
-          .then((list: any[]) => setUpcomingTripsCount(list.filter((t) => ["AWAITING_PAYMENT", "CONFIRMED", "IN_PROGRESS"].includes(t.status)).length))
-          .catch(() => {});
-      } else {
-        api.getMyBookings()
-          .then((list: any[]) => setMyRequestsCount(list.filter((b) => ["BOOKED", "AWAITING_PAYMENT", "PAYMENT_PENDING"].includes(b.status)).length))
-          .catch(() => {});
-      }
-      api.getNotifications().then((list: any[]) => setUnreadCount(list.filter((n) => !n.read).length)).catch(() => {});
-    }, [profile?.role, isDriver])
-  );
+  useFocusEffect(refresh);
+
+  // On top of that, a live "chat:new" (see AppSocketBridge) refreshes
+  // immediately even without leaving the current screen — previously a
+  // message arriving while sitting on Home just sat unreflected in the
+  // badge until the next navigation happened to trigger a refetch.
+  useEffect(() => appEvents.on("chat:new", refresh), [refresh]);
 
   // The "Menu" tab itself carries no badge — a number on the menu
   // button alone doesn't say what's waiting inside, which is exactly

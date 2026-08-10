@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { View, Text, StyleSheet, Linking } from "react-native";
+import { View, Text, StyleSheet } from "react-native";
 import { Pressable } from "../components/Pressable";
 import * as Location from "expo-location";
 import { Ionicons } from "@expo/vector-icons";
@@ -9,6 +9,8 @@ import { api } from "../lib/api";
 import { Analytics } from "../lib/analytics";
 import { useToast } from "../components/Toast";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { dialProxyNumber } from "../lib/callHelper";
+import { useScreenView } from "../lib/useScreenView";
 
 // Web build of LiveTrackingScreen — react-native-maps is a native-only
 // module (it imports RN's codegen internals directly), so importing it
@@ -41,6 +43,7 @@ async function getDeviceCoords() {
 }
 
 export default function LiveTrackingScreen({ route, navigation }: any) {
+  useScreenView("LiveTrackingScreen");
   const { bookingId, role } = route.params; // role: "DRIVER" | "PASSENGER"
   const [lastLocationAt, setLastLocationAt] = useState<string | null>(null);
   const [position, setPosition] = useState<{ lat: number; lng: number } | null>(null);
@@ -144,7 +147,7 @@ export default function LiveTrackingScreen({ route, navigation }: any) {
     setCalling(true);
     try {
       const { proxyNumber } = await api.initiateCall(bookingId, role === "DRIVER" ? "PASSENGER" : "DRIVER");
-      await Linking.openURL(`tel:${proxyNumber}`);
+      await dialProxyNumber(proxyNumber);
     } catch (err: any) {
       showError(err.message || "Couldn't start the call");
     } finally {
@@ -288,7 +291,7 @@ const styles = StyleSheet.create({
   actions: { gap: spacing.md, marginTop: spacing.xl },
   completeButton: {
     flexDirection: "row", gap: spacing.xs,
-    backgroundColor: colors.accent,
+    backgroundColor: colors.textPrimary,
     height: 48,
     borderRadius: radius.sm,
     alignItems: "center",

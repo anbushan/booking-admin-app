@@ -20,14 +20,19 @@ router.post("/initiate", requireAuth, async (req, res) => {
   const callee = calleeRole === "DRIVER" ? booking.ride.driver : booking.passenger;
 
   if (process.env.CALL_PROXY_ENABLED !== "true") {
-    // Dev-mode mock — same pattern as the static-OTP bypass, keeps local
-    // development free of real Exotel/Knowlarity charges.
+    // No real masking provider configured (this is the actual state in
+    // production right now, not just local dev — CALL_PROXY_ENABLED is
+    // unset there too) — this used to return a literal, undialable
+    // placeholder string, which is why tapping "Call" never opened
+    // anything. Falls back to the callee's real number so the button
+    // actually works; there's no masking to speak of either way until
+    // a real provider is wired up in the branch below.
     const log = await prisma.callLog.create({
       data: {
         bookingId,
         callerId: caller.id,
         calleeId: callee.id,
-        proxyNumber: "+91-DEV-MOCK-0000",
+        proxyNumber: callee.phone,
         status: "INITIATED",
       },
     });
@@ -40,7 +45,13 @@ router.post("/initiate", requireAuth, async (req, res) => {
   //     headers: { Authorization: `Basic ${Buffer.from(`${apiKey}:${apiToken}`).toString("base64")}` },
   //     body: new URLSearchParams({ From: caller.phone, To: callee.phone, CallerId: exotelVirtualNumber }),
   //   });
-  const proxyNumber = "+91-EXOTEL-PLACEHOLDER";
+  // No real masking provider is wired up yet — CALL_PROXY_ENABLED=true
+  // used to just return a literal, undialable placeholder string here,
+  // which is why the in-app call button never actually opened anything.
+  // Falling back to the callee's real number keeps the button working
+  // (a direct call, no number-masking) until the above is built; at
+  // that point this becomes the mocked proxyNumber instead.
+  const proxyNumber = callee.phone;
 
   const log = await prisma.callLog.create({
     data: { bookingId, callerId: caller.id, calleeId: callee.id, proxyNumber, status: "INITIATED" },

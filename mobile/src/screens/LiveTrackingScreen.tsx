@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { View, Text, StyleSheet, Linking, Animated } from "react-native";
+import { View, Text, StyleSheet, Animated } from "react-native";
 import { Pressable } from "../components/Pressable";
 import * as Location from "expo-location";
 import { Ionicons } from "@expo/vector-icons";
@@ -11,6 +11,8 @@ import { Analytics } from "../lib/analytics";
 import { useToast } from "../components/Toast";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { decodePolyline, haversineKm, bearingDeg, LatLng } from "../lib/mapGeo";
+import { dialProxyNumber } from "../lib/callHelper";
+import { useScreenView } from "../lib/useScreenView";
 
 const STALE_THRESHOLD_MS = 90 * 1000;
 const SOS_HOLD_MS = 3000;
@@ -59,6 +61,7 @@ function closestRouteIndex(coords: LatLng[], point: { lat: number; lng: number }
 }
 
 export default function LiveTrackingScreen({ route, navigation }: any) {
+  useScreenView("LiveTrackingScreen");
   const { bookingId, role } = route.params; // role: "DRIVER" | "PASSENGER"
   const [lastLocationAt, setLastLocationAt] = useState<string | null>(null);
   const [position, setPosition] = useState<{ lat: number; lng: number } | null>(null);
@@ -270,7 +273,7 @@ export default function LiveTrackingScreen({ route, navigation }: any) {
     setCalling(true);
     try {
       const { proxyNumber } = await api.initiateCall(bookingId, role === "DRIVER" ? "PASSENGER" : "DRIVER");
-      await Linking.openURL(`tel:${proxyNumber}`);
+      await dialProxyNumber(proxyNumber);
     } catch (err: any) {
       showError(err.message || "Couldn't start the call");
     } finally {
@@ -462,7 +465,7 @@ const styles = StyleSheet.create({
   actions: { gap: spacing.md, marginTop: spacing.xl },
   completeButton: {
     flexDirection: "row", gap: spacing.xs,
-    backgroundColor: colors.accent,
+    backgroundColor: colors.textPrimary,
     height: 48,
     borderRadius: radius.sm,
     alignItems: "center",

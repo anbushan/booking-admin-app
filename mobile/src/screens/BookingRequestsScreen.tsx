@@ -14,6 +14,7 @@ import { StepTracker, bookingJourneySteps } from "../components/StepTracker";
 import { AppBottomNav } from "../components/AppBottomNav";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { groupByRide } from "../lib/groupByRide";
+import { useScreenView } from "../lib/useScreenView";
 
 type BookingRequest = {
   id: string;
@@ -31,6 +32,7 @@ function minutesLeft(expiresAt: string) {
 }
 
 export default function BookingRequestsScreen({ route, navigation }: any) {
+  useScreenView("BookingRequestsScreen");
   const { rideId } = route.params || {};
   const [requests, setRequests] = useState<BookingRequest[]>([]);
   const [profile, setProfile] = useState<any>(null);
@@ -187,7 +189,7 @@ const styles = StyleSheet.create({
   pickup: { ...typography.small, color: colors.textSecondary },
   trackerWrap: { marginTop: spacing.md, paddingTop: spacing.md, borderTopWidth: 1, borderTopColor: colors.border },
   actionRow: { flexDirection: "row", gap: spacing.sm, marginTop: spacing.md },
-  acceptButton: { flex: 1, flexDirection: "row", gap: 6, backgroundColor: colors.accent, height: 40, borderRadius: radius.sm, alignItems: "center", justifyContent: "center" },
+  acceptButton: { flex: 1, flexDirection: "row", gap: 6, backgroundColor: colors.textPrimary, height: 40, borderRadius: radius.sm, alignItems: "center", justifyContent: "center" },
   acceptText: { ...typography.caption, color: "#FFFFFF", fontWeight: "700" },
   declineButton: { flex: 1, flexDirection: "row", gap: 6, backgroundColor: colors.bg, borderWidth: 1, borderColor: colors.border, height: 40, borderRadius: radius.sm, alignItems: "center", justifyContent: "center" },
   declineText: { ...typography.caption, color: colors.textSecondary, fontWeight: "700" },

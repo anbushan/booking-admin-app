@@ -77,7 +77,7 @@ const styles = StyleSheet.create({
   title: { ...typography.title, fontSize: 16, textAlign: "center" },
   message: { ...typography.caption, color: colors.textSecondary, textAlign: "center", marginTop: spacing.xs, lineHeight: 19 },
   buttonRow: { flexDirection: "row", gap: spacing.sm, marginTop: spacing.lg, width: "100%" },
-  button: { flex: 1, backgroundColor: colors.accent, height: 44, borderRadius: radius.sm, alignItems: "center", justifyContent: "center" },
+  button: { flex: 1, backgroundColor: colors.textPrimary, height: 44, borderRadius: radius.sm, alignItems: "center", justifyContent: "center" },
   buttonCancel: { backgroundColor: colors.bg, borderWidth: 1, borderColor: colors.border },
   buttonDestructive: { backgroundColor: colors.danger },
   buttonText: { ...typography.caption, color: "#FFFFFF", fontWeight: "700" },

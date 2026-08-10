@@ -9,6 +9,7 @@ import { api } from "../lib/api";
 import { Analytics } from "../lib/analytics";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { BackHeader } from "../components/BackHeader";
+import { useScreenView } from "../lib/useScreenView";
 
 // Hardcoded true rather than gated on `__DEV__` — that global isn't
 // reliably true across every way this app gets previewed (e.g. Expo
@@ -20,6 +21,7 @@ import { BackHeader } from "../components/BackHeader";
 const SHOW_MOCK_PAYMENT_BUTTON = true;
 
 export default function PaymentScreen({ route, navigation }: any) {
+  useScreenView("PaymentScreen");
   // `description` is what shows in the Razorpay sheet and the header —
   // this screen only ever charges the platform fee now (the remaining
   // fare is settled directly with the driver, never charged in-app), so

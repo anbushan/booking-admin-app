@@ -13,6 +13,7 @@ import { RouteTimeline } from "../components/RouteTimeline";
 import { RouteStopsList } from "../components/RouteStopsList";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { BackHeader } from "../components/BackHeader";
+import { useScreenView } from "../lib/useScreenView";
 
 type RideDetails = {
   id: string;
@@ -30,6 +31,7 @@ type RideDetails = {
 };
 
 export default function BookingConfirmScreen({ route, navigation }: any) {
+  useScreenView("BookingConfirmScreen");
   const { rideId } = route.params;
   const [ride, setRide] = useState<RideDetails | null>(null);
   const [loading, setLoading] = useState(true);
@@ -240,7 +242,7 @@ const styles = StyleSheet.create({
   button: {
     flexDirection: "row",
     gap: spacing.xs,
-    backgroundColor: colors.marigold,
+    backgroundColor: colors.textPrimary,
     height: 46,
     borderRadius: radius.sm,
     alignItems: "center",

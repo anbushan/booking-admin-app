@@ -18,7 +18,12 @@ export async function notify(userId, type, title, body, bookingId = null) {
   const user = await prisma.user.findUnique({ where: { id: userId } });
   if (user?.fcmToken) {
     try {
-      await sendPush(user.fcmToken, title, body);
+      // type/bookingId ride along as the FCM data payload — tapping
+      // the OS notification reads these back out (see mobile's
+      // AppSocketBridge) to land on the actual relevant screen
+      // (ChatDetail, TripOtp, BookingDetail, ...) instead of just
+      // opening the app to wherever it was.
+      await sendPush(user.fcmToken, title, body, { type, bookingId: bookingId || "" });
       await prisma.notification.update({ where: { id: record.id }, data: { pushSent: true } });
     } catch (err) {
       // Push failing is not fatal — the in-app row already exists.

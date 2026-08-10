@@ -15,10 +15,12 @@ import { FieldError } from "../components/FieldError";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { AppBottomNav } from "../components/AppBottomNav";
 import { KeyboardAvoider } from "../components/KeyboardAvoider";
+import { useScreenView } from "../lib/useScreenView";
 
 type Contact = { id: string; name: string; phone: string; isPrimary: boolean };
 
 export function EmergencyContactsScreen({ navigation }: any) {
+  useScreenView("EmergencyContactsScreen");
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [profile, setProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -101,6 +103,7 @@ export function EmergencyContactsScreen({ navigation }: any) {
 }
 
 export function AddEmergencyContactScreen({ navigation }: any) {
+  useScreenView("AddEmergencyContactScreen");
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [relation, setRelation] = useState("");

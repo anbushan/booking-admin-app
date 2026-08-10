@@ -9,6 +9,7 @@ import { Analytics } from "../lib/analytics";
 import { CarLoader } from "../components/CarLoader";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { BackHeader } from "../components/BackHeader";
+import { useScreenView } from "../lib/useScreenView";
 
 type Profile = { role: string; isDriver: boolean; isPassenger: boolean };
 
@@ -26,6 +27,7 @@ type Profile = { role: string; isDriver: boolean; isPassenger: boolean };
 //   identical screen, just with a real back button since there's
 //   somewhere to return to.
 export default function SwitchRoleScreen({ navigation, route }: any) {
+  useScreenView("SwitchRoleScreen");
   const { forced } = route.params || {};
   const [profile, setProfile] = useState<Profile | null>(null);
   const [switching, setSwitching] = useState<string | null>(null);

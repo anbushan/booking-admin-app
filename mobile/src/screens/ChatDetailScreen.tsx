@@ -7,9 +7,11 @@ import { showAlert } from "../lib/alert";
 import { colors, spacing, radius, typography } from "../theme/theme";
 import { api } from "../lib/api";
 import { getSocket } from "../lib/socket";
+import { dialProxyNumber } from "../lib/callHelper";
 import { useToast } from "../components/Toast";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { KeyboardAvoider } from "../components/KeyboardAvoider";
+import { useScreenView } from "../lib/useScreenView";
 
 type Message = { id: string; senderId: string; text: string; type?: "TEXT" | "LOCATION"; createdAt: string };
 
@@ -23,6 +25,7 @@ function formatMessageTime(iso: string) {
 }
 
 export default function ChatDetailScreen({ route, navigation }: any) {
+  useScreenView("ChatDetailScreen");
   const { bookingId, currentUserId: paramUserId, calleeRole } = route.params;
   const [currentUserId, setCurrentUserId] = useState<string | undefined>(paramUserId);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -101,7 +104,7 @@ export default function ChatDetailScreen({ route, navigation }: any) {
     setCalling(true);
     try {
       const { proxyNumber } = await api.initiateCall(bookingId, calleeRole);
-      await Linking.openURL(`tel:${proxyNumber}`);
+      await dialProxyNumber(proxyNumber);
     } catch (err: any) {
       showError(err.message || "Couldn't start the call");
     } finally {
@@ -227,5 +230,5 @@ const styles = StyleSheet.create({
   endedBannerText: { ...typography.small, color: colors.textMuted },
   shareButton: { width: 40, height: 40, borderRadius: radius.sm, borderWidth: 1, borderColor: colors.border, alignItems: "center", justifyContent: "center" },
   input: { flex: 1, backgroundColor: colors.bg, borderRadius: radius.sm, paddingHorizontal: spacing.md, height: 40, color: colors.textPrimary },
-  sendButton: { width: 40, height: 40, backgroundColor: colors.accent, borderRadius: radius.sm, alignItems: "center", justifyContent: "center" },
+  sendButton: { width: 40, height: 40, backgroundColor: colors.textPrimary, borderRadius: radius.sm, alignItems: "center", justifyContent: "center" },
 });

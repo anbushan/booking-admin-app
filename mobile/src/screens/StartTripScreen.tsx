@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { View, Text, TextInput, Linking, StyleSheet } from "react-native";
+import { View, Text, TextInput, StyleSheet } from "react-native";
 import { Pressable } from "../components/Pressable";
 import { Ionicons } from "@expo/vector-icons";
 import { showAlert } from "../lib/alert";
@@ -12,8 +12,11 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { CarLoader } from "../components/CarLoader";
 import { KeyboardAvoider } from "../components/KeyboardAvoider";
 import { BackHeader } from "../components/BackHeader";
+import { dialProxyNumber } from "../lib/callHelper";
+import { useScreenView } from "../lib/useScreenView";
 
 export default function StartTripScreen({ route, navigation }: any) {
+  useScreenView("StartTripScreen");
   const { bookingId } = route.params;
   const [code, setCode] = useState("");
   const [verifying, setVerifying] = useState(false);
@@ -56,7 +59,7 @@ export default function StartTripScreen({ route, navigation }: any) {
     setCalling(true);
     try {
       const { proxyNumber } = await api.initiateCall(bookingId, "PASSENGER");
-      await Linking.openURL(`tel:${proxyNumber}`);
+      await dialProxyNumber(proxyNumber);
     } catch (err: any) {
       showError(err.message || "Couldn't start the call");
     } finally {

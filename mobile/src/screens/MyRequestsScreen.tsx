@@ -10,6 +10,7 @@ import { ErrorState } from "../components/ErrorState";
 import { primeLocationIfNeeded } from "../lib/locationPriming";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { AppBottomNav } from "../components/AppBottomNav";
+import { useScreenView } from "../lib/useScreenView";
 
 // A passenger's own view of where each of their outstanding requests
 // stands with the driver — a focused queue separate from "My bookings"
@@ -45,6 +46,7 @@ function minutesLeft(expiresAt: string | null) {
 }
 
 export default function MyRequestsScreen({ navigation }: any) {
+  useScreenView("MyRequestsScreen");
   const [requests, setRequests] = useState<RequestItem[]>([]);
   const [profile, setProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);

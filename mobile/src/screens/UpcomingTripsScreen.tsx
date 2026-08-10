@@ -13,6 +13,8 @@ import { UnreadBadge } from "../components/UnreadBadge";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { AppBottomNav } from "../components/AppBottomNav";
 import { groupByRide } from "../lib/groupByRide";
+import { appEvents } from "../lib/appEvents";
+import { useScreenView } from "../lib/useScreenView";
 
 // The driver-side counterpart to "Booking requests" — once a request is
 // accepted it disappears from that pending list, but nothing anywhere
@@ -32,6 +34,7 @@ type Trip = {
 };
 
 export default function UpcomingTripsScreen({ navigation }: any) {
+  useScreenView("UpcomingTripsScreen");
   const [trips, setTrips] = useState<Trip[]>([]);
   const [profile, setProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -54,6 +57,10 @@ export default function UpcomingTripsScreen({ navigation }: any) {
   }
 
   useFocusEffect(React.useCallback(() => { load(); }, []));
+
+  // Live "chat:new" (see AppSocketBridge) keeps each card's unread-chat
+  // badge current without needing to leave and come back to this screen.
+  useEffect(() => appEvents.on("chat:new", () => load()), []);
 
   function handleAction(trip: Trip) {
     if (trip.status === "CONFIRMED") {

@@ -5,6 +5,7 @@
     "version": "0.1.0",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
+    "icon": "./assets/icon.png",
     "assetBundlePatterns": [
       "**/*"
     ],
@@ -16,7 +17,8 @@
     "android": {
       "package": "com.carpool.app",
       "adaptiveIcon": {
-        "backgroundColor": "#F1EFE8"
+        "backgroundColor": "#F1EFE8",
+        "foregroundImage": "./assets/adaptive-icon.png"
       },
       "softwareKeyboardLayoutMode": "resize",
       "edgeToEdgeEnabled": true,

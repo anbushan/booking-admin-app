@@ -10,8 +10,10 @@ import { Analytics } from "../lib/analytics";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { AppBottomNav } from "../components/AppBottomNav";
 import { api } from "../lib/api";
+import { useScreenView } from "../lib/useScreenView";
 
 export function SettingsScreen({ navigation }: any) {
+  useScreenView("SettingsScreen");
   const [pushGranted, setPushGranted] = useState(true);
   const [profile, setProfile] = useState<any>(null);
 
@@ -87,6 +89,7 @@ export function SettingsScreen({ navigation }: any) {
 }
 
 export function HelpSupportScreen({ navigation }: any) {
+  useScreenView("HelpSupportScreen");
   return (
     <SafeAreaView style={styles.screen} edges={["top"]}>
       <Text style={{ ...typography.title, padding: spacing.lg, paddingBottom: spacing.sm }}>Help & support</Text>
@@ -109,6 +112,7 @@ export function HelpSupportScreen({ navigation }: any) {
 }
 
 export function AboutScreen({ navigation }: any) {
+  useScreenView("AboutScreen");
   return (
     <SafeAreaView style={styles.screen} edges={["top"]}>
       <Text style={{ ...typography.title, padding: spacing.lg, paddingBottom: spacing.sm }}>About & terms</Text>

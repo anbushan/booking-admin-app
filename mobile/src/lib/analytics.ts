@@ -42,6 +42,13 @@ export async function setUserProperty(name: string, value: string | null) {
 // consistent instead of ad hoc strings scattered across screens.
 export const Analytics = {
   appOpen: () => logEvent("app_open"),
+  // Standard GA4 screen_view event — screen_name/screen_class match
+  // what Firebase Analytics' own auto-collected screen_view uses, so
+  // this reads the same in GA4's reports as the automatic version
+  // would once real navigation-instrumentation is wired up; this
+  // explicit call exists because roughly half this app's screens had
+  // no tracking of any kind before it (see useScreenView.ts).
+  screenView: (screenName: string) => logEvent("screen_view", { screen_name: screenName, screen_class: screenName }),
   signUp: (role: string) => logEvent("sign_up", { role }),
   login: () => logEvent("login"),
   logout: () => logEvent("logout"),

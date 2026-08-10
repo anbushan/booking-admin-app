@@ -6,6 +6,7 @@ import { colors, spacing, radius, typography } from "../theme/theme";
 import { Analytics } from "../lib/analytics";
 import { API_BASE_URL } from "../lib/api";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { useScreenView } from "../lib/useScreenView";
 
 const LOCALE_LABELS: Record<string, string> = {
   en: "English",
@@ -13,6 +14,7 @@ const LOCALE_LABELS: Record<string, string> = {
 };
 
 export default function LanguageSelectionScreen({ navigation }: any) {
+  useScreenView("LanguageSelectionScreen");
   const [locales, setLocales] = useState<string[]>([]);
   const [selected, setSelected] = useState("en");
 

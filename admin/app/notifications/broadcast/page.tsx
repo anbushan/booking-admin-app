@@ -52,7 +52,9 @@ async function sendBroadcast(formData: FormData) {
   });
 
   const withToken = users.filter((u) => u.fcmToken);
-  const results = await Promise.allSettled(withToken.map((u) => sendPush(u.fcmToken as string, title, body)));
+  const results = await Promise.allSettled(
+    withToken.map((u) => sendPush(u.fcmToken as string, title, body, { type: "PROMOTION", bookingId: "" }))
+  );
   const pushed = results.filter((r) => r.status === "fulfilled").length;
 
   redirectWithToast(

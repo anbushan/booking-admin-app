@@ -5,6 +5,8 @@ import { StatusBar } from "expo-status-bar";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
 import { SplashScreen, OnboardingScreen } from "./src/screens/SplashOnboardingScreens";
+import { AppSocketBridge } from "./src/components/AppSocketBridge";
+import { navigationRef } from "./src/lib/navigationRef";
 import MaintenanceScreen from "./src/screens/MaintenanceScreen";
 import { PhoneEntryScreen, OtpVerifyScreen } from "./src/screens/OtpScreens";
 import RegisterScreen from "./src/screens/RegisterScreen";
@@ -64,9 +66,10 @@ export default function App() {
   return (
     <SafeAreaProvider>
     <ToastProvider>
-    <NavigationContainer>
+    <NavigationContainer ref={navigationRef}>
       <StatusBar style="dark" translucent backgroundColor="transparent" />
       <AlertModalHost />
+      <AppSocketBridge />
       {/* Explicit slide_from_right rather than the platform "default" —
           Android's default native-stack transition combines a fade with a
           scale, which is more expensive to composite and reads as choppy

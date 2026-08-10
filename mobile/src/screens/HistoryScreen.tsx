@@ -17,6 +17,8 @@ import { StatusBadge } from "../components/StatusBadge";
 import { StepTracker, bookingJourneySteps } from "../components/StepTracker";
 import { AppBottomNav } from "../components/AppBottomNav";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { appEvents } from "../lib/appEvents";
+import { useScreenView } from "../lib/useScreenView";
 
 // CONFIRMED deliberately excluded — once the platform fee's paid, the
 // seat is locked in for real; self-cancelling never refunded it anyway
@@ -32,6 +34,7 @@ const ACTIVE_BOOKING_STATUSES = ["BOOKED", "AWAITING_PAYMENT", "CHARGE_ATTEMPTED
 const ACTIVE_RIDE_STATUSES = ["PUBLISHED", "IN_PROGRESS"];
 
 export default function HistoryScreen({ navigation, route }: any) {
+  useScreenView("HistoryScreen");
   // role is optional — screens that already know it (e.g. a driver-only
   // flow) can pass it, but History is also reachable generically (side
   // menu, deep links) with no params at all, so fall back to the caller's
@@ -74,6 +77,12 @@ export default function HistoryScreen({ navigation, route }: any) {
       if (role) load();
     }, [role])
   );
+
+  // Live "chat:new" (see AppSocketBridge) keeps each card's unread-chat
+  // badge current without needing to leave and come back to this
+  // screen — previously a message that arrived while this list was
+  // already on screen just sat unreflected until the next refocus.
+  useEffect(() => appEvents.on("chat:new", () => { if (role) load(); }), [role]);
 
   // Only reachable pre-payment now (CONFIRMED is no longer in
   // CANCELLABLE_STATUSES) — always a free withdrawal, nothing to warn

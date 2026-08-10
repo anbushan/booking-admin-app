@@ -11,6 +11,7 @@ import { ErrorState } from "../components/ErrorState";
 import { useToast } from "../components/Toast";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { AppBottomNav } from "../components/AppBottomNav";
+import { useScreenView } from "../lib/useScreenView";
 
 type Earnings = {
   totalThisMonth: number;
@@ -39,6 +40,7 @@ function formatTripDate(iso: string | null) {
 }
 
 export default function EarningsScreen({ navigation }: any) {
+  useScreenView("EarningsScreen");
   const [data, setData] = useState<Earnings | null>(null);
   const [profile, setProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);

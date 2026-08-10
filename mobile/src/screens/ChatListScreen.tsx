@@ -9,6 +9,7 @@ import { EmptyState } from "../components/EmptyState";
 import { ErrorState } from "../components/ErrorState";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { BackHeader } from "../components/BackHeader";
+import { useScreenView } from "../lib/useScreenView";
 
 type Conversation = {
   bookingId: string;
@@ -28,6 +29,7 @@ type Conversation = {
 const ACTIVE_CHAT_STATUSES = ["CONFIRMED"];
 
 export default function ChatListScreen({ navigation, route }: any) {
+  useScreenView("ChatListScreen");
   // Same as History — reachable generically (side menu, deep links) with
   // no params, so fall back to the caller's own profile when needed.
   const { currentUserId: paramUserId, role: paramRole } = route.params || {};

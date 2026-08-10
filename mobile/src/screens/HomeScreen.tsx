@@ -9,7 +9,9 @@ import SearchOptionsModal, { formatSearchDate } from "../components/SearchOption
 import { CarLoader } from "../components/CarLoader";
 import { AppBottomNav } from "../components/AppBottomNav";
 import { HowItWorksSheet, DRIVER_STEPS, PASSENGER_STEPS } from "../components/HowItWorksSheet";
+import { TrustBadges } from "../components/TrustBadges";
 import { api } from "../lib/api";
+import { useScreenView } from "../lib/useScreenView";
 
 type Point = { lat: number; lng: number; address: string };
 
@@ -27,6 +29,7 @@ const DRIVER_ACTIONS = [
 ] as const;
 
 export default function HomeScreen({ navigation }: any) {
+  useScreenView("HomeScreen");
   const insets = useSafeAreaInsets();
   const [source, setSource] = useState<Point>(DEFAULT_SOURCE);
   const [destination, setDestination] = useState<Point | null>(null);
@@ -247,6 +250,8 @@ export default function HomeScreen({ navigation }: any) {
               </View>
             </View>
           </Pressable>
+
+          <TrustBadges role="DRIVER" />
         </View>
       ) : (
         <>
@@ -286,6 +291,8 @@ export default function HomeScreen({ navigation }: any) {
             <Ionicons name="information-circle-outline" size={14} color={colors.accentText} />
             <Text style={styles.howItWorksLinkText}>How booking a ride works</Text>
           </Pressable>
+
+          <TrustBadges role="PASSENGER" />
 
           <Text style={styles.sectionLabel}>Recent</Text>
           <Pressable
@@ -409,18 +416,23 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     gap: spacing.xs,
-    backgroundColor: colors.accent,
+    backgroundColor: colors.textPrimary,
     marginHorizontal: spacing.lg,
     marginTop: spacing.md,
     height: 46,
     borderRadius: radius.sm,
   },
+  // Was colors.marigold — the one splash of a second brand color on
+  // the app's most-viewed screen, but it made the driver and passenger
+  // Home read as two different products rather than two modes of the
+  // same one. Every primary button app-wide is colors.textPrimary now;
+  // this matches.
   ctaMarigold: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     gap: spacing.xs,
-    backgroundColor: colors.marigold,
+    backgroundColor: colors.textPrimary,
     height: 46,
     borderRadius: radius.sm,
   },

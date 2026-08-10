@@ -9,10 +9,12 @@ import { FieldError } from "../components/FieldError";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { KeyboardAvoider } from "../components/KeyboardAvoider";
 import { BackHeader } from "../components/BackHeader";
+import { useScreenView } from "../lib/useScreenView";
 
 const SEAT_OPTIONS = [4, 5, 6, 7];
 
 export default function EditVehicleScreen({ route, navigation }: any) {
+  useScreenView("EditVehicleScreen");
   const { vehicle } = route.params;
   const [make, setMake] = useState(vehicle.make);
   const [model, setModel] = useState(vehicle.model);

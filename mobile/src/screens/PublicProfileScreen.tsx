@@ -6,8 +6,10 @@ import { colors, spacing, radius, typography } from "../theme/theme";
 import { api } from "../lib/api";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { BackHeader } from "../components/BackHeader";
+import { useScreenView } from "../lib/useScreenView";
 
 export default function PublicProfileScreen({ route, navigation }: any) {
+  useScreenView("PublicProfileScreen");
   const { userId } = route.params;
   const [profile, setProfile] = useState<any>(null);
   const [reviews, setReviews] = useState<any[]>([]);

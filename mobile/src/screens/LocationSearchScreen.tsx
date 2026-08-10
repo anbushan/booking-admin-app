@@ -8,6 +8,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useToast } from "../components/Toast";
 import { EmptyState } from "../components/EmptyState";
 import { KeyboardAvoider } from "../components/KeyboardAvoider";
+import { useScreenView } from "../lib/useScreenView";
 
 type Suggestion = { placeId: string; description: string };
 
@@ -20,6 +21,7 @@ function newSessionToken() {
 }
 
 export default function LocationSearchScreen({ navigation, route }: any) {
+  useScreenView("LocationSearchScreen");
   // skipMapConfirm: true bypasses MapPinConfirmScreen (which needs
   // react-native-maps, a native module Expo Go can't load) for callers that
   // only need an approximate point — e.g. Home's ride search — rather than

@@ -10,6 +10,7 @@ import { Analytics } from "../lib/analytics";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { CarLoader } from "../components/CarLoader";
 import { BackHeader } from "../components/BackHeader";
+import { useScreenView } from "../lib/useScreenView";
 
 const DOC_TYPES: { key: "LICENSE" | "RC" | "INSURANCE"; label: string; icon: keyof typeof Ionicons.glyphMap }[] = [
   { key: "LICENSE", label: "Driving license", icon: "card-outline" },
@@ -18,6 +19,7 @@ const DOC_TYPES: { key: "LICENSE" | "RC" | "INSURANCE"; label: string; icon: key
 ];
 
 export default function DocumentUploadScreen({ navigation }: any) {
+  useScreenView("DocumentUploadScreen");
   const [uploading, setUploading] = useState<string | null>(null);
   const [uploaded, setUploaded] = useState<Record<string, boolean>>({});
 

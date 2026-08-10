@@ -11,6 +11,7 @@ import { FieldError } from "../components/FieldError";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { KeyboardAvoider } from "../components/KeyboardAvoider";
 import { BackHeader } from "../components/BackHeader";
+import { useScreenView } from "../lib/useScreenView";
 
 // Two-wheeler and auto are placeholders for now — UI-only, no backend
 // field yet. Only "car" is selectable until that's built out.
@@ -22,6 +23,7 @@ const VEHICLE_TYPES = [
 const SEAT_OPTIONS = [4, 5, 6, 7];
 
 export default function AddVehicleScreen({ navigation }: any) {
+  useScreenView("AddVehicleScreen");
   const [make, setMake] = useState("");
   const [model, setModel] = useState("");
   const [regNumber, setRegNumber] = useState("");

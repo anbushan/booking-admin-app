@@ -10,6 +10,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { AppBottomNav } from "../components/AppBottomNav";
 import { KeyboardAvoider } from "../components/KeyboardAvoider";
 import { CarLoader } from "../components/CarLoader";
+import { useScreenView } from "../lib/useScreenView";
 
 function memberSince(createdAt?: string) {
   if (!createdAt) return null;
@@ -17,6 +18,7 @@ function memberSince(createdAt?: string) {
 }
 
 export function ProfileScreen({ navigation }: any) {
+  useScreenView("ProfileScreen");
   const [profile, setProfile] = useState<any>(null);
 
   useEffect(() => {
@@ -115,6 +117,7 @@ export function ProfileScreen({ navigation }: any) {
 }
 
 export function EditProfileScreen({ route, navigation }: any) {
+  useScreenView("EditProfileScreen");
   const { profile } = route.params;
   const [name, setName] = useState(profile.name || "");
   const [email, setEmail] = useState(profile.email || "");

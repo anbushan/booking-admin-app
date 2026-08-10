@@ -4,8 +4,10 @@ import { Pressable } from "../components/Pressable";
 import { colors, spacing, radius, typography } from "../theme/theme";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { BackHeader } from "../components/BackHeader";
+import { useScreenView } from "../lib/useScreenView";
 
 export default function PaymentDetailScreen({ route, navigation }: any) {
+  useScreenView("PaymentDetailScreen");
   const { booking } = route.params;
   const platformFee = booking.platformFeeAmount != null ? Number(booking.platformFeeAmount) : null;
   const remainingFare = booking.remainingFareAmount != null ? Number(booking.remainingFareAmount) : null;

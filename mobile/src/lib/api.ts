@@ -1,6 +1,7 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Location from "expo-location";
 import { reportNetworkError } from "./networkStatus";
+import { appEvents } from "./appEvents";
 
 // Production backend on Railway (see backend/README or the deploy notes for
 // how this got provisioned — Neon Postgres + Railway-hosted Redis, both
@@ -50,12 +51,12 @@ export const api = {
   sendOtp: (phone: string) =>
     request("/api/auth/send-otp", { method: "POST", body: JSON.stringify({ phone }) }),
 
-  verifyOtp: (phone: string, otp: string) =>
-    request("/api/auth/verify-otp", { method: "POST", body: JSON.stringify({ phone, otp }) }),
+  verifyOtp: (phone: string, otp: string, whatsappOptIn?: boolean) =>
+    request("/api/auth/verify-otp", { method: "POST", body: JSON.stringify({ phone, otp, whatsappOptIn }) }),
 
   // Alternative to OTP for a returning login — see auth.routes.js.
-  verifyPasscode: (phone: string, passcode: string) =>
-    request("/api/auth/verify-passcode", { method: "POST", body: JSON.stringify({ phone, passcode }) }),
+  verifyPasscode: (phone: string, passcode: string, whatsappOptIn?: boolean) =>
+    request("/api/auth/verify-passcode", { method: "POST", body: JSON.stringify({ phone, passcode, whatsappOptIn }) }),
 
   generatePasscode: () =>
     request("/api/auth/passcode/generate", { method: "POST" }),
@@ -304,4 +305,8 @@ export async function logout() {
     // Ignore — logging out should never get blocked by a network call.
   }
   await AsyncStorage.removeItem("authToken");
+  // Tells AppSocketBridge to drop the live connection — without this a
+  // stale, still-authenticated socket could sit open after sign-out
+  // until the app happened to background/foreground again.
+  appEvents.emit("auth:logout");
 }

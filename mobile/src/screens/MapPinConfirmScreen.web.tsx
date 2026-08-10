@@ -5,6 +5,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { colors, spacing, radius, typography } from "../theme/theme";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { BackHeader } from "../components/BackHeader";
+import { useScreenView } from "../lib/useScreenView";
 
 // Web build of MapPinConfirmScreen — see LiveTrackingScreen.web.tsx for why
 // react-native-maps can't be imported on web at all. The drag-to-adjust-pin
@@ -12,6 +13,7 @@ import { BackHeader } from "../components/BackHeader";
 // just confirms the geocoded point as-is.
 
 export default function MapPinConfirmScreen({ route, navigation }: any) {
+  useScreenView("MapPinConfirmScreen");
   const { lat, lng, address, onSelect } = route.params;
   const [confirming, setConfirming] = useState(false);
 
@@ -63,7 +65,7 @@ const styles = StyleSheet.create({
   confirmButton: {
     flexDirection: "row",
     gap: spacing.xs,
-    backgroundColor: colors.accent,
+    backgroundColor: colors.textPrimary,
     height: 46,
     borderRadius: radius.sm,
     alignItems: "center",

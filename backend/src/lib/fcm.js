@@ -12,10 +12,14 @@ function ensureInitialized() {
   initialized = true;
 }
 
-export async function sendPush(fcmToken, title, body) {
+export async function sendPush(fcmToken, title, body, data) {
   ensureInitialized();
   return admin.messaging().send({
     token: fcmToken,
     notification: { title, body },
+    // FCM data payload values must all be strings — every caller is
+    // responsible for that (notify.js already sends bookingId as ""
+    // rather than null for this reason).
+    ...(data ? { data } : {}),
   });
 }

@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { View, Text, Linking, StyleSheet } from "react-native";
+import { View, Text, StyleSheet } from "react-native";
 import { Pressable } from "../components/Pressable";
 import { Ionicons } from "@expo/vector-icons";
 import { colors, spacing, radius, typography } from "../theme/theme";
@@ -8,10 +8,13 @@ import { primeLocationIfNeeded } from "../lib/locationPriming";
 import { useToast } from "../components/Toast";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { BackHeader } from "../components/BackHeader";
+import { dialProxyNumber } from "../lib/callHelper";
+import { useScreenView } from "../lib/useScreenView";
 
 const OTP_LENGTH = 4;
 
 export default function TripOtpScreen({ route, navigation }: any) {
+  useScreenView("TripOtpScreen");
   const { bookingId } = route.params;
   const [otp, setOtp] = useState<string | null>(null);
   const [driverName, setDriverName] = useState("your driver");
@@ -62,7 +65,7 @@ export default function TripOtpScreen({ route, navigation }: any) {
     setCalling(true);
     try {
       const { proxyNumber } = await api.initiateCall(bookingId, "DRIVER");
-      await Linking.openURL(`tel:${proxyNumber}`);
+      await dialProxyNumber(proxyNumber);
     } catch (err: any) {
       showError(err.message || "Couldn't start the call");
     } finally {

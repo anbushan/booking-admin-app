@@ -9,8 +9,19 @@ import { notify } from "./notify.js";
 //   const server = http.createServer(app);
 //   attachSocketServer(server);
 //   server.listen(PORT, ...);   // instead of app.listen(...)
+// Set once attachSocketServer runs (server startup) — exported so REST
+// routes (trips.routes.js starting a trip, anything else that needs to
+// push a live event) can reach the same socket server without every
+// route needing its own reference threaded through from index.js.
+let ioInstance = null;
+
+export function getIO() {
+  return ioInstance;
+}
+
 export function attachSocketServer(httpServer) {
   const io = new Server(httpServer, { cors: { origin: "*" } });
+  ioInstance = io;
 
   io.use((socket, next) => {
     try {
@@ -24,6 +35,14 @@ export function attachSocketServer(httpServer) {
   });
 
   io.on("connection", (socket) => {
+    // Every connected socket sits in its own personal room the whole
+    // time it's connected, not just while a specific chat screen has
+    // called "join" — badge counts and app-wide events (a new message
+    // from ANY booking, a trip starting) need to reach whoever's
+    // signed in regardless of which screen they're actually looking
+    // at, not just someone with that one booking's room open.
+    socket.join(`user:${socket.userId}`);
+
     socket.on("join", (bookingId) => {
       socket.join(`booking:${bookingId}`);
     });
@@ -55,6 +74,12 @@ export function attachSocketServer(httpServer) {
           const sender = await prisma.user.findUnique({ where: { id: socket.userId }, select: { name: true } });
           const preview = type === "LOCATION" ? "Shared their location" : text.length > 80 ? `${text.slice(0, 80)}…` : text;
           await notify(recipientId, "NEW_MESSAGE", `New message from ${sender?.name || "them"}`, preview, bookingId);
+          // Separate from "message:receive" above (booking-room only,
+          // reaches someone with this exact chat screen open) — this
+          // reaches the recipient wherever they are in the app right
+          // now, so an unread badge can update without them having
+          // opened this conversation.
+          io.to(`user:${recipientId}`).emit("chat:new", { bookingId });
         }
       } catch (err) {
         // Best-effort — a failed notification shouldn't stop the message

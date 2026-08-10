@@ -10,6 +10,7 @@ import { RouteStopsList } from "../components/RouteStopsList";
 import { CarLoader } from "../components/CarLoader";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { BackHeader } from "../components/BackHeader";
+import { useScreenView } from "../lib/useScreenView";
 
 type Stop = { lat: number; lng: number; placeName: string; distanceKm: number; durationMinutes: number };
 type RouteOption = { summary: string; polyline: string; distanceKm: number; durationMinutes: number; stops: Stop[] };
@@ -20,6 +21,7 @@ type RouteOption = { summary: string; polyline: string; distanceKm: number; dura
 // screen just shows a single card. Publishing itself (api.createRide)
 // happens here, once a route is picked, not on the previous screen.
 export default function RouteOptionsScreen({ route, navigation }: any) {
+  useScreenView("RouteOptionsScreen");
   const rideForm = route.params;
   const [alternatives, setAlternatives] = useState<RouteOption[] | null>(null);
   const [error, setError] = useState(false);

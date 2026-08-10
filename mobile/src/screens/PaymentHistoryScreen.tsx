@@ -9,8 +9,10 @@ import { EmptyState } from "../components/EmptyState";
 import { ErrorState } from "../components/ErrorState";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { AppBottomNav } from "../components/AppBottomNav";
+import { useScreenView } from "../lib/useScreenView";
 
 export default function PaymentHistoryScreen({ navigation }: any) {
+  useScreenView("PaymentHistoryScreen");
   const [payments, setPayments] = useState<any[]>([]);
   const [profile, setProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);

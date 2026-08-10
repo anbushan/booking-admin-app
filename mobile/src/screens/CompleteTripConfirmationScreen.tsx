@@ -6,8 +6,10 @@ import { colors, spacing, radius, typography } from "../theme/theme";
 import { api } from "../lib/api";
 import { Analytics } from "../lib/analytics";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { useScreenView } from "../lib/useScreenView";
 
 export default function CompleteTripConfirmationScreen({ route, navigation }: any) {
+  useScreenView("CompleteTripConfirmationScreen");
   const { bookingId } = route.params;
   const [completing, setCompleting] = useState(false);
 

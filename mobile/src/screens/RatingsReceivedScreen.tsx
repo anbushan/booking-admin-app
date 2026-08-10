@@ -10,8 +10,10 @@ import { EmptyState } from "../components/EmptyState";
 import { ErrorState } from "../components/ErrorState";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { AppBottomNav } from "../components/AppBottomNav";
+import { useScreenView } from "../lib/useScreenView";
 
 export default function RatingsReceivedScreen({ navigation }: any) {
+  useScreenView("RatingsReceivedScreen");
   const [reviews, setReviews] = useState<any[]>([]);
   const [avgRating, setAvgRating] = useState<number | null>(null);
   const [profile, setProfile] = useState<any>(null);
