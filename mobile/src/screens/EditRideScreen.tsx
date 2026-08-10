@@ -9,6 +9,7 @@ import { computeFareCap } from "../lib/fareCap";
 import { FieldError } from "../components/FieldError";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { KeyboardAvoider } from "../components/KeyboardAvoider";
+import { BackHeader } from "../components/BackHeader";
 
 export default function EditRideScreen({ route, navigation }: any) {
   const { ride } = route.params;
@@ -61,7 +62,7 @@ export default function EditRideScreen({ route, navigation }: any) {
 
   return (
     <SafeAreaView style={styles.screen} edges={["top", "bottom"]}>
-      <Text style={{ ...typography.title, padding: spacing.lg, paddingBottom: spacing.sm }}>Edit ride</Text>
+      <BackHeader title="Edit ride" onBack={() => navigation.goBack()} />
 
       <KeyboardAvoider>
       <View style={styles.body}>

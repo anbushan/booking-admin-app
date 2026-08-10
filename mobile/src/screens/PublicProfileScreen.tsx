@@ -5,6 +5,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { colors, spacing, radius, typography } from "../theme/theme";
 import { api } from "../lib/api";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { BackHeader } from "../components/BackHeader";
 
 export default function PublicProfileScreen({ route, navigation }: any) {
   const { userId } = route.params;
@@ -16,11 +17,17 @@ export default function PublicProfileScreen({ route, navigation }: any) {
     api.getReviewsForUser(userId).then(setReviews).catch(() => setReviews([]));
   }, [userId]);
 
-  if (!profile) return <SafeAreaView style={styles.screen} edges={["top", "bottom"]} />;
+  if (!profile) {
+    return (
+      <SafeAreaView style={styles.screen} edges={["top", "bottom"]}>
+        <BackHeader title="Profile" onBack={() => navigation.goBack()} />
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.screen} edges={["top", "bottom"]}>
-      <Text style={{ ...typography.title, padding: spacing.lg, paddingBottom: spacing.sm }}>Profile</Text>
+      <BackHeader title="Profile" onBack={() => navigation.goBack()} />
 
       <View style={styles.profileCard}>
         <View style={styles.avatar}>

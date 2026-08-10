@@ -12,6 +12,7 @@ import { ErrorState } from "../components/ErrorState";
 import { RouteTimeline } from "../components/RouteTimeline";
 import { RouteStopsList } from "../components/RouteStopsList";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { BackHeader } from "../components/BackHeader";
 
 type RideDetails = {
   id: string;
@@ -87,7 +88,7 @@ export default function BookingConfirmScreen({ route, navigation }: any) {
 
   return (
     <SafeAreaView style={styles.screen} edges={["top", "bottom"]}>
-      <Text style={{ ...typography.title, padding: spacing.lg, paddingBottom: spacing.sm }}>Confirm booking</Text>
+      <BackHeader title="Confirm booking" onBack={() => navigation.goBack()} />
 
       {loading ? (
         <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>

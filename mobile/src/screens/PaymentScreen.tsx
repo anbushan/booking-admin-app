@@ -7,6 +7,7 @@ import { colors, spacing, radius, typography } from "../theme/theme";
 import { api } from "../lib/api";
 import { Analytics } from "../lib/analytics";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { BackHeader } from "../components/BackHeader";
 
 // Hardcoded true rather than gated on `__DEV__` — that global isn't
 // reliably true across every way this app gets previewed (e.g. Expo
@@ -100,7 +101,7 @@ export default function PaymentScreen({ route, navigation }: any) {
 
   return (
     <SafeAreaView style={styles.screen} edges={["top", "bottom"]}>
-      <Text style={{ ...typography.title, padding: spacing.lg, paddingBottom: spacing.sm }}>{description}</Text>
+      <BackHeader title={description} onBack={() => navigation.goBack()} />
 
       <View style={styles.body}>
         <View style={styles.summary}>

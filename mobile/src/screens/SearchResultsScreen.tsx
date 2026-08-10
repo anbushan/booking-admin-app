@@ -89,6 +89,9 @@ export default function SearchResultsScreen({ navigation, route }: any) {
   return (
     <SafeAreaView style={styles.screen} edges={["top", "bottom"]}>
       <View style={styles.titleRow}>
+        <Pressable style={styles.backButton} onPress={() => navigation.goBack()} hitSlop={8}>
+          <Ionicons name="chevron-back" size={22} color={colors.textPrimary} />
+        </Pressable>
         <View style={{ flex: 1 }}>
           <Text style={styles.pageTitle} numberOfLines={1}>{sourceAddress}{destAddress ? ` to ${destAddress}` : ""}</Text>
           <Text style={styles.pageSubtitle} numberOfLines={1}>
@@ -203,7 +206,8 @@ export default function SearchResultsScreen({ navigation, route }: any) {
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.bg },
-  titleRow: { flexDirection: "row", alignItems: "flex-start", gap: spacing.sm, padding: spacing.lg, paddingBottom: spacing.sm },
+  titleRow: { flexDirection: "row", alignItems: "flex-start", gap: spacing.sm, paddingLeft: spacing.xs, paddingRight: spacing.lg, paddingTop: spacing.sm, paddingBottom: spacing.sm },
+  backButton: { width: 36, height: 36, borderRadius: 18, alignItems: "center", justifyContent: "center", marginTop: 2 },
   pageTitle: { ...typography.title },
   pageSubtitle: { ...typography.small, color: colors.textMuted, marginTop: 2 },
   filterButton: { flexDirection: "row", alignItems: "center", gap: 5, backgroundColor: colors.bg, borderWidth: 1, borderColor: colors.border, borderRadius: radius.sm, paddingVertical: spacing.xs, paddingHorizontal: spacing.md },

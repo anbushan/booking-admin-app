@@ -130,6 +130,9 @@ export default function ChatDetailScreen({ route, navigation }: any) {
     <SafeAreaView style={styles.screen} edges={["top", "bottom"]}>
       <KeyboardAvoider>
       <View style={styles.header}>
+        <Pressable style={styles.backButton} onPress={() => navigation.goBack()} hitSlop={8}>
+          <Ionicons name="chevron-back" size={22} color={colors.textPrimary} />
+        </Pressable>
         <View style={styles.avatar}>
           <Text style={styles.avatarText}>{(otherName || "?").charAt(0).toUpperCase()}</Text>
         </View>
@@ -202,7 +205,8 @@ export default function ChatDetailScreen({ route, navigation }: any) {
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.bg },
-  header: { flexDirection: "row", alignItems: "center", gap: spacing.sm, padding: spacing.lg, borderBottomWidth: 1, borderBottomColor: colors.border, backgroundColor: colors.surface },
+  header: { flexDirection: "row", alignItems: "center", gap: spacing.sm, paddingLeft: spacing.xs, paddingRight: spacing.lg, paddingVertical: spacing.md, borderBottomWidth: 1, borderBottomColor: colors.border, backgroundColor: colors.surface },
+  backButton: { width: 36, height: 36, borderRadius: 18, alignItems: "center", justifyContent: "center" },
   avatar: { width: 32, height: 32, borderRadius: 16, backgroundColor: colors.accentBg, alignItems: "center", justifyContent: "center" },
   avatarText: { ...typography.title, fontSize: 13, color: colors.accentText },
   title: { ...typography.title, fontSize: 14 },

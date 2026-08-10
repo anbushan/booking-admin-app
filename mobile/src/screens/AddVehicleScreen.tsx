@@ -10,6 +10,7 @@ import { validateVehicle } from "../lib/validators";
 import { FieldError } from "../components/FieldError";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { KeyboardAvoider } from "../components/KeyboardAvoider";
+import { BackHeader } from "../components/BackHeader";
 
 // Two-wheeler and auto are placeholders for now — UI-only, no backend
 // field yet. Only "car" is selectable until that's built out.
@@ -48,7 +49,7 @@ export default function AddVehicleScreen({ navigation }: any) {
 
   return (
     <SafeAreaView style={styles.screen} edges={["top", "bottom"]}>
-      <Text style={{ ...typography.title, padding: spacing.lg, paddingBottom: spacing.sm }}>Add your vehicle</Text>
+      <BackHeader title="Add your vehicle" onBack={() => navigation.goBack()} />
 
       <KeyboardAvoider>
       <ScrollView contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">

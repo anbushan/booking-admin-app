@@ -8,6 +8,7 @@ import { validateVehicle } from "../lib/validators";
 import { FieldError } from "../components/FieldError";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { KeyboardAvoider } from "../components/KeyboardAvoider";
+import { BackHeader } from "../components/BackHeader";
 
 const SEAT_OPTIONS = [4, 5, 6, 7];
 
@@ -39,7 +40,7 @@ export default function EditVehicleScreen({ route, navigation }: any) {
 
   return (
     <SafeAreaView style={styles.screen} edges={["top", "bottom"]}>
-      <Text style={{ ...typography.title, padding: spacing.lg, paddingBottom: spacing.sm }}>Edit vehicle</Text>
+      <BackHeader title="Edit vehicle" onBack={() => navigation.goBack()} />
 
       <KeyboardAvoider>
       <View style={styles.body}>

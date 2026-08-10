@@ -7,6 +7,7 @@ import { api } from "../lib/api";
 import { primeLocationIfNeeded } from "../lib/locationPriming";
 import { useToast } from "../components/Toast";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { BackHeader } from "../components/BackHeader";
 
 const OTP_LENGTH = 4;
 
@@ -73,7 +74,7 @@ export default function TripOtpScreen({ route, navigation }: any) {
 
   return (
     <SafeAreaView style={styles.screen} edges={["top", "bottom"]}>
-      <Text style={{ ...typography.title, padding: spacing.lg, paddingBottom: spacing.sm }}>Your driver has arrived</Text>
+      <BackHeader title="Your driver has arrived" onBack={() => navigation.goBack()} />
 
       <View style={styles.body}>
         <View style={styles.codeCard}>

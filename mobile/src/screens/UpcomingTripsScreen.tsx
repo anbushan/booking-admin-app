@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from "react";
-import { View, Text, FlatList, StyleSheet, RefreshControl } from "react-native";
+import { View, Text, SectionList, StyleSheet, RefreshControl } from "react-native";
 import { Pressable } from "../components/Pressable";
 import { useFocusEffect } from "@react-navigation/native";
+import { Ionicons } from "@expo/vector-icons";
 import { colors, spacing, radius, typography } from "../theme/theme";
 import { api } from "../lib/api";
 import { CarLoader } from "../components/CarLoader";
@@ -11,6 +12,7 @@ import { primeLocationIfNeeded } from "../lib/locationPriming";
 import { UnreadBadge } from "../components/UnreadBadge";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { AppBottomNav } from "../components/AppBottomNav";
+import { groupByRide } from "../lib/groupByRide";
 
 // The driver-side counterpart to "Booking requests" — once a request is
 // accepted it disappears from that pending list, but nothing anywhere
@@ -25,7 +27,7 @@ type Trip = {
   status: string;
   seatsBooked: number;
   passenger?: { name: string };
-  ride?: { sourceAddress: string; destAddress: string };
+  ride?: { sourceAddress: string; destAddress: string; travelDate?: string };
   unreadMessageCount?: number;
 };
 
@@ -61,6 +63,8 @@ export default function UpcomingTripsScreen({ navigation }: any) {
     }
   }
 
+  const sections = groupByRide(trips);
+
   return (
     <SafeAreaView style={styles.screen} edges={["top"]}>
       <Text style={{ ...typography.title, padding: spacing.lg, paddingBottom: spacing.sm }}>Start trip now</Text>
@@ -72,18 +76,27 @@ export default function UpcomingTripsScreen({ navigation }: any) {
       ) : error ? (
         <ErrorState message="Couldn't load your trips." onRetry={load} />
       ) : (
-        <FlatList
+        <SectionList
           style={{ flex: 1 }}
-          data={trips}
+          sections={sections}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => load(true)} colors={[colors.accent]} tintColor={colors.accent} />}
           keyExtractor={(item) => item.id}
           contentContainerStyle={{ padding: spacing.md, gap: spacing.sm, flexGrow: 1 }}
+          stickySectionHeadersEnabled={false}
+          renderSectionHeader={({ section }) => (
+            <View style={styles.sectionHeader}>
+              <Ionicons name="navigate-outline" size={13} color={colors.accentText} />
+              <View style={{ flex: 1 }}>
+                <Text style={styles.sectionTitle}>{section.title}</Text>
+                <Text style={styles.sectionSubtitle}>{section.subtitle}</Text>
+              </View>
+            </View>
+          )}
           renderItem={({ item }) => (
             // Whole card opens the full booking detail — the explicit
             // Start/Continue/Chat buttons inside stay as their own
             // Pressables and still fire independently on their own tap.
             <Pressable style={styles.card} onPress={() => navigation.navigate("BookingDetail", { bookingId: item.id })}>
-              <Text style={styles.route}>{item.ride?.sourceAddress} to {item.ride?.destAddress}</Text>
               <View style={styles.rowBetween}>
                 <Text style={styles.meta}>{item.passenger?.name || "Passenger"} · {item.seatsBooked} seat(s)</Text>
                 <Text style={item.status === "IN_PROGRESS" ? styles.statusActive : item.status === "AWAITING_PAYMENT" ? styles.statusPending : styles.statusConfirmed}>
@@ -134,7 +147,9 @@ export default function UpcomingTripsScreen({ navigation }: any) {
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.bg },
   card: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: radius.md, padding: spacing.md },
-  route: { ...typography.title, fontSize: 14 },
+  sectionHeader: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: spacing.sm, paddingHorizontal: 2 },
+  sectionTitle: { ...typography.title, fontSize: 13, color: colors.accentText },
+  sectionSubtitle: { ...typography.small, color: colors.textMuted, marginTop: 1 },
   rowBetween: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginTop: spacing.xs },
   meta: { ...typography.small, color: colors.textMuted },
   statusConfirmed: { ...typography.small, color: colors.accentText, backgroundColor: colors.accentBg, paddingVertical: 2, paddingHorizontal: 6, borderRadius: 6 },

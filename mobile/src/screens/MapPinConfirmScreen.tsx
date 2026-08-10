@@ -6,6 +6,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { colors, spacing, radius, typography } from "../theme/theme";
 import { api } from "../lib/api";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { BackHeader } from "../components/BackHeader";
 
 export default function MapPinConfirmScreen({ route, navigation }: any) {
   const { lat, lng, address, onSelect } = route.params;
@@ -36,7 +37,7 @@ export default function MapPinConfirmScreen({ route, navigation }: any) {
 
   return (
     <SafeAreaView style={styles.screen} edges={["top", "bottom"]}>
-      <Text style={{ ...typography.title, padding: spacing.lg, paddingBottom: spacing.sm }}>Confirm location</Text>
+      <BackHeader title="Confirm location" onBack={() => navigation.goBack()} />
       <View style={styles.mapContainer}>
         <MapView
           style={{ flex: 1 }}

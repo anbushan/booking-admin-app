@@ -4,6 +4,7 @@ import { Pressable } from "../components/Pressable";
 import { Ionicons } from "@expo/vector-icons";
 import { colors, spacing, radius, typography } from "../theme/theme";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { BackHeader } from "../components/BackHeader";
 
 // Web build of MapPinConfirmScreen — see LiveTrackingScreen.web.tsx for why
 // react-native-maps can't be imported on web at all. The drag-to-adjust-pin
@@ -22,7 +23,7 @@ export default function MapPinConfirmScreen({ route, navigation }: any) {
 
   return (
     <SafeAreaView style={styles.screen} edges={["top", "bottom"]}>
-      <Text style={{ ...typography.title, padding: spacing.lg, paddingBottom: spacing.sm }}>Confirm location</Text>
+      <BackHeader title="Confirm location" onBack={() => navigation.goBack()} />
       <View style={styles.mapPlaceholder}>
         <Ionicons name="map-outline" size={28} color={colors.accentText} />
         <Text style={styles.mapPlaceholderText}>Map preview isn't available on web</Text>

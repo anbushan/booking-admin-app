@@ -7,6 +7,7 @@ import { colors, spacing, radius, typography } from "../theme/theme";
 import { api } from "../lib/api";
 import { StepTracker, bookingJourneySteps } from "../components/StepTracker";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { BackHeader } from "../components/BackHeader";
 
 export default function BookingRequestDetailScreen({ route, navigation }: any) {
   const { request } = route.params;
@@ -27,7 +28,7 @@ export default function BookingRequestDetailScreen({ route, navigation }: any) {
 
   return (
     <SafeAreaView style={styles.screen} edges={["top", "bottom"]}>
-      <Text style={{ ...typography.title, padding: spacing.lg, paddingBottom: spacing.sm }}>Booking request</Text>
+      <BackHeader title="Booking request" onBack={() => navigation.goBack()} />
 
       <View style={styles.body}>
         <View style={styles.profileRow}>

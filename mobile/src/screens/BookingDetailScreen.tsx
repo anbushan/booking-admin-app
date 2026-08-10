@@ -8,6 +8,7 @@ import { api } from "../lib/api";
 import { CarLoader } from "../components/CarLoader";
 import { StatusBadge } from "../components/StatusBadge";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { BackHeader } from "../components/BackHeader";
 
 export default function BookingDetailScreen({ route, navigation }: any) {
   const { bookingId } = route.params;
@@ -49,7 +50,7 @@ export default function BookingDetailScreen({ route, navigation }: any) {
 
   return (
     <SafeAreaView style={styles.screen} edges={["top", "bottom"]}>
-      <Text style={{ ...typography.title, padding: spacing.lg, paddingBottom: spacing.sm }}>Booking</Text>
+      <BackHeader title="Booking" onBack={() => navigation.goBack()} />
 
       <View style={styles.body}>
         <Text style={styles.route}>{booking.ride.sourceAddress} to {booking.ride.destAddress}</Text>

@@ -2,6 +2,7 @@ import React from "react";
 import { View, Text, StyleSheet } from "react-native";
 import { colors, spacing, radius, typography } from "../theme/theme";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { BackHeader } from "../components/BackHeader";
 
 const STATUS_COPY: Record<string, string> = {
   INITIATED: "Your refund has been initiated.",
@@ -15,7 +16,7 @@ export default function RefundStatusScreen({ route, navigation }: any) {
 
   return (
     <SafeAreaView style={styles.screen} edges={["top", "bottom"]}>
-      <Text style={{ ...typography.title, padding: spacing.lg, paddingBottom: spacing.sm }}>Refund status</Text>
+      <BackHeader title="Refund status" onBack={() => navigation.goBack()} />
 
       <View style={styles.body}>
         <Text style={styles.amount}>Rs {Number(refund.amount)}</Text>

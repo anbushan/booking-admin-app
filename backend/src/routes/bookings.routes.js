@@ -320,7 +320,11 @@ router.get("/driver-pending", requireAuth, requireRole("DRIVER"), async (req, re
   const bookings = await prisma.booking.findMany({
     where: { status: "BOOKED", ride: { driverId: req.user.id } },
     include: {
-      ride: { select: { id: true, sourceAddress: true, destAddress: true } },
+      // travelDate is what the client groups requests by — a driver
+      // with several published rides otherwise sees every pending
+      // request from every ride interleaved in one flat list, with no
+      // visual separation of which request belongs to which trip.
+      ride: { select: { id: true, sourceAddress: true, destAddress: true, travelDate: true } },
       passenger: { select: { name: true, ratingAvg: true } },
     },
     orderBy: { expiresAt: "asc" },
@@ -341,7 +345,10 @@ router.get("/driver-active", requireAuth, requireRole("DRIVER"), async (req, res
       ride: { driverId: req.user.id },
     },
     include: {
-      ride: { select: { sourceAddress: true, destAddress: true } },
+      // travelDate — same reason as /driver-pending above: this feeds
+      // Payment queue and Start trip now, both grouped by which ride
+      // each booking belongs to.
+      ride: { select: { sourceAddress: true, destAddress: true, travelDate: true } },
       passenger: { select: { id: true, name: true } },
     },
     orderBy: { createdAt: "desc" },

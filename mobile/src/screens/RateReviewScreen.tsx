@@ -8,6 +8,7 @@ import { useToast } from "../components/Toast";
 import { Analytics } from "../lib/analytics";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { KeyboardAvoider } from "../components/KeyboardAvoider";
+import { BackHeader } from "../components/BackHeader";
 
 export default function RateReviewScreen({ route, navigation }: any) {
   const { bookingId, toUserId, toUserName } = route.params;
@@ -41,6 +42,15 @@ export default function RateReviewScreen({ route, navigation }: any) {
 
   return (
     <SafeAreaView style={styles.screen} edges={["top", "bottom"]}>
+      <BackHeader
+        title="Rate your trip"
+        onBack={() => (navigation.canGoBack() ? navigation.goBack() : navigation.reset({ index: 0, routes: [{ name: "Home" }] }))}
+        right={
+          <Pressable onPress={() => navigation.reset({ index: 0, routes: [{ name: "Home" }] })} hitSlop={8}>
+            <Text style={styles.skipText}>Skip</Text>
+          </Pressable>
+        }
+      />
       <KeyboardAvoider style={styles.centerContent}>
         <Text style={styles.title}>Rate your trip with {toUserName}</Text>
 
@@ -72,6 +82,7 @@ export default function RateReviewScreen({ route, navigation }: any) {
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.bg },
   centerContent: { padding: spacing.lg, justifyContent: "center" },
+  skipText: { ...typography.caption, color: colors.accentText, fontWeight: "700" },
   title: { ...typography.title, textAlign: "center", marginBottom: spacing.lg },
   stars: { flexDirection: "row", justifyContent: "center", gap: spacing.sm, marginBottom: spacing.lg },
   star: { fontSize: 32, color: colors.border },

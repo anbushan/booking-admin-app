@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback } from "react";
-import { View, Text, FlatList, StyleSheet, RefreshControl } from "react-native";
+import { View, Text, SectionList, StyleSheet, RefreshControl } from "react-native";
 import { Pressable } from "../components/Pressable";
 import { useFocusEffect } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
@@ -13,6 +13,7 @@ import { Analytics } from "../lib/analytics";
 import { StepTracker, bookingJourneySteps } from "../components/StepTracker";
 import { AppBottomNav } from "../components/AppBottomNav";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { groupByRide } from "../lib/groupByRide";
 
 type BookingRequest = {
   id: string;
@@ -21,7 +22,7 @@ type BookingRequest = {
   isCustomPickup: boolean;
   pickupAddress: string;
   expiresAt: string;
-  ride?: { id: string; sourceAddress: string; destAddress: string };
+  ride?: { id: string; sourceAddress: string; destAddress: string; travelDate?: string };
 };
 
 function minutesLeft(expiresAt: string) {
@@ -73,6 +74,8 @@ export default function BookingRequestsScreen({ route, navigation }: any) {
     }
   }
 
+  const sections = groupByRide(requests);
+
   return (
     <SafeAreaView style={styles.screen} edges={["top"]}>
       <Text style={{ ...typography.title, padding: spacing.lg, paddingBottom: spacing.sm }}>{rideId ? "Booking requests" : "All booking requests"}</Text>
@@ -84,21 +87,31 @@ export default function BookingRequestsScreen({ route, navigation }: any) {
       ) : error ? (
         <ErrorState message="Couldn't load requests." onRetry={load} />
       ) : (
-      <FlatList
+      <SectionList
         style={{ flex: 1 }}
-        data={requests}
+        sections={sections}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => load(true)} colors={[colors.accent]} tintColor={colors.accent} />}
         keyExtractor={(item) => item.id}
         contentContainerStyle={{ padding: spacing.md, gap: spacing.md, flexGrow: 1 }}
+        stickySectionHeadersEnabled={false}
+        // Multiple requests for the exact same ride share one header —
+        // that's the whole point (this is what "which trip is this
+        // request even for" ambiguity looks like solved), so the
+        // per-card route row that used to repeat the same route on
+        // every single card underneath it is gone; the header already
+        // says it once.
+        renderSectionHeader={({ section }) => (
+          <View style={styles.sectionHeader}>
+            <Ionicons name="navigate-outline" size={13} color={colors.accentText} />
+            <View style={{ flex: 1 }}>
+              <Text style={styles.sectionTitle}>{section.title}</Text>
+              <Text style={styles.sectionSubtitle}>{section.subtitle}</Text>
+            </View>
+          </View>
+        )}
         renderItem={({ item }) => (
           <View style={styles.card}>
             <Pressable onPress={() => navigation.navigate("BookingRequestDetail", { request: item })}>
-              {item.ride && (
-                <View style={styles.rideRouteRow}>
-                  <Ionicons name="navigate-outline" size={12} color={colors.textMuted} />
-                  <Text style={styles.rideRoute}>{item.ride.sourceAddress} to {item.ride.destAddress}</Text>
-                </View>
-              )}
               <View style={styles.cardTop}>
                 <View style={styles.avatar}>
                   <Text style={styles.avatarText}>{(item.passenger?.name || "?").charAt(0).toUpperCase()}</Text>
@@ -160,8 +173,9 @@ const styles = StyleSheet.create({
     borderRadius: radius.md,
     padding: spacing.md,
   },
-  rideRouteRow: { flexDirection: "row", alignItems: "center", gap: 4, marginBottom: spacing.xs },
-  rideRoute: { ...typography.small, color: colors.textMuted },
+  sectionHeader: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: spacing.sm, paddingHorizontal: 2 },
+  sectionTitle: { ...typography.title, fontSize: 13, color: colors.accentText },
+  sectionSubtitle: { ...typography.small, color: colors.textMuted, marginTop: 1 },
   cardTop: { flexDirection: "row", gap: spacing.sm, alignItems: "center" },
   avatar: { width: 32, height: 32, borderRadius: 16, backgroundColor: colors.accentBg, alignItems: "center", justifyContent: "center" },
   avatarText: { ...typography.title, fontSize: 13, color: colors.accentText },

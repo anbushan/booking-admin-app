@@ -11,6 +11,7 @@ import { useToast } from "../components/Toast";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { CarLoader } from "../components/CarLoader";
 import { KeyboardAvoider } from "../components/KeyboardAvoider";
+import { BackHeader } from "../components/BackHeader";
 
 export default function StartTripScreen({ route, navigation }: any) {
   const { bookingId } = route.params;
@@ -65,6 +66,7 @@ export default function StartTripScreen({ route, navigation }: any) {
 
   return (
     <SafeAreaView style={styles.screen} edges={["top", "bottom"]}>
+      <BackHeader title="Start trip" onBack={() => navigation.goBack()} />
       <KeyboardAvoider style={styles.centerContent}>
         {arriving ? (
           <View style={styles.arrivingCard}>

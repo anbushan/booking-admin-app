@@ -523,10 +523,22 @@ router.get("/earnings", requireAuth, requireRole("DRIVER"), async (req, res) => 
   );
   const avgPerTrip = completedBookings.length ? totalThisMonth / completedBookings.length : 0;
 
+  // Cash/UPI a driver has already earned but hasn't tapped "mark
+  // collected" for yet — computed across every completed booking this
+  // month, not just the 10 shown in recentTrips, so it stays accurate
+  // even once a driver has more than 10 trips in a month.
+  const uncollected = completedBookings.filter((b) => !b.remainingFareCollectedAt);
+  const pendingCollectionAmount = uncollected.reduce(
+    (sum, b) => sum + Number(b.remainingFareAmount || 0),
+    0
+  );
+
   res.json({
     totalThisMonth,
     tripsCompleted: completedBookings.length,
     avgPerTrip: Math.round(avgPerTrip),
+    pendingCollectionAmount,
+    pendingCollectionCount: uncollected.length,
     recentTrips: completedBookings
       .slice(0, 10)
       .map((b) => ({
@@ -535,6 +547,7 @@ router.get("/earnings", requireAuth, requireRole("DRIVER"), async (req, res) => 
         amount: Number(b.remainingFareAmount || 0),
         status: b.status,
         cashCollected: !!b.remainingFareCollectedAt,
+        completedAt: b.tripCompletedAt,
         passengerId: b.passenger.id,
         passengerName: b.passenger.name,
       })),

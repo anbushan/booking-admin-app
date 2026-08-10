@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useEffect } from "react";
-import { View, Text, FlatList, StyleSheet, RefreshControl } from "react-native";
+import { View, Text, SectionList, StyleSheet, RefreshControl } from "react-native";
 import { Pressable } from "../components/Pressable";
 import { useFocusEffect } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
@@ -12,6 +12,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { AppBottomNav } from "../components/AppBottomNav";
 import { CompactStepTracker } from "../components/CompactStepTracker";
 import { bookingJourneySteps } from "../components/StepTracker";
+import { groupByRide } from "../lib/groupByRide";
 
 // Bookings a driver has already accepted where the passenger still owes
 // the platform fee — a focused queue separate from "Upcoming trips"
@@ -34,7 +35,7 @@ type QueuedBooking = {
   expiresAt: string | null;
   platformFeeAmount: string | number | null;
   passenger?: { name: string };
-  ride?: { sourceAddress: string; destAddress: string };
+  ride?: { sourceAddress: string; destAddress: string; travelDate?: string };
 };
 
 function minutesLeft(expiresAt: string | null) {
@@ -78,6 +79,8 @@ export default function PaymentQueueScreen({ navigation }: any) {
     return () => clearInterval(interval);
   }, []);
 
+  const sections = groupByRide(bookings);
+
   return (
     <SafeAreaView style={styles.screen} edges={["top"]}>
       <Text style={{ ...typography.title, padding: spacing.lg, paddingBottom: spacing.sm }}>Payment queue</Text>
@@ -89,12 +92,13 @@ export default function PaymentQueueScreen({ navigation }: any) {
       ) : error ? (
         <ErrorState message="Couldn't load the payment queue." onRetry={load} />
       ) : (
-        <FlatList
+        <SectionList
           style={{ flex: 1 }}
-          data={bookings}
+          sections={sections}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => load(true)} colors={[colors.accent]} tintColor={colors.accent} />}
           keyExtractor={(item) => item.id}
           contentContainerStyle={{ padding: spacing.md, gap: spacing.sm, flexGrow: 1 }}
+          stickySectionHeadersEnabled={false}
           ListHeaderComponent={
             bookings.length > 0 ? (
               <View style={styles.notice}>
@@ -106,6 +110,15 @@ export default function PaymentQueueScreen({ navigation }: any) {
               </View>
             ) : null
           }
+          renderSectionHeader={({ section }) => (
+            <View style={styles.sectionHeader}>
+              <Ionicons name="navigate-outline" size={13} color={colors.accentText} />
+              <View style={{ flex: 1 }}>
+                <Text style={styles.sectionTitle}>{section.title}</Text>
+                <Text style={styles.sectionSubtitle}>{section.subtitle}</Text>
+              </View>
+            </View>
+          )}
           renderItem={({ item }) => {
             const mins = minutesLeft(item.expiresAt);
             return (
@@ -114,7 +127,6 @@ export default function PaymentQueueScreen({ navigation }: any) {
               // missing — the only entry point into BookingDetailScreen
               // used to be a notification tap.
               <Pressable style={styles.card} onPress={() => navigation.navigate("BookingDetail", { bookingId: item.id })}>
-                <Text style={styles.route}>{item.ride?.sourceAddress} to {item.ride?.destAddress}</Text>
                 <View style={styles.rowBetween}>
                   <Text style={styles.meta}>
                     {item.passenger?.name || "Passenger"} · {item.seatsBooked} seat(s)
@@ -158,8 +170,10 @@ const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.bg },
   notice: { flexDirection: "row", gap: spacing.sm, alignItems: "flex-start", backgroundColor: colors.accentBg, borderRadius: radius.sm, padding: spacing.md, marginBottom: spacing.xs },
   noticeText: { ...typography.small, color: colors.accentText, flex: 1, lineHeight: 17 },
+  sectionHeader: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: spacing.sm, paddingHorizontal: 2 },
+  sectionTitle: { ...typography.title, fontSize: 13, color: colors.accentText },
+  sectionSubtitle: { ...typography.small, color: colors.textMuted, marginTop: 1 },
   card: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: radius.md, padding: spacing.md, gap: spacing.xs },
-  route: { ...typography.title, fontSize: 14 },
   rowBetween: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
   meta: { ...typography.small, color: colors.textMuted },
   fee: { ...typography.caption, fontWeight: "700", color: colors.textPrimary },

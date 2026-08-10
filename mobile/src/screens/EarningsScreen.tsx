@@ -16,13 +16,27 @@ type Earnings = {
   totalThisMonth: number;
   tripsCompleted: number;
   avgPerTrip: number;
+  pendingCollectionAmount: number;
+  pendingCollectionCount: number;
   // amount is the remaining fare — the cash/UPI portion settled directly
   // with the passenger, since the platform fee never reaches the driver.
   recentTrips: {
     id: string; route: string; amount: number; status: string; cashCollected: boolean;
-    passengerId: string; passengerName: string | null;
+    completedAt: string | null; passengerId: string; passengerName: string | null;
   }[];
 };
+
+function formatTripDate(iso: string | null) {
+  if (!iso) return "";
+  const date = new Date(iso);
+  const now = new Date();
+  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+  const startOfTarget = new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime();
+  const diffDays = Math.round((startOfTarget - startOfToday) / 86400000);
+  if (diffDays === 0) return "Today";
+  if (diffDays === -1) return "Yesterday";
+  return date.toLocaleDateString(undefined, { day: "numeric", month: "short" });
+}
 
 export default function EarningsScreen({ navigation }: any) {
   const [data, setData] = useState<Earnings | null>(null);
@@ -67,21 +81,44 @@ export default function EarningsScreen({ navigation }: any) {
       ) : (
         <>
           <View style={styles.summaryCard}>
-            <View style={styles.summaryIconWrap}>
-              <Ionicons name="wallet-outline" size={22} color="#FFFFFF" />
+            <View style={styles.summaryTopRow}>
+              <View style={styles.summaryIconWrap}>
+                <Ionicons name="wallet" size={22} color="#FFFFFF" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.summaryLabel}>Earned this month</Text>
+                <Text style={styles.summaryValue}>Rs {data?.totalThisMonth ?? 0}</Text>
+              </View>
             </View>
-            <Text style={styles.summaryLabel}>This month</Text>
-            <Text style={styles.summaryValue}>Rs {data?.totalThisMonth ?? 0}</Text>
-            <Text style={styles.summarySub}>{data?.tripsCompleted ?? 0} trips completed</Text>
+            <View style={styles.summaryStatsRow}>
+              <View style={styles.summaryStat}>
+                <Ionicons name="checkmark-done-outline" size={14} color="#FFFFFF" />
+                <Text style={styles.summaryStatText}>{data?.tripsCompleted ?? 0} trips completed</Text>
+              </View>
+              <View style={styles.summaryStat}>
+                <Ionicons name="trending-up-outline" size={14} color="#FFFFFF" />
+                <Text style={styles.summaryStatText}>Rs {data?.avgPerTrip ?? 0} avg / trip</Text>
+              </View>
+            </View>
           </View>
 
-          <View style={styles.statsRow}>
-            <View style={styles.statBox}>
-              <Ionicons name="trending-up-outline" size={16} color={colors.accentText} />
-              <Text style={styles.statValue}>Rs {data?.avgPerTrip ?? 0}</Text>
-              <Text style={styles.statLabel}>Avg per trip</Text>
+          {/* Cash/UPI already earned but not yet marked collected — the
+              thing a driver most needs to act on, so it gets its own
+              prominent, warning-toned banner instead of blending into
+              the trip list below where it's easy to miss. */}
+          {!!data?.pendingCollectionAmount && data.pendingCollectionAmount > 0 && (
+            <View style={styles.pendingBanner}>
+              <View style={styles.pendingIconWrap}>
+                <Ionicons name="cash-outline" size={18} color={colors.warning} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.pendingTitle}>Rs {data.pendingCollectionAmount} yet to collect</Text>
+                <Text style={styles.pendingSub}>
+                  {data.pendingCollectionCount} trip{data.pendingCollectionCount === 1 ? "" : "s"} where you haven't marked cash/UPI as collected
+                </Text>
+              </View>
             </View>
-          </View>
+          )}
 
           <View style={styles.notice}>
             <Ionicons name="information-circle-outline" size={16} color={colors.accentText} />
@@ -103,39 +140,46 @@ export default function EarningsScreen({ navigation }: any) {
               // collected" and "Rate passenger" stay their own
               // Pressables and still fire independently on their own tap.
               <Pressable style={styles.tripRow} onPress={() => navigation.navigate("BookingDetail", { bookingId: item.id })}>
-                <View style={styles.tripTopRow}>
-                  <View style={styles.tripIconWrap}>
-                    <Ionicons name="car-outline" size={14} color={colors.textSecondary} />
-                  </View>
-                  <Text style={styles.tripRoute}>{item.route}</Text>
-                  {item.cashCollected ? (
-                    <Text style={styles.tripAmount}>+Rs {item.amount}</Text>
-                  ) : (
-                    <Pressable style={styles.collectChip} onPress={() => markCollected(item.id)}>
-                      <Ionicons name="cash-outline" size={12} color={colors.warning} />
-                      <Text style={[styles.tripAmount, { color: colors.warning }]}>
-                        Rs {item.amount} · mark collected
-                      </Text>
-                    </Pressable>
-                  )}
+                <View style={styles.tripIconWrap}>
+                  <Ionicons name="car-outline" size={16} color={colors.textSecondary} />
                 </View>
-                {/* Only the most recent trip (index 0 — recentTrips is
-                    ordered newest first) offers feedback. Rating an older
-                    entry days later isn't useful and just clutters this
-                    list with stale actions. */}
-                {index === 0 && (
-                  <Pressable
-                    onPress={() =>
-                      navigation.navigate("RateReview", {
-                        bookingId: item.id,
-                        toUserId: item.passengerId,
-                        toUserName: item.passengerName || "your passenger",
-                      })
-                    }
-                  >
-                    <Text style={styles.rateLink}>Rate {item.passengerName || "passenger"}</Text>
-                  </Pressable>
-                )}
+                <View style={{ flex: 1 }}>
+                  <View style={styles.tripTopRow}>
+                    <Text style={styles.tripRoute} numberOfLines={1}>{item.route}</Text>
+                    <Text style={styles.tripDate}>{formatTripDate(item.completedAt)}</Text>
+                  </View>
+                  <Text style={styles.tripPassenger} numberOfLines={1}>{item.passengerName || "Passenger"}</Text>
+                  <View style={styles.tripBottomRow}>
+                    {item.cashCollected ? (
+                      <View style={styles.collectedChip}>
+                        <Ionicons name="checkmark-circle" size={12} color={colors.success} />
+                        <Text style={styles.collectedText}>Rs {item.amount} collected</Text>
+                      </View>
+                    ) : (
+                      <Pressable style={styles.collectChip} onPress={() => markCollected(item.id)}>
+                        <Ionicons name="cash-outline" size={12} color={colors.warning} />
+                        <Text style={styles.collectChipText}>Rs {item.amount} · mark collected</Text>
+                      </Pressable>
+                    )}
+                    {/* Only the most recent trip (index 0 — recentTrips
+                        is ordered newest first) offers feedback. Rating
+                        an older entry days later isn't useful and just
+                        clutters this list with stale actions. */}
+                    {index === 0 && (
+                      <Pressable
+                        onPress={() =>
+                          navigation.navigate("RateReview", {
+                            bookingId: item.id,
+                            toUserId: item.passengerId,
+                            toUserName: item.passengerName || "your passenger",
+                          })
+                        }
+                      >
+                        <Text style={styles.rateLink}>Rate {item.passengerName || "passenger"}</Text>
+                      </Pressable>
+                    )}
+                  </View>
+                </View>
               </Pressable>
             )}
             ListEmptyComponent={<EmptyState icon="wallet-outline" title="No trips yet this month" />}
@@ -149,23 +193,31 @@ export default function EarningsScreen({ navigation }: any) {
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.bg },
-  summaryCard: { backgroundColor: colors.surface, margin: spacing.lg, borderRadius: radius.md, padding: spacing.lg, alignItems: "center" },
-  summaryIconWrap: { width: 44, height: 44, borderRadius: 22, backgroundColor: colors.textPrimary, alignItems: "center", justifyContent: "center", marginBottom: spacing.sm },
-  summaryLabel: { ...typography.small, color: colors.textMuted },
-  summaryValue: { fontSize: 24, fontWeight: "700", marginTop: 4 },
-  summarySub: { ...typography.small, color: colors.success, marginTop: 2 },
-  notice: { flexDirection: "row", gap: spacing.sm, alignItems: "flex-start", backgroundColor: colors.accentBg, borderRadius: radius.sm, padding: spacing.md, marginHorizontal: spacing.lg, marginTop: spacing.md },
+  summaryCard: { backgroundColor: colors.textPrimary, margin: spacing.lg, borderRadius: radius.md, padding: spacing.lg, gap: spacing.md },
+  summaryTopRow: { flexDirection: "row", alignItems: "center", gap: spacing.md },
+  summaryIconWrap: { width: 48, height: 48, borderRadius: 24, backgroundColor: "rgba(255,255,255,0.16)", alignItems: "center", justifyContent: "center" },
+  summaryLabel: { ...typography.small, color: "rgba(255,255,255,0.7)" },
+  summaryValue: { fontSize: 26, fontWeight: "700", color: "#FFFFFF", marginTop: 2 },
+  summaryStatsRow: { flexDirection: "row", gap: spacing.lg, paddingTop: spacing.sm, borderTopWidth: 1, borderTopColor: "rgba(255,255,255,0.14)" },
+  summaryStat: { flexDirection: "row", alignItems: "center", gap: 5 },
+  summaryStatText: { ...typography.small, color: "rgba(255,255,255,0.85)" },
+  pendingBanner: { flexDirection: "row", gap: spacing.sm, alignItems: "center", backgroundColor: colors.warningBg, borderRadius: radius.sm, padding: spacing.md, marginHorizontal: spacing.lg, marginBottom: spacing.sm },
+  pendingIconWrap: { width: 34, height: 34, borderRadius: 17, backgroundColor: colors.surface, alignItems: "center", justifyContent: "center" },
+  pendingTitle: { ...typography.caption, fontWeight: "700", color: colors.warning },
+  pendingSub: { ...typography.small, color: colors.textMuted, marginTop: 1 },
+  notice: { flexDirection: "row", gap: spacing.sm, alignItems: "flex-start", backgroundColor: colors.accentBg, borderRadius: radius.sm, padding: spacing.md, marginHorizontal: spacing.lg },
   noticeText: { ...typography.small, color: colors.accentText, flex: 1, lineHeight: 17 },
-  statsRow: { flexDirection: "row", gap: spacing.sm, marginHorizontal: spacing.lg },
-  statBox: { flex: 1, backgroundColor: colors.surface, borderRadius: radius.sm, padding: spacing.md, alignItems: "center", gap: 2 },
-  statValue: { fontSize: 16, fontWeight: "700" },
-  statLabel: { ...typography.small, color: colors.textMuted, marginTop: 2 },
   sectionLabel: { ...typography.title, fontSize: 13, marginHorizontal: spacing.lg, marginTop: spacing.lg, marginBottom: spacing.xs },
-  tripRow: { paddingVertical: spacing.sm, borderBottomWidth: 1, borderBottomColor: colors.border, gap: spacing.xs },
+  tripRow: { flexDirection: "row", gap: spacing.sm, paddingVertical: spacing.sm, borderBottomWidth: 1, borderBottomColor: colors.border },
   tripTopRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: spacing.xs },
-  tripIconWrap: { width: 24, height: 24, borderRadius: 8, backgroundColor: colors.bg, alignItems: "center", justifyContent: "center" },
-  tripRoute: { ...typography.caption, flex: 1 },
-  tripAmount: { ...typography.caption, color: colors.success },
-  collectChip: { flexDirection: "row", alignItems: "center", gap: 4 },
-  rateLink: { ...typography.small, color: colors.accentText },
+  tripBottomRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: spacing.xs, marginTop: 4 },
+  tripIconWrap: { width: 30, height: 30, borderRadius: 10, backgroundColor: colors.bg, alignItems: "center", justifyContent: "center", marginTop: 2 },
+  tripRoute: { ...typography.caption, fontWeight: "700", flex: 1 },
+  tripDate: { ...typography.small, color: colors.textMuted },
+  tripPassenger: { ...typography.small, color: colors.textMuted, marginTop: 1 },
+  collectedChip: { flexDirection: "row", alignItems: "center", gap: 4, backgroundColor: colors.successBg, paddingVertical: 3, paddingHorizontal: 8, borderRadius: 999 },
+  collectedText: { ...typography.small, color: colors.success, fontWeight: "700" },
+  collectChip: { flexDirection: "row", alignItems: "center", gap: 4, backgroundColor: colors.warningBg, paddingVertical: 3, paddingHorizontal: 8, borderRadius: 999 },
+  collectChipText: { ...typography.small, color: colors.warning, fontWeight: "700" },
+  rateLink: { ...typography.small, color: colors.accentText, fontWeight: "700" },
 });

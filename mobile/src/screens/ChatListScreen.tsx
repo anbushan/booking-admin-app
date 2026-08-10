@@ -8,6 +8,7 @@ import { CarLoader } from "../components/CarLoader";
 import { EmptyState } from "../components/EmptyState";
 import { ErrorState } from "../components/ErrorState";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { BackHeader } from "../components/BackHeader";
 
 type Conversation = {
   bookingId: string;
@@ -97,7 +98,7 @@ export default function ChatListScreen({ navigation, route }: any) {
 
   return (
     <SafeAreaView style={styles.screen} edges={["top", "bottom"]}>
-      <Text style={{ ...typography.title, padding: spacing.lg, paddingBottom: spacing.sm }}>Messages</Text>
+      <BackHeader title="Messages" onBack={() => navigation.goBack()} />
       {loading ? (
         <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
           <CarLoader size="lg" />
