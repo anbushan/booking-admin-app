@@ -42,9 +42,14 @@ async function main() {
     },
   });
 
+  // Ravi carries all three vehicle-review states at once, on purpose —
+  // one seeded account to exercise every case (publish with the
+  // approved one, see the pending-review empty state's own vehicle
+  // ignored, see the rejected one's reason surface) instead of needing
+  // three different logins.
   await prisma.vehicle.upsert({
     where: { id: "seed-vehicle-1" },
-    update: {},
+    update: { status: "APPROVED", reviewedAt: new Date(), rejectionReason: null },
     create: {
       id: "seed-vehicle-1",
       driverId: driver.id,
@@ -52,6 +57,43 @@ async function main() {
       model: "Swift Dzire",
       regNumber: "TN09AB1234",
       color: "White",
+      status: "APPROVED",
+      reviewedAt: new Date(),
+    },
+  });
+
+  // Rejected — has a reason set, same as a real admin rejection would,
+  // so VehicleListScreen's "Rejected — why?" tag and EditVehicleScreen's
+  // resubmit flow both have something real to show.
+  await prisma.vehicle.upsert({
+    where: { id: "seed-vehicle-3" },
+    update: { status: "REJECTED", rejectionReason: "RC photo is blurry — the registration number isn't readable. Please re-upload a clearer photo." },
+    create: {
+      id: "seed-vehicle-3",
+      driverId: driver.id,
+      make: "Toyota",
+      model: "Innova Crysta",
+      regNumber: "TN10EF9012",
+      color: "Silver",
+      status: "REJECTED",
+      reviewedAt: new Date(),
+      rejectionReason: "RC photo is blurry — the registration number isn't readable. Please re-upload a clearer photo.",
+    },
+  });
+
+  // Pending — the default for any newly added vehicle, left untouched
+  // here on purpose so it's exactly what a driver sees right after
+  // submitting one for the first time.
+  await prisma.vehicle.upsert({
+    where: { id: "seed-vehicle-4" },
+    update: {},
+    create: {
+      id: "seed-vehicle-4",
+      driverId: driver.id,
+      make: "Honda",
+      model: "City",
+      regNumber: "TN11GH3456",
+      color: "Red",
     },
   });
 
