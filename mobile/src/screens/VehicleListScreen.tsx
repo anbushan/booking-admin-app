@@ -13,7 +13,8 @@ import { useToast } from "../components/Toast";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { AppBottomNav } from "../components/AppBottomNav";
 import { useScreenView } from "../lib/useScreenView";
-import { VEHICLE_REVIEW_SLA_MESSAGE } from "./EditVehicleScreen";
+import { VEHICLE_REVIEW_SLA_MESSAGE_KEY } from "./EditVehicleScreen";
+import { useTranslation } from "../lib/i18n/I18nContext";
 
 // Same PENDING/APPROVED/REJECTED wording and warning/success/danger
 // coloring DocumentUploadScreen's own "Pending review" tag already
@@ -21,12 +22,13 @@ import { VEHICLE_REVIEW_SLA_MESSAGE } from "./EditVehicleScreen";
 // rides.routes.js) until it's APPROVED, so this is the one thing
 // worth surfacing on every card, not buried in an edit screen.
 function VehicleStatusTag({ item, onNavigate }: { item: any; onNavigate: () => void }) {
+  const { t } = useTranslation();
   const { status, rejectionReason } = item;
   if (status === "APPROVED") {
     return (
       <View style={[styles.statusTag, styles.statusApproved]}>
         <Ionicons name="checkmark-circle" size={11} color={colors.success} />
-        <Text style={[styles.statusTagText, { color: colors.success }]}>Approved</Text>
+        <Text style={[styles.statusTagText, { color: colors.success }]}>{t("vehicle.approved")}</Text>
       </View>
     );
   }
@@ -34,23 +36,23 @@ function VehicleStatusTag({ item, onNavigate }: { item: any; onNavigate: () => v
     return (
       <Pressable
         style={[styles.statusTag, styles.statusRejected]}
-        onPress={() => showAlert("Not approved", rejectionReason || "No reason was given.", [
-          { text: "Later", style: "cancel" },
-          { text: "Fix and resubmit", onPress: onNavigate },
+        onPress={() => showAlert(t("vehicle.notApproved"), rejectionReason || t("vehicle.noReasonGiven"), [
+          { text: t("vehicle.later"), style: "cancel" },
+          { text: t("vehicle.fixAndResubmit"), onPress: onNavigate },
         ])}
       >
         <Ionicons name="close-circle" size={11} color={colors.danger} />
-        <Text style={[styles.statusTagText, { color: colors.danger }]}>Rejected — why?</Text>
+        <Text style={[styles.statusTagText, { color: colors.danger }]}>{t("vehicle.rejectedWhy")}</Text>
       </Pressable>
     );
   }
   return (
     <Pressable
       style={[styles.statusTag, styles.statusPending]}
-      onPress={() => showAlert("Pending review", VEHICLE_REVIEW_SLA_MESSAGE)}
+      onPress={() => showAlert(t("vehicle.pendingReview"), t(VEHICLE_REVIEW_SLA_MESSAGE_KEY))}
     >
       <Ionicons name="time-outline" size={11} color={colors.warning} />
-      <Text style={[styles.statusTagText, { color: colors.warning }]}>Pending review</Text>
+      <Text style={[styles.statusTagText, { color: colors.warning }]}>{t("vehicle.pendingReview")}</Text>
       <Ionicons name="information-circle-outline" size={12} color={colors.warning} />
     </Pressable>
   );
@@ -58,6 +60,7 @@ function VehicleStatusTag({ item, onNavigate }: { item: any; onNavigate: () => v
 
 export default function VehicleListScreen({ navigation }: any) {
   useScreenView("VehicleListScreen");
+  const { t } = useTranslation();
   const [vehicles, setVehicles] = useState<any[]>([]);
   const [profile, setProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -79,18 +82,18 @@ export default function VehicleListScreen({ navigation }: any) {
   useFocusEffect(useCallback(() => { load(); }, []));
 
   async function handleDelete(id: string) {
-    showAlert("Remove vehicle", "Are you sure?", [
-      { text: "Cancel", style: "cancel" },
+    showAlert(t("vehicle.removeVehicle"), t("vehicle.areYouSure"), [
+      { text: t("sideMenu.cancel"), style: "cancel" },
       {
-        text: "Remove",
+        text: t("emergencyContacts.remove"),
         style: "destructive",
         onPress: async () => {
           try {
             await api.deleteVehicle(id);
-            showSuccess("Vehicle removed");
+            showSuccess(t("vehicle.vehicleRemoved"));
             load();
           } catch (err: any) {
-            showError(err.message || "Couldn't remove vehicle");
+            showError(err.message || t("vehicle.couldntRemove"));
           }
         },
       },
@@ -99,14 +102,14 @@ export default function VehicleListScreen({ navigation }: any) {
 
   return (
     <SafeAreaView style={styles.screen} edges={["top"]}>
-      <Text style={{ ...typography.title, padding: spacing.lg, paddingBottom: spacing.sm }}>Your vehicles</Text>
+      <Text style={{ ...typography.title, padding: spacing.lg, paddingBottom: spacing.sm }}>{t("vehicle.yourVehicles")}</Text>
 
       {loading ? (
         <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
           <CarLoader size="lg" />
         </View>
       ) : error ? (
-        <ErrorState message="Couldn't load vehicles." onRetry={load} />
+        <ErrorState message={t("vehicle.couldntLoad")} onRetry={load} />
       ) : (
       <FlatList
         style={{ flex: 1 }}
@@ -134,13 +137,13 @@ export default function VehicleListScreen({ navigation }: any) {
             </View>
           </View>
         )}
-        ListEmptyComponent={<EmptyState icon="car-sport-outline" title="No vehicles added yet" />}
+        ListEmptyComponent={<EmptyState icon="car-sport-outline" title={t("vehicle.noVehiclesYet")} />}
       />
       )}
 
       <Pressable style={styles.addButton} onPress={() => navigation.navigate("DriverOnboarding")}>
         <Ionicons name="add-circle-outline" size={18} color="#FFFFFF" />
-        <Text style={styles.addButtonText}>Add vehicle</Text>
+        <Text style={styles.addButtonText}>{t("vehicle.addVehicle")}</Text>
       </Pressable>
       <AppBottomNav navigation={navigation} profile={profile} active="menu" />
     </SafeAreaView>

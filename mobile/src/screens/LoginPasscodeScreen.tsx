@@ -16,6 +16,7 @@ import { CarLoader } from "../components/CarLoader";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { BackHeader } from "../components/BackHeader";
 import { useScreenView } from "../lib/useScreenView";
+import { useTranslation } from "../lib/i18n/I18nContext";
 
 // A static, non-expiring alternative to requesting a fresh SMS OTP every
 // login (see auth.routes.js's own comment on why it's kept separate from
@@ -23,6 +24,10 @@ import { useScreenView } from "../lib/useScreenView";
 // generating + downloading + revoking it — the login screen that
 // actually accepts it lives in OtpScreens.tsx (PhoneEntryScreen's
 // "Log in with passcode instead" mode).
+//
+// The contents of the downloaded .txt file itself are left in English
+// regardless of app locale — it's a technical artifact handed to the
+// user to keep, not part of the in-app reading experience.
 function passcodeFileContents(phone: string, passcode: string) {
   return [
     "NanbaGO login passcode",
@@ -42,6 +47,7 @@ function passcodeFileContents(phone: string, passcode: string) {
 
 export default function LoginPasscodeScreen({ navigation }: any) {
   useScreenView("LoginPasscodeScreen");
+  const { t } = useTranslation();
   const [profile, setProfile] = useState<{ phone: string; hasPasscode: boolean } | null>(null);
   const [busy, setBusy] = useState(false);
   const { showSuccess, showError } = useToast();
@@ -60,26 +66,26 @@ export default function LoginPasscodeScreen({ navigation }: any) {
       if (await Sharing.isAvailableAsync()) {
         await Sharing.shareAsync(fileUri, {
           mimeType: "text/plain",
-          dialogTitle: "Save your NanbaGO login passcode",
+          dialogTitle: t("loginPasscode.saveDialogTitle"),
         });
       } else {
         // No share sheet available (rare) — at least show the code once
         // so generating wasn't a dead end.
-        showAlert("Your passcode", `${passcode}\n\nWrite this down — it won't be shown again.`);
+        showAlert(t("loginPasscode.yourPasscodeTitle"), t("loginPasscode.yourPasscodeBody", { passcode }));
       }
       setProfile((p) => (p ? { ...p, hasPasscode: true } : p));
-      showSuccess("Passcode ready");
+      showSuccess(t("loginPasscode.passcodeReady"));
     } catch (err: any) {
-      showError(err.message || "Couldn't generate a passcode");
+      showError(err.message || t("loginPasscode.couldntGenerate"));
     } finally {
       setBusy(false);
     }
   }
 
   function confirmRevoke() {
-    showAlert("Revoke passcode?", "The downloaded file stops working immediately. You can generate a new one anytime.", [
-      { text: "Cancel", style: "cancel" },
-      { text: "Revoke", style: "destructive", onPress: handleRevoke },
+    showAlert(t("loginPasscode.revokeConfirmTitle"), t("loginPasscode.revokeConfirmBody"), [
+      { text: t("sideMenu.cancel"), style: "cancel" },
+      { text: t("loginPasscode.revoke"), style: "destructive", onPress: handleRevoke },
     ]);
   }
 
@@ -88,9 +94,9 @@ export default function LoginPasscodeScreen({ navigation }: any) {
     try {
       await api.revokePasscode();
       setProfile((p) => (p ? { ...p, hasPasscode: false } : p));
-      showSuccess("Passcode revoked");
+      showSuccess(t("loginPasscode.passcodeRevoked"));
     } catch (err: any) {
-      showError(err.message || "Couldn't revoke the passcode");
+      showError(err.message || t("loginPasscode.couldntRevoke"));
     } finally {
       setBusy(false);
     }
@@ -98,7 +104,7 @@ export default function LoginPasscodeScreen({ navigation }: any) {
 
   return (
     <SafeAreaView style={styles.screen} edges={["top", "bottom"]}>
-      <BackHeader title="Login passcode" onBack={() => navigation.goBack()} />
+      <BackHeader title={t("loginPasscode.title")} onBack={() => navigation.goBack()} />
 
       {!profile ? (
         <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
@@ -109,39 +115,33 @@ export default function LoginPasscodeScreen({ navigation }: any) {
           <View style={styles.brandIcon}>
             <Ionicons name="key-outline" size={24} color={colors.accentText} />
           </View>
-          <Text style={styles.title}>Skip the SMS wait</Text>
-          <Text style={styles.subtitle}>
-            Download a 6-digit passcode once, and use it to log in on any device instead of
-            requesting a fresh OTP every time.
-          </Text>
+          <Text style={styles.title}>{t("loginPasscode.skipSmsWait")}</Text>
+          <Text style={styles.subtitle}>{t("loginPasscode.description")}</Text>
 
           <View style={styles.warning}>
             <Ionicons name="alert-circle-outline" size={15} color={colors.warning} />
-            <Text style={styles.warningText}>
-              Unlike an OTP, this code doesn't expire on its own — treat the downloaded file like a
-              password. Anyone who has it can log in as you.
-            </Text>
+            <Text style={styles.warningText}>{t("loginPasscode.warning")}</Text>
           </View>
 
           {profile.hasPasscode ? (
             <>
               <View style={styles.statusRow}>
                 <Ionicons name="checkmark-circle" size={16} color={colors.success} />
-                <Text style={styles.statusText}>A passcode is active on this account.</Text>
+                <Text style={styles.statusText}>{t("loginPasscode.activeStatus")}</Text>
               </View>
               <Pressable style={styles.button} onPress={handleGenerate} disabled={busy}>
                 <Ionicons name="refresh-outline" size={16} color="#FFFFFF" />
-                <Text style={styles.buttonText}>{busy ? "Working..." : "Generate a new one"}</Text>
+                <Text style={styles.buttonText}>{busy ? t("loginPasscode.working") : t("loginPasscode.generateNew")}</Text>
               </Pressable>
-              <Text style={styles.hint}>Generating a new one immediately cancels the old file.</Text>
+              <Text style={styles.hint}>{t("loginPasscode.regenerateHint")}</Text>
               <Pressable style={styles.revokeButton} onPress={confirmRevoke} disabled={busy}>
-                <Text style={styles.revokeText}>Revoke passcode</Text>
+                <Text style={styles.revokeText}>{t("loginPasscode.revokePasscode")}</Text>
               </Pressable>
             </>
           ) : (
             <Pressable style={styles.button} onPress={handleGenerate} disabled={busy}>
               <Ionicons name="download-outline" size={16} color="#FFFFFF" />
-              <Text style={styles.buttonText}>{busy ? "Working..." : "Generate & download"}</Text>
+              <Text style={styles.buttonText}>{busy ? t("loginPasscode.working") : t("loginPasscode.generateDownload")}</Text>
             </Pressable>
           )}
         </View>

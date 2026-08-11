@@ -76,21 +76,25 @@ export const toneColors: Record<StatusTone, { bg: string; text: string }> = {
   neutral: { bg: colors.border, text: colors.textSecondary },
 };
 
-export const statusMeta: Record<string, { label: string; tone: StatusTone; icon: string }> = {
-  PUBLISHED: { label: "Published", tone: "route", icon: "megaphone-outline" },
-  BOOKED: { label: "Waiting for driver", tone: "wait", icon: "time-outline" },
-  AWAITING_PAYMENT: { label: "Pay to confirm", tone: "wait", icon: "wallet-outline" },
-  CHARGE_ATTEMPTED: { label: "Payment in progress", tone: "wait", icon: "time-outline" },
-  PAYMENT_PENDING: { label: "Payment failed — retry", tone: "stop", icon: "alert-circle-outline" },
-  CONFIRMED: { label: "Confirmed", tone: "go", icon: "checkmark-circle-outline" },
-  IN_PROGRESS: { label: "On the way", tone: "route", icon: "car-outline" },
-  COMPLETED: { label: "Completed", tone: "go", icon: "checkmark-done-outline" },
-  CANCELLED: { label: "Cancelled", tone: "stop", icon: "close-circle-outline" },
-  STOPPED: { label: "Stopped early", tone: "stop", icon: "close-circle-outline" },
-  REJECTED: { label: "Declined", tone: "stop", icon: "close-circle-outline" },
-  EXPIRED: { label: "Expired", tone: "stop", icon: "time-outline" },
+// labelKey points into the i18n bundle (see lib/i18n) — StatusBadge is
+// the one consumer, and passes its own `t` in. Kept here (not moved
+// into StatusBadge itself) since a couple of screens read the icon/tone
+// directly without rendering the badge component.
+export const statusMeta: Record<string, { labelKey: string; tone: StatusTone; icon: string }> = {
+  PUBLISHED: { labelKey: "status.published", tone: "route", icon: "megaphone-outline" },
+  BOOKED: { labelKey: "status.waitingForDriver", tone: "wait", icon: "time-outline" },
+  AWAITING_PAYMENT: { labelKey: "status.payToConfirm", tone: "wait", icon: "wallet-outline" },
+  CHARGE_ATTEMPTED: { labelKey: "status.paymentInProgress", tone: "wait", icon: "time-outline" },
+  PAYMENT_PENDING: { labelKey: "status.paymentFailedRetry", tone: "stop", icon: "alert-circle-outline" },
+  CONFIRMED: { labelKey: "status.confirmed", tone: "go", icon: "checkmark-circle-outline" },
+  IN_PROGRESS: { labelKey: "status.onTheWay", tone: "route", icon: "car-outline" },
+  COMPLETED: { labelKey: "status.completed", tone: "go", icon: "checkmark-done-outline" },
+  CANCELLED: { labelKey: "status.cancelled", tone: "stop", icon: "close-circle-outline" },
+  STOPPED: { labelKey: "status.stoppedEarly", tone: "stop", icon: "close-circle-outline" },
+  REJECTED: { labelKey: "status.declined", tone: "stop", icon: "close-circle-outline" },
+  EXPIRED: { labelKey: "status.expired", tone: "stop", icon: "time-outline" },
 };
 
 export function getStatusMeta(status: string) {
-  return statusMeta[status] || { label: status, tone: "neutral" as StatusTone, icon: "ellipse-outline" };
+  return statusMeta[status] || { labelKey: "", label: status, tone: "neutral" as StatusTone, icon: "ellipse-outline" };
 }

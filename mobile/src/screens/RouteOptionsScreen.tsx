@@ -11,6 +11,7 @@ import { CarLoader } from "../components/CarLoader";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { BackHeader } from "../components/BackHeader";
 import { useScreenView } from "../lib/useScreenView";
+import { useTranslation } from "../lib/i18n/I18nContext";
 
 type Stop = { lat: number; lng: number; placeName: string; distanceKm: number; durationMinutes: number };
 type RouteOption = { summary: string; polyline: string; distanceKm: number; durationMinutes: number; stops: Stop[] };
@@ -22,6 +23,7 @@ type RouteOption = { summary: string; polyline: string; distanceKm: number; dura
 // happens here, once a route is picked, not on the previous screen.
 export default function RouteOptionsScreen({ route, navigation }: any) {
   useScreenView("RouteOptionsScreen");
+  const { t } = useTranslation();
   const rideForm = route.params;
   const [alternatives, setAlternatives] = useState<RouteOption[] | null>(null);
   const [error, setError] = useState(false);
@@ -53,10 +55,10 @@ export default function RouteOptionsScreen({ route, navigation }: any) {
         } : {}),
       });
       Analytics.ridePublished(ride?.id || "");
-      showAlert("Ride published", "Passengers can now find and book your ride.");
+      showAlert(t("routeOptions.ridePublishedTitle"), t("routeOptions.ridePublishedBody"));
       navigation.navigate("History", { role: "DRIVER" });
     } catch (err: any) {
-      showAlert("Couldn't publish ride", err.message);
+      showAlert(t("routeOptions.couldntPublish"), err.message);
     } finally {
       setPublishing(false);
     }
@@ -64,24 +66,24 @@ export default function RouteOptionsScreen({ route, navigation }: any) {
 
   return (
     <SafeAreaView style={styles.screen} edges={["top", "bottom"]}>
-      <BackHeader title="Search routes" onBack={() => navigation.goBack()} />
+      <BackHeader title={t("offerRide.searchRoutes")} onBack={() => navigation.goBack()} />
 
       {alternatives === null && !error ? (
         <View style={styles.centerState}>
           <CarLoader size="lg" />
         </View>
       ) : error ? (
-        <ErrorState message="Couldn't load route options." onRetry={() => { setError(false); setAlternatives(null); }} />
+        <ErrorState message={t("routeOptions.couldntLoad")} onRetry={() => { setError(false); setAlternatives(null); }} />
       ) : alternatives.length === 0 ? (
         // Directions couldn't resolve a route at all — not a hard
         // blocker, publish still works, just without route-aware
         // matching/stop list for this ride (same as a ride published
         // before this feature existed).
         <View style={styles.centerState}>
-          <Text style={styles.emptyTitle}>Couldn't compute a route</Text>
-          <Text style={styles.emptySubtitle}>You can still publish — passengers will just be matched on your source and destination only.</Text>
+          <Text style={styles.emptyTitle}>{t("routeOptions.couldntComputeTitle")}</Text>
+          <Text style={styles.emptySubtitle}>{t("routeOptions.couldntComputeBody")}</Text>
           <Pressable style={styles.button} onPress={() => selectRoute(null)} disabled={publishing}>
-            <Text style={styles.buttonText}>{publishing ? "Publishing..." : "Publish anyway"}</Text>
+            <Text style={styles.buttonText}>{publishing ? t("routeOptions.publishing") : t("routeOptions.publishAnyway")}</Text>
           </Pressable>
         </View>
       ) : (
@@ -92,10 +94,10 @@ export default function RouteOptionsScreen({ route, navigation }: any) {
           renderItem={({ item }) => (
             <View style={styles.card}>
               <Text style={styles.summary}>{item.summary}</Text>
-              <Text style={styles.meta}>{item.distanceKm} km · {item.durationMinutes} min</Text>
+              <Text style={styles.meta}>{t("routeOptions.distanceDuration", { km: item.distanceKm, min: item.durationMinutes })}</Text>
               <RouteStopsList stops={item.stops} departAt={rideForm.travelDate} />
               <Pressable style={styles.button} onPress={() => selectRoute(item)} disabled={publishing}>
-                <Text style={styles.buttonText}>{publishing ? "Publishing..." : "Publish this route"}</Text>
+                <Text style={styles.buttonText}>{publishing ? t("routeOptions.publishing") : t("routeOptions.publishThisRoute")}</Text>
               </Pressable>
             </View>
           )}

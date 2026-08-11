@@ -1,5 +1,5 @@
 import React, { useRef, useState, useEffect } from "react";
-import { View, Text, TextInput, StyleSheet } from "react-native";
+import { View, Text, TextInput, Image, StyleSheet } from "react-native";
 import { Pressable } from "../components/Pressable";
 import { Ionicons } from "@expo/vector-icons";
 import { showAlert } from "../lib/alert";
@@ -12,6 +12,7 @@ import { useToast } from "../components/Toast";
 import { KeyboardAvoider } from "../components/KeyboardAvoider";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useScreenView } from "../lib/useScreenView";
+import { useTranslation } from "../lib/i18n/I18nContext";
 
 // Matches the backend's own RESEND_COOLDOWN_SECONDS (auth.routes.js) —
 // the resend button becomes tappable exactly when the backend would
@@ -51,6 +52,7 @@ async function completeLogin(result: any, navigation: any) {
 
 export function PhoneEntryScreen({ navigation }: any) {
   useScreenView("PhoneEntryScreen");
+  const { t } = useTranslation();
   const [phone, setPhone] = useState("");
   const [passcode, setPasscode] = useState("");
   const [mode, setMode] = useState<"otp" | "passcode">("otp");
@@ -60,6 +62,7 @@ export function PhoneEntryScreen({ navigation }: any) {
   // one defaults on where RegisterScreen's own checkbox defaults off.
   const [whatsappOptIn, setWhatsappOptIn] = useState(true);
   const inputRef = useRef<TextInput>(null);
+  const passcodeInputRef = useRef<TextInput>(null);
 
   // Strips anything that isn't a digit — the on-screen numeric keypad
   // already limits normal typing, but paste and autofill can both hand
@@ -85,7 +88,7 @@ export function PhoneEntryScreen({ navigation }: any) {
       // the "repeat" this consolidated onto one screen to avoid.
       navigation.navigate("OtpVerify", { phone, whatsappOptIn });
     } catch (err: any) {
-      showAlert("Couldn't send OTP", err.message);
+      showAlert(t("auth.couldntSendOtp"), err.message);
     } finally {
       setSending(false);
     }
@@ -99,7 +102,7 @@ export function PhoneEntryScreen({ navigation }: any) {
       const result = await api.verifyPasscode(phone, passcode, whatsappOptIn);
       await completeLogin(result, navigation);
     } catch (err: any) {
-      showAlert("Couldn't log in", err.message);
+      showAlert(t("auth.couldntLogIn"), err.message);
     } finally {
       setSending(false);
     }
@@ -117,16 +120,14 @@ export function PhoneEntryScreen({ navigation }: any) {
             one unit. */}
         <View style={styles.heroBand}>
           <View style={styles.brandIconLg}>
-            <Ionicons name="car-sport" size={30} color="#FFFFFF" />
+            <Image source={require("../../assets/brand-mark.png")} style={styles.brandIconLgImage} resizeMode="contain" />
           </View>
           <Text style={styles.brandName}>NanbaGO</Text>
         </View>
         <View style={styles.formBlock}>
-          <Text style={styles.title}>Enter your mobile number</Text>
+          <Text style={styles.title}>{t("auth.enterPhone")}</Text>
           <Text style={styles.subtitle}>
-            {mode === "otp"
-              ? "We'll text you a one-time code to continue — as a driver or a passenger, same first step."
-              : "Enter the passcode you downloaded from Settings on this account."}
+            {mode === "otp" ? t("auth.otpSubtitle") : t("auth.passcodeSubtitle")}
           </Text>
           <Pressable
             style={[styles.inputWrap, showError && styles.inputWrapError]}
@@ -139,7 +140,7 @@ export function PhoneEntryScreen({ navigation }: any) {
               style={styles.plainInput}
               keyboardType="number-pad"
               maxLength={10}
-              placeholder="10-digit mobile number"
+              placeholder={t("auth.phonePlaceholder")}
               placeholderTextColor={colors.textMuted}
               value={phone}
               onChangeText={handleChangeText}
@@ -158,21 +159,38 @@ export function PhoneEntryScreen({ navigation }: any) {
           {showError && (
             <View style={styles.fieldErrorRow}>
               <Ionicons name="alert-circle-outline" size={13} color={colors.danger} />
-              <Text style={styles.fieldErrorText}>Enter a valid 10-digit mobile number.</Text>
+              <Text style={styles.fieldErrorText}>{t("auth.phoneInvalid")}</Text>
             </View>
           )}
 
           {mode === "passcode" && (
-            <TextInput
-              style={styles.passcodeInput}
-              keyboardType="number-pad"
-              maxLength={PASSCODE_LENGTH}
-              placeholder="6-digit passcode"
-              placeholderTextColor={colors.textMuted}
-              value={passcode}
-              onChangeText={(v) => setPasscode(v.replace(/\D/g, "").slice(0, PASSCODE_LENGTH))}
-              secureTextEntry
-            />
+            // Same segmented-boxes-over-an-invisible-input technique as
+            // OtpVerifyScreen's code entry below — was a single plain
+            // text field before, looking and feeling like a different,
+            // less-considered input than the OTP screen right next to it
+            // in the same flow. Digits render as a dot, not the actual
+            // number (secureTextEntry's masking, reimplemented per-box
+            // since a real TextInput can't mask individual characters
+            // that are being drawn by something else).
+            <View style={styles.otpRow}>
+              {passcode.padEnd(PASSCODE_LENGTH, " ").slice(0, PASSCODE_LENGTH).split("").map((d, i) => (
+                <Pressable key={i} onPress={() => passcodeInputRef.current?.focus()}>
+                  <View style={[styles.otpBox, i === passcode.length && styles.otpBoxActive]}>
+                    <Text style={styles.otpDigit}>{d.trim() ? "•" : ""}</Text>
+                  </View>
+                </Pressable>
+              ))}
+              <TextInput
+                ref={passcodeInputRef}
+                style={styles.hiddenInput}
+                keyboardType="number-pad"
+                maxLength={PASSCODE_LENGTH}
+                value={passcode}
+                onChangeText={(v) => setPasscode(v.replace(/\D/g, "").slice(0, PASSCODE_LENGTH))}
+                secureTextEntry
+                autoFocus
+              />
+            </View>
           )}
 
           {/* Asked once here regardless of mode, not repeated on the
@@ -182,13 +200,13 @@ export function PhoneEntryScreen({ navigation }: any) {
             <View style={[styles.checkbox, whatsappOptIn && styles.checkboxChecked]}>
               {whatsappOptIn && <Ionicons name="checkmark" size={13} color="#FFFFFF" />}
             </View>
-            <Text style={styles.checkboxLabel}>Get WhatsApp updates</Text>
+            <Text style={styles.checkboxLabel}>{t("auth.whatsappOptIn")}</Text>
           </Pressable>
 
           {mode === "otp" ? (
             <Pressable style={[styles.button, phone.length !== 10 && styles.buttonDisabled]} onPress={handleSendOtp} disabled={sending || phone.length !== 10}>
               {!sending && <Ionicons name="arrow-forward-circle-outline" size={18} color="#FFFFFF" />}
-              <Text style={styles.buttonText}>{sending ? "Sending..." : "Send OTP"}</Text>
+              <Text style={styles.buttonText}>{sending ? t("auth.sendingOtp") : t("auth.sendOtp")}</Text>
             </Pressable>
           ) : (
             <Pressable
@@ -197,7 +215,7 @@ export function PhoneEntryScreen({ navigation }: any) {
               disabled={sending || phone.length !== 10 || !isPasscodeValid}
             >
               {!sending && <Ionicons name="log-in-outline" size={18} color="#FFFFFF" />}
-              <Text style={styles.buttonText}>{sending ? "Logging in..." : "Log in"}</Text>
+              <Text style={styles.buttonText}>{sending ? t("auth.loggingIn") : t("auth.logIn")}</Text>
             </Pressable>
           )}
 
@@ -210,7 +228,7 @@ export function PhoneEntryScreen({ navigation }: any) {
           <Pressable onPress={() => setMode(mode === "otp" ? "passcode" : "otp")} hitSlop={6} style={styles.modeToggle}>
             <Ionicons name={mode === "otp" ? "key-outline" : "chatbox-ellipses-outline"} size={13} color={colors.accentText} />
             <Text style={styles.modeToggleText}>
-              {mode === "otp" ? "Log in with passcode instead" : "Use OTP instead"}
+              {mode === "otp" ? t("auth.usePasscodeInstead") : t("auth.useOtpInstead")}
             </Text>
           </Pressable>
 
@@ -218,8 +236,7 @@ export function PhoneEntryScreen({ navigation }: any) {
             <View style={styles.signupLink}>
               <Ionicons name="sparkles-outline" size={13} color={colors.textMuted} />
               <Text style={styles.signupLinkText}>
-                New here? <Text style={styles.signupLinkAccent}>Signing up</Text> uses this same number and step —
-                you'll choose driver or passenger right after.
+                {t("auth.signupHintPrefix")}<Text style={styles.signupLinkAccent}>{t("auth.signupHintAccent")}</Text>{t("auth.signupHintSuffix")}
               </Text>
             </View>
           )}
@@ -233,6 +250,7 @@ export function PhoneEntryScreen({ navigation }: any) {
 // based on whether the phone number already has a User record.
 export function OtpVerifyScreen({ route, navigation }: any) {
   useScreenView("OtpVerifyScreen");
+  const { t } = useTranslation();
   // whatsappOptIn was already asked and answered on PhoneEntryScreen,
   // carried forward here rather than asked a second time in the same
   // flow — falls back to checked if this screen is ever reached some
@@ -257,7 +275,7 @@ export function OtpVerifyScreen({ route, navigation }: any) {
       const result = await api.verifyOtp(phone, code, whatsappOptIn);
       await completeLogin(result, navigation);
     } catch (err: any) {
-      showAlert("Verification failed", err.message);
+      showAlert(t("auth.verificationFailed"), err.message);
     } finally {
       setVerifying(false);
     }
@@ -269,9 +287,9 @@ export function OtpVerifyScreen({ route, navigation }: any) {
     try {
       await api.sendOtp(phone);
       setCooldown(RESEND_COOLDOWN_SECONDS);
-      showSuccess("OTP sent again");
+      showSuccess(t("auth.otpResent"));
     } catch (err: any) {
-      showError(err.message || "Couldn't resend the code");
+      showError(err.message || t("auth.couldntResend"));
     } finally {
       setResending(false);
     }
@@ -284,9 +302,9 @@ export function OtpVerifyScreen({ route, navigation }: any) {
       <KeyboardAvoider>
         <View style={styles.centerContent}>
           <View style={styles.brandIcon}>
-            <Ionicons name="chatbox-ellipses-outline" size={24} color={colors.accentText} />
+            <Image source={require("../../assets/brand-mark.png")} style={styles.brandIconImage} resizeMode="contain" />
           </View>
-          <Text style={styles.title}>Enter the OTP sent to</Text>
+          <Text style={styles.title}>{t("auth.enterOtp")}</Text>
           <View style={styles.phoneRow}>
             <Ionicons name="call-outline" size={13} color={colors.accentText} />
             <Text style={styles.phoneText}>+91 {phone}</Text>
@@ -295,7 +313,7 @@ export function OtpVerifyScreen({ route, navigation }: any) {
               there's no back button — easy to miss this was even
               possible without it. */}
           <Pressable onPress={() => navigation.goBack()} hitSlop={6}>
-            <Text style={styles.editNumberLink}>Wrong number? Edit</Text>
+            <Text style={styles.editNumberLink}>{t("auth.wrongNumberEdit")}</Text>
           </Pressable>
 
           {/* Segmented boxes are purely visual — the actual keystrokes
@@ -333,11 +351,11 @@ export function OtpVerifyScreen({ route, navigation }: any) {
               autoFocus
             />
           </View>
-          <Text style={styles.autoVerifyHint}>Verifies automatically once you enter all {OTP_LENGTH} digits</Text>
+          <Text style={styles.autoVerifyHint}>{t("auth.autoVerifyHint", { count: OTP_LENGTH })}</Text>
 
           <Pressable style={styles.button} onPress={() => handleVerify(otp)} disabled={verifying || otp.length !== OTP_LENGTH}>
             {!verifying && <Ionicons name="checkmark-circle-outline" size={18} color="#FFFFFF" />}
-            <Text style={styles.buttonText}>{verifying ? "Verifying..." : "Verify"}</Text>
+            <Text style={styles.buttonText}>{verifying ? t("auth.verifying") : t("auth.verify")}</Text>
           </Pressable>
 
           <Pressable style={styles.resendRow} onPress={handleResend} disabled={cooldown > 0 || resending}>
@@ -347,7 +365,7 @@ export function OtpVerifyScreen({ route, navigation }: any) {
               color={cooldown > 0 ? colors.textMuted : colors.accentText}
             />
             <Text style={[styles.resendText, cooldown === 0 && !resending && styles.resendTextActive]}>
-              {resending ? "Resending..." : cooldown > 0 ? `Resend OTP in 0:${String(cooldown).padStart(2, "0")}` : "Resend OTP"}
+              {resending ? t("auth.resending") : cooldown > 0 ? t("auth.resendIn", { seconds: String(cooldown).padStart(2, "0") }) : t("auth.resendOtp")}
             </Text>
           </Pressable>
         </View>
@@ -362,16 +380,23 @@ const styles = StyleSheet.create({
   heroBand: { alignItems: "center", paddingBottom: spacing.lg },
   formBlock: { width: "100%", alignItems: "center" },
   brandIconLg: {
-    width: 64, height: 64, borderRadius: 32, backgroundColor: colors.accent,
+    // White backdrop rather than a colored fill — the real mark already
+    // carries its own blue/orange/navy/green, a solid accent circle
+    // behind it fights those colors instead of framing them (same
+    // reasoning as the splash screen's badge).
+    width: 64, height: 64, borderRadius: 20, backgroundColor: "#FFFFFF", padding: 8,
     alignItems: "center", justifyContent: "center", marginBottom: spacing.sm,
-    shadowColor: colors.accent, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.25, shadowRadius: 10, elevation: 4,
+    shadowColor: colors.textPrimary, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.12, shadowRadius: 10, elevation: 4,
   },
+  brandIconLgImage: { width: "100%", height: "100%" },
   brandName: { ...typography.title, fontSize: 18, color: colors.textPrimary },
   centerContent: { flex: 1, padding: spacing.lg, justifyContent: "center", alignItems: "center" },
   brandIcon: {
-    width: 56, height: 56, borderRadius: 28, backgroundColor: colors.accentBg,
+    width: 56, height: 56, borderRadius: 18, backgroundColor: "#FFFFFF", padding: 8,
+    borderWidth: 1, borderColor: colors.border,
     alignItems: "center", justifyContent: "center", marginBottom: spacing.lg,
   },
+  brandIconImage: { width: "100%", height: "100%" },
   title: { ...typography.title, textAlign: "center" },
   subtitle: { ...typography.small, color: colors.textMuted, textAlign: "center", marginTop: 4, marginBottom: spacing.lg, lineHeight: 18 },
   phoneRow: { flexDirection: "row", alignItems: "center", gap: 5, marginTop: 2 },
@@ -387,12 +412,6 @@ const styles = StyleSheet.create({
   },
   checkboxChecked: { backgroundColor: colors.accent, borderColor: colors.accent },
   checkboxLabel: { ...typography.caption, color: colors.textSecondary },
-  passcodeInput: {
-    width: "100%",
-    backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border,
-    borderRadius: radius.sm, height: 52, marginBottom: spacing.md, paddingHorizontal: spacing.md,
-    ...typography.body, color: colors.textPrimary, letterSpacing: 4,
-  },
   modeToggle: { flexDirection: "row", alignItems: "center", gap: 5, alignSelf: "center", marginTop: spacing.md, padding: spacing.xs },
   modeToggleText: { ...typography.small, color: colors.accentText, fontWeight: "700" },
   inputWrap: {

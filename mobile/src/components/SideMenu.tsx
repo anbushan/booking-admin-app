@@ -6,6 +6,8 @@ import { showAlert } from "../lib/alert";
 import { colors, spacing, radius, typography } from "../theme/theme";
 import { logout } from "../lib/api";
 import { Analytics } from "../lib/analytics";
+import Avatar from "./Avatar";
+import { useTranslation } from "../lib/i18n/I18nContext";
 
 // Home never had any way into the rest of the app — Profile, History,
 // Chat, Notifications, and the driver tools were all built and
@@ -26,12 +28,13 @@ type Props = {
   visible: boolean;
   onClose: () => void;
   navigation: any;
-  profile: { id?: string; name?: string; role?: string; isDriver?: boolean; isPassenger?: boolean } | null;
+  profile: { id?: string; name?: string; role?: string; isDriver?: boolean; isPassenger?: boolean; photoViewUrl?: string | null } | null;
   unreadCount?: number;
   upcomingTripsCount?: number;
 };
 
 export default function SideMenu({ visible, onClose, navigation, profile, unreadCount = 0, upcomingTripsCount = 0 }: Props) {
+  const { t } = useTranslation();
   const [mounted, setMounted] = useState(visible);
   const translateX = useRef(new Animated.Value(SCREEN_WIDTH)).current;
   const backdropOpacity = useRef(new Animated.Value(0)).current;
@@ -67,10 +70,10 @@ export default function SideMenu({ visible, onClose, navigation, profile, unread
   }
 
   function handleLogout() {
-    showAlert("Log out", "Are you sure you want to log out?", [
-      { text: "Cancel", style: "cancel" },
+    showAlert(t("sideMenu.logOut"), t("sideMenu.logOutConfirm"), [
+      { text: t("sideMenu.cancel"), style: "cancel" },
       {
-        text: "Log out",
+        text: t("sideMenu.logOut"),
         style: "destructive",
         onPress: async () => {
           await logout();
@@ -108,13 +111,13 @@ export default function SideMenu({ visible, onClose, navigation, profile, unread
           </Pressable>
 
           <Pressable style={styles.profileBlock} onPress={() => go("Profile")}>
-            <View style={styles.avatar}>
-              <Text style={styles.avatarText}>{(profile?.name || "?").charAt(0).toUpperCase()}</Text>
+            <View style={{ marginBottom: spacing.sm }}>
+              <Avatar uri={profile?.photoViewUrl} name={profile?.name} size={48} />
             </View>
-            <Text style={styles.name}>{profile?.name || "Your profile"}</Text>
+            <Text style={styles.name}>{profile?.name || t("sideMenu.yourProfile")}</Text>
             <View style={styles.roleBadge}>
               <Ionicons name={isDriver ? "car-sport" : "person"} size={11} color={colors.accentText} />
-              <Text style={styles.role}>{isDriver ? "Driver" : "Passenger"}</Text>
+              <Text style={styles.role}>{isDriver ? t("register.driver") : t("register.passenger")}</Text>
             </View>
           </Pressable>
 
@@ -129,34 +132,34 @@ export default function SideMenu({ visible, onClose, navigation, profile, unread
               booking that's currently CONFIRMED (paid, pre-trip), so it's
               reached from that booking's own card rather than a generic
               list that would mostly be empty. */}
-          <MenuRow icon="notifications-outline" label="Notifications" onPress={() => go("Notifications")} badge={unreadCount} />
+          <MenuRow icon="notifications-outline" label={t("sideMenu.notifications")} onPress={() => go("Notifications")} badge={unreadCount} />
 
           {isDriver && (
             <>
-              <Text style={styles.sectionLabel}>Driver</Text>
-              <MenuRow icon="receipt-outline" label="My bookings" onPress={() => go("History", { role: profile?.role })} />
-              <MenuRow icon="hourglass-outline" label="Payment queue" onPress={() => go("PaymentQueue")} />
-              <MenuRow icon="navigate-outline" label="Start trip now" onPress={() => go("UpcomingTrips")} badge={upcomingTripsCount} />
-              <MenuRow icon="car-sport-outline" label="My vehicles" onPress={() => go("VehicleList")} />
-              <MenuRow icon="wallet-outline" label="Earnings" onPress={() => go("Earnings")} />
+              <Text style={styles.sectionLabel}>{t("sideMenu.driverSection")}</Text>
+              <MenuRow icon="receipt-outline" label={t("sideMenu.myBookings")} onPress={() => go("History", { role: profile?.role })} />
+              <MenuRow icon="hourglass-outline" label={t("sideMenu.paymentQueue")} onPress={() => go("PaymentQueue")} />
+              <MenuRow icon="navigate-outline" label={t("home.startTripNow")} onPress={() => go("UpcomingTrips")} badge={upcomingTripsCount} />
+              <MenuRow icon="car-sport-outline" label={t("sideMenu.myVehicles")} onPress={() => go("VehicleList")} />
+              <MenuRow icon="wallet-outline" label={t("home.earnings")} onPress={() => go("Earnings")} />
             </>
           )}
 
-          <Text style={styles.sectionLabel}>Account</Text>
+          <Text style={styles.sectionLabel}>{t("sideMenu.accountSection")}</Text>
           {/* Same phone number can be both a driver and a passenger —
               this is the one entry point to switch which one is active,
               or set up the other for the first time if it hasn't been
               used before (labeled distinctly so it's clear it's new). */}
           <MenuRow
             icon="swap-horizontal-outline"
-            label={isDriver ? (otherRoleHasProfile ? "Switch to passenger" : "Also ride as a passenger") : (otherRoleHasProfile ? "Switch to driver" : "Also drive with NanbaGO")}
+            label={isDriver ? (otherRoleHasProfile ? t("sideMenu.switchToPassenger") : t("sideMenu.alsoRideAsPassenger")) : (otherRoleHasProfile ? t("sideMenu.switchToDriver") : t("sideMenu.alsoDriveWithNanbaGO"))}
             onPress={() => go("SwitchRole")}
           />
-          <MenuRow icon="settings-outline" label="Settings" onPress={() => go("Settings")} />
+          <MenuRow icon="settings-outline" label={t("sideMenu.settings")} onPress={() => go("Settings")} />
 
           <Pressable style={styles.logoutRow} onPress={handleLogout}>
             <Ionicons name="log-out-outline" size={17} color={colors.danger} />
-            <Text style={styles.logoutText}>Log out</Text>
+            <Text style={styles.logoutText}>{t("sideMenu.logOut")}</Text>
           </Pressable>
         </Animated.View>
       </View>
@@ -210,16 +213,6 @@ const styles = StyleSheet.create({
     zIndex: 1,
   },
   profileBlock: { marginBottom: spacing.lg, paddingBottom: spacing.lg, borderBottomWidth: 1, borderBottomColor: colors.border },
-  avatar: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: colors.accentBg,
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: spacing.sm,
-  },
-  avatarText: { ...typography.title, color: colors.accentText },
   name: { ...typography.title },
   roleBadge: { flexDirection: "row", alignItems: "center", gap: 4, marginTop: 4 },
   role: { ...typography.small, color: colors.accentText, fontWeight: "700" },

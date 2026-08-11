@@ -3,26 +3,27 @@ import { View, Text, Modal, ScrollView, Animated, Easing, StyleSheet } from "rea
 import { Pressable } from "./Pressable";
 import { Ionicons } from "@expo/vector-icons";
 import { colors, spacing, radius, typography } from "../theme/theme";
+import { useTranslation } from "../lib/i18n/I18nContext";
 
-type Step = { icon: keyof typeof Ionicons.glyphMap; title: string; description: string };
+type Step = { icon: keyof typeof Ionicons.glyphMap; titleKey: string; descKey: string };
 
 // A plain, static walkthrough of the whole flow — not tied to any one
 // booking (that's StepTracker's job) — so someone new to the app has a
 // mental model of what happens end to end before they've done it once.
 export const DRIVER_STEPS: Step[] = [
-  { icon: "add-circle-outline", title: "Offer a ride", description: "Publish your route, seats, and price per seat." },
-  { icon: "mail-unread-outline", title: "Get requests", description: "Passengers request to book — accept or decline each one." },
-  { icon: "wallet-outline", title: "Passenger pays the platform fee", description: "Confirms the seat. This part goes to the app, not to you." },
-  { icon: "car-outline", title: "Start the trip", description: "Meet at pickup, verify their code, and start driving." },
-  { icon: "cash-outline", title: "Collect the fare", description: "The rest is paid to you directly — cash or UPI." },
+  { icon: "add-circle-outline", titleKey: "howItWorks.driver.step1Title", descKey: "howItWorks.driver.step1Desc" },
+  { icon: "mail-unread-outline", titleKey: "howItWorks.driver.step2Title", descKey: "howItWorks.driver.step2Desc" },
+  { icon: "wallet-outline", titleKey: "howItWorks.driver.step3Title", descKey: "howItWorks.driver.step3Desc" },
+  { icon: "car-outline", titleKey: "howItWorks.driver.step4Title", descKey: "howItWorks.driver.step4Desc" },
+  { icon: "cash-outline", titleKey: "howItWorks.driver.step5Title", descKey: "howItWorks.driver.step5Desc" },
 ];
 
 export const PASSENGER_STEPS: Step[] = [
-  { icon: "search-outline", title: "Search a ride", description: "Enter where you're going and when." },
-  { icon: "paper-plane-outline", title: "Request to book", description: "Pick a ride and send the driver a request." },
-  { icon: "wallet-outline", title: "Pay the platform fee", description: "Confirms your seat once the driver accepts." },
-  { icon: "key-outline", title: "Get your pickup code", description: "Share it with the driver when they arrive." },
-  { icon: "star-outline", title: "Ride & rate", description: "Pay the rest directly, then rate your driver." },
+  { icon: "search-outline", titleKey: "howItWorks.passenger.step1Title", descKey: "howItWorks.passenger.step1Desc" },
+  { icon: "paper-plane-outline", titleKey: "howItWorks.passenger.step2Title", descKey: "howItWorks.passenger.step2Desc" },
+  { icon: "wallet-outline", titleKey: "howItWorks.passenger.step3Title", descKey: "howItWorks.passenger.step3Desc" },
+  { icon: "key-outline", titleKey: "howItWorks.passenger.step4Title", descKey: "howItWorks.passenger.step4Desc" },
+  { icon: "star-outline", titleKey: "howItWorks.passenger.step5Title", descKey: "howItWorks.passenger.step5Desc" },
 ];
 
 // Off-screen starting offset for the slide-up — bigger than any
@@ -37,6 +38,7 @@ type Props = {
 };
 
 export function HowItWorksSheet({ visible, role, onClose }: Props) {
+  const { t } = useTranslation();
   const steps = role === "DRIVER" ? DRIVER_STEPS : PASSENGER_STEPS;
 
   // Hand-rolled slide-up rather than Modal's own `animationType="slide"`
@@ -77,18 +79,18 @@ export function HowItWorksSheet({ visible, role, onClose }: Props) {
       <Animated.View style={[styles.sheet, { transform: [{ translateY }] }]}>
         <View style={styles.handle} />
         <View style={styles.headerRow}>
-          <Text style={styles.title}>How it works</Text>
+          <Text style={styles.title}>{t("howItWorks.title")}</Text>
           <Pressable style={styles.closeButton} onPress={onClose} hitSlop={6}>
             <Ionicons name="close" size={17} color={colors.textPrimary} />
           </Pressable>
         </View>
         <Text style={styles.subtitle}>
-          {role === "DRIVER" ? "From publishing a ride to getting paid." : "From searching a ride to rating your driver."}
+          {role === "DRIVER" ? t("howItWorks.driverSubtitle") : t("howItWorks.passengerSubtitle")}
         </Text>
 
         <ScrollView showsVerticalScrollIndicator={false} style={{ marginTop: spacing.md }}>
           {steps.map((step, i) => (
-            <View key={step.title} style={styles.stepRow}>
+            <View key={step.titleKey} style={styles.stepRow}>
               <View style={styles.rail}>
                 <View style={styles.iconWrap}>
                   <Ionicons name={step.icon} size={16} color={colors.accentText} />
@@ -96,15 +98,15 @@ export function HowItWorksSheet({ visible, role, onClose }: Props) {
                 {i < steps.length - 1 && <View style={styles.line} />}
               </View>
               <View style={[styles.stepBody, i === steps.length - 1 && { paddingBottom: 0 }]}>
-                <Text style={styles.stepTitle}>{step.title}</Text>
-                <Text style={styles.stepDescription}>{step.description}</Text>
+                <Text style={styles.stepTitle}>{t(step.titleKey)}</Text>
+                <Text style={styles.stepDescription}>{t(step.descKey)}</Text>
               </View>
             </View>
           ))}
         </ScrollView>
 
         <Pressable style={styles.gotItButton} onPress={onClose}>
-          <Text style={styles.gotItText}>Got it</Text>
+          <Text style={styles.gotItText}>{t("howItWorks.gotIt")}</Text>
         </Pressable>
       </Animated.View>
     </Modal>

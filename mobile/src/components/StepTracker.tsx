@@ -16,28 +16,35 @@ export type TrackerStep = {
 // booking-requests views (same journey, seen from the other side). One
 // definition so a CONFIRMED booking looks like the same step on both
 // sides of the same trip.
-const JOURNEY_STEPS: { key: string; title: string; icon: string }[] = [
-  { key: "requested", title: "Requested", icon: "paper-plane-outline" },
-  { key: "accepted", title: "Accepted by driver", icon: "thumbs-up-outline" },
-  { key: "paid", title: "Platform fee paid", icon: "wallet-outline" },
-  { key: "started", title: "Trip started", icon: "car-outline" },
-  { key: "completed", title: "Completed", icon: "flag-outline" },
+const JOURNEY_STEPS: { key: string; titleKey: string; titleEn: string; icon: string }[] = [
+  { key: "requested", titleKey: "journey.requested", titleEn: "Requested", icon: "paper-plane-outline" },
+  { key: "accepted", titleKey: "journey.acceptedByDriver", titleEn: "Accepted by driver", icon: "thumbs-up-outline" },
+  { key: "paid", titleKey: "journey.platformFeePaid", titleEn: "Platform fee paid", icon: "wallet-outline" },
+  { key: "started", titleKey: "journey.tripStarted", titleEn: "Trip started", icon: "car-outline" },
+  { key: "completed", titleKey: "status.completed", titleEn: "Completed", icon: "flag-outline" },
 ];
 const JOURNEY_INDEX: Record<string, number> = {
   BOOKED: 0, AWAITING_PAYMENT: 1, CHARGE_ATTEMPTED: 1, PAYMENT_PENDING: 1, CONFIRMED: 2, IN_PROGRESS: 3,
 };
 
-export function bookingJourneySteps(status: string): TrackerStep[] {
+// `t` is optional, same convention as formatSearchDate/labelForDate —
+// this is called from several screens, not all of which have
+// useTranslation() wired at every call site, so it falls back to
+// English rather than forcing every caller to thread `t` through.
+export function bookingJourneySteps(status: string, t?: (key: string) => string): TrackerStep[] {
   const activeIndex = JOURNEY_INDEX[status] ?? 0;
-  return JOURNEY_STEPS.map((def, i) => ({
-    key: def.key,
-    icon: def.icon,
-    state: i < activeIndex ? "done" : i === activeIndex ? "active" : "pending",
-    title:
-      i === 1 && status === "CHARGE_ATTEMPTED" ? "Payment in progress" :
-      i === 1 && status === "PAYMENT_PENDING" ? "Payment failed — retry" :
-      def.title,
-  }));
+  return JOURNEY_STEPS.map((def, i) => {
+    let titleKey = def.titleKey;
+    let titleEn = def.titleEn;
+    if (i === 1 && status === "CHARGE_ATTEMPTED") { titleKey = "status.paymentInProgress"; titleEn = "Payment in progress"; }
+    else if (i === 1 && status === "PAYMENT_PENDING") { titleKey = "status.paymentFailedRetry"; titleEn = "Payment failed — retry"; }
+    return {
+      key: def.key,
+      icon: def.icon,
+      state: i < activeIndex ? "done" : i === activeIndex ? "active" : "pending",
+      title: t ? t(titleKey) : titleEn,
+    };
+  });
 }
 
 // The "where is this, right now" view — a passenger's booking or a

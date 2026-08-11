@@ -10,6 +10,7 @@ import { Analytics } from "../lib/analytics";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { BackHeader } from "../components/BackHeader";
 import { useScreenView } from "../lib/useScreenView";
+import { useTranslation } from "../lib/i18n/I18nContext";
 
 // Hardcoded true rather than gated on `__DEV__` — that global isn't
 // reliably true across every way this app gets previewed (e.g. Expo
@@ -22,11 +23,12 @@ const SHOW_MOCK_PAYMENT_BUTTON = true;
 
 export default function PaymentScreen({ route, navigation }: any) {
   useScreenView("PaymentScreen");
+  const { t } = useTranslation();
   // `description` is what shows in the Razorpay sheet and the header —
   // this screen only ever charges the platform fee now (the remaining
   // fare is settled directly with the driver, never charged in-app), so
   // callers should pass "Platform fee", but default to it too.
-  const { bookingId, amount, description = "Platform fee", retry } = route.params;
+  const { bookingId, amount, description = t("payment.platformFeeLabel"), retry } = route.params;
   const [paying, setPaying] = useState(false);
   const [mocking, setMocking] = useState(false);
 
@@ -62,8 +64,8 @@ export default function PaymentScreen({ route, navigation }: any) {
         } else if (attempts > 10) {
           clearInterval(poll);
           showAlert(
-            "Payment received",
-            "We're confirming your payment — check your booking history shortly."
+            t("payment.paymentReceived"),
+            t("payment.confirmingPayment")
           );
           navigation.goBack();
         }
@@ -76,7 +78,7 @@ export default function PaymentScreen({ route, navigation }: any) {
         // user cancelled — no alert needed
       } else {
         Analytics.paymentFailed(bookingId);
-        showAlert("Payment failed", err.description || err.message || "Please try again.");
+        showAlert(t("payment.paymentFailed"), err.description || err.message || t("payment.pleaseTryAgain"));
       }
     } finally {
       setPaying(false);
@@ -96,7 +98,7 @@ export default function PaymentScreen({ route, navigation }: any) {
       Analytics.paymentSuccess(bookingId, amount);
       navigation.replace("History", { role: "PASSENGER" });
     } catch (err: any) {
-      showAlert("Couldn't simulate payment", err.message);
+      showAlert(t("payment.couldntSimulate"), err.message);
     } finally {
       setMocking(false);
     }
@@ -110,7 +112,7 @@ export default function PaymentScreen({ route, navigation }: any) {
         {!!retry && (
           <View style={styles.retryNotice}>
             <Ionicons name="alert-circle-outline" size={16} color={colors.danger} />
-            <Text style={styles.retryNoticeText}>Your last payment attempt didn't go through — no amount was deducted. Try again below.</Text>
+            <Text style={styles.retryNoticeText}>{t("payment.retryNotice")}</Text>
           </View>
         )}
 
@@ -120,22 +122,26 @@ export default function PaymentScreen({ route, navigation }: any) {
             <Text style={styles.value}>Rs {amount}</Text>
           </View>
           <View style={[styles.row, { borderBottomWidth: 0 }]}>
-            <Text style={styles.totalLabel}>Total due</Text>
+            <Text style={styles.totalLabel}>{t("payment.totalDue")}</Text>
             <Text style={styles.totalValue}>Rs {amount}</Text>
           </View>
         </View>
 
         <Pressable style={styles.payButton} onPress={handlePay} disabled={paying}>
           <Text style={styles.payButtonText}>
-            {paying ? "Processing..." : retry ? `Retry payment · Rs ${amount}` : `Pay Rs ${amount}`}
+            {paying
+              ? t("payment.processing")
+              : retry
+              ? t("payment.retryPaymentAmount", { amount })
+              : t("payment.payAmount", { amount })}
           </Text>
         </Pressable>
-        <Text style={styles.securedBy}>Secured by Razorpay</Text>
+        <Text style={styles.securedBy}>{t("payment.securedBy")}</Text>
 
         {SHOW_MOCK_PAYMENT_BUTTON && (
           <Pressable style={styles.mockButton} onPress={handleMockPay} disabled={mocking}>
             <Text style={styles.mockButtonText}>
-              {mocking ? "Simulating..." : "Simulate payment (dev)"}
+              {mocking ? t("payment.simulating") : t("payment.simulatePaymentDev")}
             </Text>
           </Pressable>
         )}

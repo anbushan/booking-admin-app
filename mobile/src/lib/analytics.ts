@@ -52,6 +52,7 @@ export const Analytics = {
   signUp: (role: string) => logEvent("sign_up", { role }),
   login: () => logEvent("login"),
   logout: () => logEvent("logout"),
+  accountDeleted: () => logEvent("account_deleted"),
   searchRides: (params: { seats: number }) => logEvent("search_rides", params),
   viewRideDetails: (rideId: string) => logEvent("view_ride_details", { ride_id: rideId }),
   bookingCreated: (rideId: string, seats: number) =>

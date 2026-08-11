@@ -14,6 +14,8 @@ import { RouteStopsList } from "../components/RouteStopsList";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { BackHeader } from "../components/BackHeader";
 import { useScreenView } from "../lib/useScreenView";
+import Avatar from "../components/Avatar";
+import { useTranslation } from "../lib/i18n/I18nContext";
 
 type RideDetails = {
   id: string;
@@ -23,7 +25,7 @@ type RideDetails = {
   sourceLng: number;
   pricePerSeat: string;
   seatsAvailable: number;
-  driver?: { name: string };
+  driver?: { name: string; ratingAvg?: number; photoViewUrl?: string | null };
   travelDate: string;
   estimatedArrivalAt: string;
   estimatedDurationMinutes: number;
@@ -32,6 +34,7 @@ type RideDetails = {
 
 export default function BookingConfirmScreen({ route, navigation }: any) {
   useScreenView("BookingConfirmScreen");
+  const { t } = useTranslation();
   const { rideId } = route.params;
   const [ride, setRide] = useState<RideDetails | null>(null);
   const [loading, setLoading] = useState(true);
@@ -79,10 +82,13 @@ export default function BookingConfirmScreen({ route, navigation }: any) {
         pickupAddress: ride.sourceAddress,
       });
       Analytics.bookingCreated(rideId, seats);
-      showAlert("Request sent", "The driver has 20 minutes to respond.");
-      navigation.navigate("Home");
+      showAlert(t("booking.requestSent"), t("booking.driverHas20Min"));
+      // Was navigating to Home, which meant the passenger had to find
+      // their way back to "My requests" themselves to see the request
+      // they just sent — land them right on it instead.
+      navigation.navigate("MyRequests");
     } catch (err: any) {
-      showAlert("Couldn't book", err.message);
+      showAlert(t("booking.couldntBook"), err.message);
     } finally {
       setSubmitting(false);
     }
@@ -90,26 +96,30 @@ export default function BookingConfirmScreen({ route, navigation }: any) {
 
   return (
     <SafeAreaView style={styles.screen} edges={["top", "bottom"]}>
-      <BackHeader title="Confirm booking" onBack={() => navigation.goBack()} />
+      <BackHeader title={t("booking.confirmTitle")} onBack={() => navigation.goBack()} />
 
       {loading ? (
         <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
           <CarLoader size="lg" />
         </View>
       ) : error || !ride ? (
-        <ErrorState message="Couldn't load this ride." onRetry={load} />
+        <ErrorState message={t("booking.couldntLoadRide")} onRetry={load} />
       ) : (
         <View style={styles.body}>
           <View style={styles.routeRow}>
             <Ionicons name="navigate-outline" size={14} color={colors.textMuted} />
-            <Text style={styles.route}>{ride.sourceAddress} to {ride.destAddress}</Text>
+            <Text style={styles.route}>{t("common.routeTo", { source: ride.sourceAddress, dest: ride.destAddress })}</Text>
           </View>
           {ride.driver?.name && (
             <View style={styles.driverRow}>
-              <View style={styles.driverAvatar}>
-                <Text style={styles.driverAvatarText}>{ride.driver.name.charAt(0).toUpperCase()}</Text>
-              </View>
+              <Avatar uri={ride.driver.photoViewUrl} name={ride.driver.name} size={24} />
               <Text style={styles.driverName}>{ride.driver.name}</Text>
+              {ride.driver.ratingAvg != null && (
+                <View style={styles.driverRatingRow}>
+                  <Ionicons name="star" size={10} color={colors.marigold} />
+                  <Text style={styles.driverName}>{ride.driver.ratingAvg.toFixed(1)}</Text>
+                </View>
+              )}
             </View>
           )}
 
@@ -133,10 +143,10 @@ export default function BookingConfirmScreen({ route, navigation }: any) {
           <View style={styles.row}>
             <View style={styles.labelRow}>
               <Ionicons name="people-outline" size={15} color={colors.textSecondary} />
-              <Text style={styles.label}>Seats</Text>
+              <Text style={styles.label}>{t("searchOptions.seats")}</Text>
             </View>
             {full ? (
-              <Text style={[styles.value, { color: colors.danger }]}>Full</Text>
+              <Text style={[styles.value, { color: colors.danger }]}>{t("search.full")}</Text>
             ) : (
               <View style={styles.stepper}>
                 <Pressable
@@ -161,23 +171,20 @@ export default function BookingConfirmScreen({ route, navigation }: any) {
             )}
           </View>
           <Text style={styles.availabilityHint}>
-            {full ? "No seats left on this ride." : `${ride.seatsAvailable} seat(s) available`}
+            {full ? t("booking.noSeatsLeft") : t("booking.seatsAvailable", { count: ride.seatsAvailable })}
           </Text>
 
           <View style={styles.row}>
             <View style={styles.labelRow}>
               <Ionicons name="cash-outline" size={15} color={colors.textSecondary} />
-              <Text style={styles.label}>Fare</Text>
+              <Text style={styles.label}>{t("booking.fare")}</Text>
             </View>
             <Text style={styles.value}>Rs {fare}</Text>
           </View>
 
           <View style={styles.notice}>
             <Ionicons name="information-circle-outline" size={16} color={colors.accentText} />
-            <Text style={styles.noticeText}>
-              If the driver accepts, you'll need to pay a platform fee to confirm your seat.
-              The rest of the fare is paid directly to the driver after the trip.
-            </Text>
+            <Text style={styles.noticeText}>{t("booking.feeNotice")}</Text>
           </View>
 
           <Pressable
@@ -187,7 +194,7 @@ export default function BookingConfirmScreen({ route, navigation }: any) {
           >
             {!full && !submitting && <Ionicons name="paper-plane-outline" size={16} color="#FFFFFF" />}
             <Text style={styles.buttonText}>
-              {full ? "Ride is full" : submitting ? "Sending request..." : "Request booking"}
+              {full ? t("booking.rideIsFull") : submitting ? t("booking.sendingRequest") : t("booking.requestBooking")}
             </Text>
           </Pressable>
         </View>
@@ -202,9 +209,8 @@ const styles = StyleSheet.create({
   routeRow: { flexDirection: "row", alignItems: "center", gap: spacing.xs },
   route: { ...typography.title, fontSize: 15 },
   driverRow: { flexDirection: "row", alignItems: "center", gap: spacing.xs, marginTop: spacing.sm },
-  driverAvatar: { width: 24, height: 24, borderRadius: 12, backgroundColor: colors.accentBg, alignItems: "center", justifyContent: "center" },
-  driverAvatarText: { fontSize: 11, fontWeight: "700", color: colors.accentText },
   driverName: { ...typography.caption, color: colors.textSecondary },
+  driverRatingRow: { flexDirection: "row", alignItems: "center", gap: 3, marginLeft: spacing.xs },
   timelineCard: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: radius.md, padding: spacing.md, marginTop: spacing.md },
   row: {
     flexDirection: "row",

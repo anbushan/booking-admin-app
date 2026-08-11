@@ -11,9 +11,11 @@ import { ErrorState } from "../components/ErrorState";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { AppBottomNav } from "../components/AppBottomNav";
 import { useScreenView } from "../lib/useScreenView";
+import { useTranslation } from "../lib/i18n/I18nContext";
 
 export default function RatingsReceivedScreen({ navigation }: any) {
   useScreenView("RatingsReceivedScreen");
+  const { t } = useTranslation();
   const [reviews, setReviews] = useState<any[]>([]);
   const [avgRating, setAvgRating] = useState<number | null>(null);
   const [profile, setProfile] = useState<any>(null);
@@ -41,19 +43,19 @@ export default function RatingsReceivedScreen({ navigation }: any) {
 
   return (
     <SafeAreaView style={styles.screen} edges={["top"]}>
-      <Text style={{ ...typography.title, padding: spacing.lg, paddingBottom: spacing.sm }}>Your ratings</Text>
+      <Text style={{ ...typography.title, padding: spacing.lg, paddingBottom: spacing.sm }}>{t("settings.yourRatings")}</Text>
 
       {loading ? (
         <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
           <CarLoader size="lg" />
         </View>
       ) : error ? (
-        <ErrorState message="Couldn't load your ratings." onRetry={load} />
+        <ErrorState message={t("ratings.couldntLoad")} onRetry={load} />
       ) : (
         <>
           <View style={styles.summary}>
             <Text style={styles.summaryValue}>{avgRating ? avgRating.toFixed(1) : "—"}</Text>
-            <Text style={styles.summaryLabel}>Average rating · {reviews.length} review(s)</Text>
+            <Text style={styles.summaryLabel}>{t("ratings.averageRatingCount", { count: reviews.length })}</Text>
           </View>
 
           <FlatList
@@ -75,12 +77,12 @@ export default function RatingsReceivedScreen({ navigation }: any) {
                 <Text style={styles.stars}>{"\u2605".repeat(item.rating)}{"\u2606".repeat(5 - item.rating)}</Text>
                 {item.comment ? <Text style={styles.comment}>{item.comment}</Text> : null}
                 <View style={styles.fromRow}>
-                  <Text style={styles.from}>{item.fromUser?.name || "Rider"}</Text>
+                  <Text style={styles.from}>{item.fromUser?.name || t("publicProfile.riderFallback")}</Text>
                   {!!item.fromUser?.id && <Ionicons name="chevron-forward" size={14} color={colors.textMuted} />}
                 </View>
               </Pressable>
             )}
-            ListEmptyComponent={<EmptyState icon="star-outline" title="No reviews yet" />}
+            ListEmptyComponent={<EmptyState icon="star-outline" title={t("publicProfile.noReviewsYet")} />}
           />
         </>
       )}

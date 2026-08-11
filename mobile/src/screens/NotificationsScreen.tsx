@@ -12,6 +12,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { AppBottomNav } from "../components/AppBottomNav";
 import { resolveNotificationTarget } from "../lib/notificationTargets";
 import { useScreenView } from "../lib/useScreenView";
+import { useTranslation } from "../lib/i18n/I18nContext";
 
 type Notif = { id: string; type: string; title: string; body: string; bookingId: string | null; read: boolean; createdAt: string };
 
@@ -30,22 +31,22 @@ function notifIcon(type: string): keyof typeof Ionicons.glyphMap {
   return "notifications-outline";
 }
 
-function relativeTime(iso: string) {
+function relativeTime(iso: string, t?: (key: string, params?: Record<string, any>) => string) {
   const diffMs = Date.now() - new Date(iso).getTime();
   const mins = Math.floor(diffMs / 60000);
-  if (mins < 1) return "Just now";
-  if (mins < 60) return `${mins}m ago`;
+  if (mins < 1) return t ? t("notifications.justNow") : "Just now";
+  if (mins < 60) return t ? t("notifications.minsAgo", { mins }) : `${mins}m ago`;
   const hours = Math.floor(mins / 60);
-  if (hours < 24) return `${hours}h ago`;
+  if (hours < 24) return t ? t("notifications.hoursAgo", { hours }) : `${hours}h ago`;
   const days = Math.floor(hours / 24);
-  if (days < 7) return `${days}d ago`;
+  if (days < 7) return t ? t("notifications.daysAgo", { days }) : `${days}d ago`;
   return new Date(iso).toLocaleDateString();
 }
 
 // Today / yesterday / earlier, the same grouping every notification
 // feed uses — the raw list read as an undifferentiated wall of cards
 // with no sense of "is this new or from last week".
-function groupByDate(notifications: Notif[]) {
+function groupByDate(notifications: Notif[], t?: (key: string) => string) {
   const today: Notif[] = [];
   const yesterday: Notif[] = [];
   const earlier: Notif[] = [];
@@ -53,20 +54,21 @@ function groupByDate(notifications: Notif[]) {
   const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
   const startOfYesterday = startOfToday - 86400000;
   for (const n of notifications) {
-    const t = new Date(n.createdAt).getTime();
-    if (t >= startOfToday) today.push(n);
-    else if (t >= startOfYesterday) yesterday.push(n);
+    const ts = new Date(n.createdAt).getTime();
+    if (ts >= startOfToday) today.push(n);
+    else if (ts >= startOfYesterday) yesterday.push(n);
     else earlier.push(n);
   }
   return [
-    { title: "Today", data: today },
-    { title: "Yesterday", data: yesterday },
-    { title: "Earlier", data: earlier },
+    { title: t ? t("searchOptions.today") : "Today", data: today },
+    { title: t ? t("notifications.yesterday") : "Yesterday", data: yesterday },
+    { title: t ? t("notifications.earlier") : "Earlier", data: earlier },
   ].filter((s) => s.data.length > 0);
 }
 
 export default function NotificationsScreen({ navigation }: any) {
   useScreenView("NotificationsScreen");
+  const { t } = useTranslation();
   const [notifications, setNotifications] = useState<Notif[]>([]);
   const [profile, setProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -85,7 +87,7 @@ export default function NotificationsScreen({ navigation }: any) {
   useFocusEffect(useCallback(() => { api.getMyProfile().then(setProfile).catch(() => {}); }, []));
 
   const unreadCount = notifications.filter((n) => !n.read).length;
-  const sections = useMemo(() => groupByDate(notifications), [notifications]);
+  const sections = useMemo(() => groupByDate(notifications, t), [notifications, t]);
 
   async function markRead(id: string) {
     await api.markNotificationRead(id);
@@ -114,13 +116,13 @@ export default function NotificationsScreen({ navigation }: any) {
     <SafeAreaView style={styles.screen} edges={["top"]}>
       <View style={styles.titleRow}>
         <View>
-          <Text style={styles.pageTitle}>Notifications</Text>
-          {unreadCount > 0 && <Text style={styles.pageSubtitle}>{unreadCount} unread</Text>}
+          <Text style={styles.pageTitle}>{t("notifications.title")}</Text>
+          {unreadCount > 0 && <Text style={styles.pageSubtitle}>{t("notifications.unreadCount", { count: unreadCount })}</Text>}
         </View>
         {unreadCount > 0 && (
           <Pressable style={styles.markAllButton} onPress={markAllRead} disabled={markingAll} hitSlop={4}>
             <Ionicons name="checkmark-done-outline" size={14} color={colors.accentText} />
-            <Text style={styles.markAllText}>Mark all read</Text>
+            <Text style={styles.markAllText}>{t("notifications.markAllRead")}</Text>
           </Pressable>
         )}
       </View>
@@ -129,7 +131,7 @@ export default function NotificationsScreen({ navigation }: any) {
           <CarLoader size="lg" />
         </View>
       ) : error ? (
-        <ErrorState message="Couldn't load notifications." onRetry={load} />
+        <ErrorState message={t("notifications.couldntLoad")} onRetry={load} />
       ) : (
       <SectionList
         style={{ flex: 1 }}
@@ -150,7 +152,7 @@ export default function NotificationsScreen({ navigation }: any) {
             <View style={styles.cardBody}>
               <View style={styles.cardTopRow}>
                 <Text style={styles.cardTitle} numberOfLines={1}>{item.title}</Text>
-                <Text style={styles.cardTime}>{relativeTime(item.createdAt)}</Text>
+                <Text style={styles.cardTime}>{relativeTime(item.createdAt, t)}</Text>
               </View>
               <Text style={styles.cardText}>{item.body}</Text>
             </View>
@@ -158,7 +160,7 @@ export default function NotificationsScreen({ navigation }: any) {
           </Pressable>
         )}
         ListEmptyComponent={
-          <EmptyState icon="notifications-outline" title="No notifications yet" subtitle="Booking updates, payment alerts, and trip events will show up here." />
+          <EmptyState icon="notifications-outline" title={t("notifications.emptyTitle")} subtitle={t("notifications.emptySubtitle")} />
         }
       />
       )}

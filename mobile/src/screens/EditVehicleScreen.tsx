@@ -12,6 +12,7 @@ import { KeyboardAvoider } from "../components/KeyboardAvoider";
 import { BackHeader } from "../components/BackHeader";
 import { useScreenView } from "../lib/useScreenView";
 import { pickImage, uploadToSignedUrl, DOCUMENT_QUALITY } from "../lib/imageUpload";
+import { useTranslation } from "../lib/i18n/I18nContext";
 
 const SEAT_OPTIONS = [4, 5, 6, 7];
 
@@ -21,19 +22,19 @@ type UploadKind = "PHOTO" | "RC" | "DL";
 // Save actually uploads it.
 type StagedAsset = { uri: string; mimeType?: string } | null;
 
-const UPLOAD_FIELDS: { kind: UploadKind; label: string; required: boolean; icon: keyof typeof Ionicons.glyphMap }[] = [
-  { kind: "PHOTO", label: "Car photo", required: false, icon: "camera-outline" },
-  { kind: "RC", label: "RC book", required: true, icon: "document-text-outline" },
-  { kind: "DL", label: "Driving license", required: false, icon: "card-outline" },
+const UPLOAD_FIELDS: { kind: UploadKind; labelKey: string; required: boolean; icon: keyof typeof Ionicons.glyphMap }[] = [
+  { kind: "PHOTO", labelKey: "vehicle.carPhoto", required: false, icon: "camera-outline" },
+  { kind: "RC", labelKey: "vehicle.rcBook", required: true, icon: "document-text-outline" },
+  { kind: "DL", labelKey: "vehicle.drivingLicense", required: false, icon: "card-outline" },
 ];
 
-// Info-icon tooltip text, same wording wherever a driver might ask "how
+// Info-icon tooltip key, same wording wherever a driver might ask "how
 // long does this take" — VehicleListScreen's own pending tag included.
-export const VEHICLE_REVIEW_SLA_MESSAGE =
-  "An admin typically reviews and approves a new vehicle within 1 hour. You'll get a notification either way.";
+export const VEHICLE_REVIEW_SLA_MESSAGE_KEY = "vehicle.reviewSlaMessage";
 
 export default function EditVehicleScreen({ route, navigation }: any) {
   useScreenView("EditVehicleScreen");
+  const { t } = useTranslation();
   const { vehicle } = route.params;
   const [make, setMake] = useState(vehicle.make);
   const [model, setModel] = useState(vehicle.model);
@@ -69,7 +70,7 @@ export default function EditVehicleScreen({ route, navigation }: any) {
   }
 
   async function handleSave() {
-    const validationErrors = validateVehicle({ make, model, regNumber });
+    const validationErrors = validateVehicle({ make, model, regNumber }, t);
     setErrors(validationErrors);
     if (Object.keys(validationErrors).length > 0) return;
 
@@ -95,7 +96,7 @@ export default function EditVehicleScreen({ route, navigation }: any) {
       });
       navigation.goBack();
     } catch (err: any) {
-      showAlert("Couldn't save", err.message);
+      showAlert(t("common.couldntSave"), err.message);
     } finally {
       setSubmitting(false);
     }
@@ -107,7 +108,7 @@ export default function EditVehicleScreen({ route, navigation }: any) {
 
   return (
     <SafeAreaView style={styles.screen} edges={["top", "bottom"]}>
-      <BackHeader title="Edit vehicle" onBack={() => navigation.goBack()} />
+      <BackHeader title={t("vehicle.editVehicle")} onBack={() => navigation.goBack()} />
 
       <KeyboardAvoider>
       <ScrollView contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
@@ -115,20 +116,20 @@ export default function EditVehicleScreen({ route, navigation }: any) {
           <View style={styles.rejectedBanner}>
             <Ionicons name="alert-circle" size={16} color={colors.danger} />
             <View style={{ flex: 1 }}>
-              <Text style={styles.rejectedTitle}>Not approved</Text>
+              <Text style={styles.rejectedTitle}>{t("vehicle.notApproved")}</Text>
               <Text style={styles.rejectedReason}>
-                {vehicle.rejectionReason || "No reason was given."}
+                {vehicle.rejectionReason || t("vehicle.noReasonGiven")}
               </Text>
-              <Text style={styles.rejectedHint}>Fix the issue and re-upload the document below to resubmit.</Text>
+              <Text style={styles.rejectedHint}>{t("vehicle.fixAndResubmit")}</Text>
             </View>
           </View>
         )}
         {vehicle.status === "PENDING" && (
           <View style={styles.pendingBanner}>
             <Ionicons name="time-outline" size={16} color={colors.warning} />
-            <Text style={styles.pendingText}>Pending review</Text>
+            <Text style={styles.pendingText}>{t("vehicle.pendingReview")}</Text>
             <Pressable
-              onPress={() => showAlert("Pending review", VEHICLE_REVIEW_SLA_MESSAGE)}
+              onPress={() => showAlert(t("vehicle.pendingReview"), t(VEHICLE_REVIEW_SLA_MESSAGE_KEY))}
               hitSlop={8}
             >
               <Ionicons name="information-circle-outline" size={17} color={colors.warning} />
@@ -138,11 +139,11 @@ export default function EditVehicleScreen({ route, navigation }: any) {
         {vehicle.status === "APPROVED" && (
           <View style={styles.approvedBanner}>
             <Ionicons name="checkmark-circle" size={16} color={colors.success} />
-            <Text style={styles.approvedText}>Approved — ready to use</Text>
+            <Text style={styles.approvedText}>{t("vehicle.approvedReadyToUse")}</Text>
           </View>
         )}
 
-        <Text style={styles.label}>Make</Text>
+        <Text style={styles.label}>{t("vehicle.make")}</Text>
         <TextInput
           style={[styles.input, errors.make && styles.inputError]}
           value={make}
@@ -150,7 +151,7 @@ export default function EditVehicleScreen({ route, navigation }: any) {
         />
         <FieldError message={errors.make} />
 
-        <Text style={styles.label}>Model</Text>
+        <Text style={styles.label}>{t("vehicle.model")}</Text>
         <TextInput
           style={[styles.input, errors.model && styles.inputError]}
           value={model}
@@ -158,7 +159,7 @@ export default function EditVehicleScreen({ route, navigation }: any) {
         />
         <FieldError message={errors.model} />
 
-        <Text style={styles.label}>Registration number</Text>
+        <Text style={styles.label}>{t("vehicle.registrationNumber")}</Text>
         <TextInput
           style={[styles.input, errors.regNumber && styles.inputError]}
           autoCapitalize="characters"
@@ -167,10 +168,10 @@ export default function EditVehicleScreen({ route, navigation }: any) {
         />
         <FieldError message={errors.regNumber} />
 
-        <Text style={styles.label}>Color</Text>
+        <Text style={styles.label}>{t("vehicle.color")}</Text>
         <TextInput style={styles.input} value={color} onChangeText={setColor} />
 
-        <Text style={styles.label}>Seats</Text>
+        <Text style={styles.label}>{t("vehicle.seats")}</Text>
         <View style={styles.chipRow}>
           {SEAT_OPTIONS.map((n) => (
             <Pressable
@@ -178,15 +179,13 @@ export default function EditVehicleScreen({ route, navigation }: any) {
               style={[styles.seatChip, seatCapacity === n && styles.seatChipActive]}
               onPress={() => setSeatCapacity(n)}
             >
-              <Text style={[styles.seatChipText, seatCapacity === n && styles.seatChipTextActive]}>{n}-seater</Text>
+              <Text style={[styles.seatChipText, seatCapacity === n && styles.seatChipTextActive]}>{t("vehicle.seaterSuffix", { n })}</Text>
             </Pressable>
           ))}
         </View>
 
-        <Text style={styles.label}>Documents</Text>
-        <Text style={styles.docsHint}>
-          Tap a document to preview it, or the × on a newly selected one to remove it, before saving.
-        </Text>
+        <Text style={styles.label}>{t("vehicle.documents")}</Text>
+        <Text style={styles.docsHint}>{t("vehicle.docsHintEdit")}</Text>
         {UPLOAD_FIELDS.map((field) => {
           const stagedAsset = staged[field.kind];
           const existingUrl = existingUrls?.[existingUrlKey[field.kind]] ?? null;
@@ -216,21 +215,21 @@ export default function EditVehicleScreen({ route, navigation }: any) {
               </Pressable>
               <View style={{ flex: 1 }}>
                 <View style={styles.docLabelRow}>
-                  <Text style={styles.docLabel}>{field.label}</Text>
+                  <Text style={styles.docLabel}>{t(field.labelKey)}</Text>
                   <Text style={field.required ? styles.requiredTag : styles.optionalTag}>
-                    {field.required ? "Required" : "Optional"}
+                    {field.required ? t("vehicle.required") : t("vehicle.optional")}
                   </Text>
                 </View>
                 {existingUrls === null ? (
-                  <Text style={styles.docActionText}>Loading...</Text>
+                  <Text style={styles.docActionText}>{t("vehicle.loadingEllipsis")}</Text>
                 ) : (
                   <View style={{ flexDirection: "row", gap: spacing.md }}>
                     <Pressable onPress={() => handlePick(field.kind)} hitSlop={4}>
-                      <Text style={styles.docActionText}>{hasAny ? "Replace" : "Select"}</Text>
+                      <Text style={styles.docActionText}>{hasAny ? t("vehicle.replace") : t("vehicle.select")}</Text>
                     </Pressable>
                     {thumbUri && (
                       <Pressable onPress={() => setPreviewUri(thumbUri)} hitSlop={4}>
-                        <Text style={styles.docViewText}>Preview</Text>
+                        <Text style={styles.docViewText}>{t("vehicle.preview")}</Text>
                       </Pressable>
                     )}
                   </View>
@@ -244,7 +243,7 @@ export default function EditVehicleScreen({ route, navigation }: any) {
         })}
 
         <Pressable style={styles.button} onPress={handleSave} disabled={submitting}>
-          <Text style={styles.buttonText}>{submitting ? "Uploading & saving..." : "Save vehicle"}</Text>
+          <Text style={styles.buttonText}>{submitting ? t("vehicle.uploadingAndSaving") : t("vehicle.saveVehicle")}</Text>
         </Pressable>
       </ScrollView>
       </KeyboardAvoider>

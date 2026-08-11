@@ -10,10 +10,13 @@ import { ErrorState } from "../components/ErrorState";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { BackHeader } from "../components/BackHeader";
 import { useScreenView } from "../lib/useScreenView";
+import Avatar from "../components/Avatar";
+import { useTranslation } from "../lib/i18n/I18nContext";
 
 type Conversation = {
   bookingId: string;
   otherPartyName: string;
+  otherPartyPhoto?: string | null;
   routeLabel: string;
   status: string;
 };
@@ -30,6 +33,7 @@ const ACTIVE_CHAT_STATUSES = ["CONFIRMED"];
 
 export default function ChatListScreen({ navigation, route }: any) {
   useScreenView("ChatListScreen");
+  const { t } = useTranslation();
   // Same as History — reachable generically (side menu, deep links) with
   // no params, so fall back to the caller's own profile when needed.
   const { currentUserId: paramUserId, role: paramRole } = route.params || {};
@@ -63,8 +67,9 @@ export default function ChatListScreen({ navigation, route }: any) {
               .filter((b) => ACTIVE_CHAT_STATUSES.includes(b.status))
               .map((b) => ({
                 bookingId: b.id,
-                otherPartyName: b.passenger?.name || "Passenger",
-                routeLabel: `${b.ride?.sourceAddress} to ${b.ride?.destAddress}`,
+                otherPartyName: b.passenger?.name || t("register.passenger"),
+                otherPartyPhoto: b.passenger?.photoViewUrl,
+                routeLabel: t("common.routeTo", { source: b.ride?.sourceAddress, dest: b.ride?.destAddress }),
                 status: b.status,
               }))
           )
@@ -82,8 +87,9 @@ export default function ChatListScreen({ navigation, route }: any) {
             .filter((b) => ACTIVE_CHAT_STATUSES.includes(b.status))
             .map((b) => ({
               bookingId: b.id,
-              otherPartyName: b.ride?.driver?.name || "Driver",
-              routeLabel: `${b.ride?.sourceAddress} to ${b.ride?.destAddress}`,
+              otherPartyName: b.ride?.driver?.name || t("register.driver"),
+              otherPartyPhoto: b.ride?.driver?.photoViewUrl,
+              routeLabel: t("common.routeTo", { source: b.ride?.sourceAddress, dest: b.ride?.destAddress }),
               status: b.status,
             }))
         )
@@ -100,13 +106,13 @@ export default function ChatListScreen({ navigation, route }: any) {
 
   return (
     <SafeAreaView style={styles.screen} edges={["top", "bottom"]}>
-      <BackHeader title="Messages" onBack={() => navigation.goBack()} />
+      <BackHeader title={t("chatList.title")} onBack={() => navigation.goBack()} />
       {loading ? (
         <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
           <CarLoader size="lg" />
         </View>
       ) : error ? (
-        <ErrorState message="Couldn't load conversations." onRetry={load} />
+        <ErrorState message={t("chatList.couldntLoad")} onRetry={load} />
       ) : (
       <FlatList
         data={conversations}
@@ -124,9 +130,7 @@ export default function ChatListScreen({ navigation, route }: any) {
               })
             }
           >
-            <View style={styles.avatar}>
-              <Text style={styles.avatarText}>{item.otherPartyName[0]}</Text>
-            </View>
+            <Avatar uri={item.otherPartyPhoto} name={item.otherPartyName} size={36} />
             <View style={{ flex: 1 }}>
               <Text style={styles.name}>{item.otherPartyName}</Text>
               <Text style={styles.route}>{item.routeLabel}</Text>
@@ -136,8 +140,8 @@ export default function ChatListScreen({ navigation, route }: any) {
         ListEmptyComponent={
           <EmptyState
             icon="chatbubbles-outline"
-            title="No conversations yet"
-            subtitle="Conversations appear once you have a confirmed booking."
+            title={t("chatList.emptyTitle")}
+            subtitle={t("chatList.emptySubtitle")}
           />
         }
       />
@@ -161,8 +165,6 @@ const styles = StyleSheet.create({
     borderRadius: radius.md,
     padding: spacing.md,
   },
-  avatar: { width: 36, height: 36, borderRadius: 18, backgroundColor: colors.accentBg, alignItems: "center", justifyContent: "center" },
-  avatarText: { color: colors.accentText, fontWeight: "700" },
   name: { ...typography.title, fontSize: 14 },
   route: { ...typography.small, color: colors.textMuted, marginTop: 2 },
   empty: { textAlign: "center", marginTop: spacing.xl, color: colors.textMuted, paddingHorizontal: spacing.lg },

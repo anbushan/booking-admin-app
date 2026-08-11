@@ -6,6 +6,7 @@ import { colors, spacing, radius, typography } from "../theme/theme";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { BackHeader } from "../components/BackHeader";
 import { useScreenView } from "../lib/useScreenView";
+import { useTranslation } from "../lib/i18n/I18nContext";
 
 // Web build of MapPinConfirmScreen — see LiveTrackingScreen.web.tsx for why
 // react-native-maps can't be imported on web at all. The drag-to-adjust-pin
@@ -14,6 +15,7 @@ import { useScreenView } from "../lib/useScreenView";
 
 export default function MapPinConfirmScreen({ route, navigation }: any) {
   useScreenView("MapPinConfirmScreen");
+  const { t } = useTranslation();
   const { lat, lng, address, onSelect } = route.params;
   const [confirming, setConfirming] = useState(false);
 
@@ -25,11 +27,11 @@ export default function MapPinConfirmScreen({ route, navigation }: any) {
 
   return (
     <SafeAreaView style={styles.screen} edges={["top", "bottom"]}>
-      <BackHeader title="Confirm location" onBack={() => navigation.goBack()} />
+      <BackHeader title={t("mapPinConfirm.title")} onBack={() => navigation.goBack()} />
       <View style={styles.mapPlaceholder}>
         <Ionicons name="map-outline" size={28} color={colors.accentText} />
-        <Text style={styles.mapPlaceholderText}>Map preview isn't available on web</Text>
-        <Text style={styles.mapPlaceholderHint}>Open this in the mobile app to drag-adjust the pin.</Text>
+        <Text style={styles.mapPlaceholderText}>{t("mapPinConfirm.notAvailableOnWeb")}</Text>
+        <Text style={styles.mapPlaceholderHint}>{t("mapPinConfirm.openInMobileApp")}</Text>
       </View>
       <View style={styles.body}>
         <View style={styles.addressRow}>
@@ -37,14 +39,14 @@ export default function MapPinConfirmScreen({ route, navigation }: any) {
             <Ionicons name="location" size={16} color={colors.marigold} />
           </View>
           <View style={{ flex: 1 }}>
-            <Text style={styles.addressLabel}>Pickup location</Text>
+            <Text style={styles.addressLabel}>{t("mapPinConfirm.pickupLocation")}</Text>
             <Text style={styles.address}>{address}</Text>
             <Text style={styles.hint}>{lat.toFixed(5)}, {lng.toFixed(5)}</Text>
           </View>
         </View>
         <Pressable style={styles.confirmButton} onPress={handleConfirm} disabled={confirming}>
           <Ionicons name="checkmark-circle-outline" size={18} color="#FFFFFF" />
-          <Text style={styles.confirmButtonText}>Confirm location</Text>
+          <Text style={styles.confirmButtonText}>{t("mapPinConfirm.title")}</Text>
         </Pressable>
       </View>
     </SafeAreaView>

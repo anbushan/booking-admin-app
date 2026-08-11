@@ -14,22 +14,23 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { AppBottomNav } from "../components/AppBottomNav";
 import { KeyboardAvoider } from "../components/KeyboardAvoider";
 import { useScreenView } from "../lib/useScreenView";
+import { useTranslation } from "../lib/i18n/I18nContext";
 
 const PREFERENCE_OPTIONS = [
-  { key: "music", label: "Music ok" },
-  { key: "pets", label: "Pets ok" },
-  { key: "smoking", label: "No smoking", inverted: true },
+  { key: "music", labelKey: "offerRide.musicOk" },
+  { key: "pets", labelKey: "offerRide.petsOk" },
+  { key: "smoking", labelKey: "offerRide.noSmoking", inverted: true },
 ];
 
 type Point = { lat: number; lng: number; address: string };
 
 const DEFAULT_SOURCE: Point = { lat: 12.9352, lng: 77.6146, address: "Koramangala, Bengaluru" };
 
-const APPROVAL_FLOW_STEPS: { icon: keyof typeof Ionicons.glyphMap; label: string }[] = [
-  { icon: "add-circle-outline", label: "Add vehicle" },
-  { icon: "shield-checkmark-outline", label: "Admin verifies" },
-  { icon: "checkmark-circle-outline", label: "Approved" },
-  { icon: "car-sport-outline", label: "Offer ride" },
+const APPROVAL_FLOW_STEPS: { icon: keyof typeof Ionicons.glyphMap; labelKey: string }[] = [
+  { icon: "add-circle-outline", labelKey: "vehicle.addVehicle" },
+  { icon: "shield-checkmark-outline", labelKey: "offerRide.adminVerifies" },
+  { icon: "checkmark-circle-outline", labelKey: "vehicle.approved" },
+  { icon: "car-sport-outline", labelKey: "driver.offerRide" },
 ];
 
 // Same idea as HomeScreen's passenger-side "Why ride with NanbaGO"
@@ -44,6 +45,7 @@ const APPROVAL_FLOW_STEPS: { icon: keyof typeof Ionicons.glyphMap; label: string
 // in progress — sits literally between "Admin verifies" and "Approved"
 // while a vehicle is PENDING (currentStep=2), not just colored done.
 function VehicleApprovalFlow({ currentStep }: { currentStep: number }) {
+  const { t } = useTranslation();
   const [stepCenters, setStepCenters] = useState<number[]>([]);
   const carX = useRef(new Animated.Value(0)).current;
   const activeIndex = currentStep - 1;
@@ -68,11 +70,15 @@ function VehicleApprovalFlow({ currentStep }: { currentStep: number }) {
 
   return (
     <View style={styles.flowCard}>
-      <Text style={styles.flowTitle}>How this works</Text>
+      <Text style={styles.flowTitle}>{t("offerRide.howThisWorks")}</Text>
       <View style={{ position: "relative" }}>
         {activeIndex >= 0 && stepCenters.length === APPROVAL_FLOW_STEPS.length && (
           <Animated.View style={[styles.flowCarBadge, { transform: [{ translateX: carX }] }]} pointerEvents="none">
-            <Ionicons name="car-sport" size={13} color="#FFFFFF" />
+            {/* car-sport faces left by default; this only ever moves
+                rightward (steps progress left to right), so a
+                permanent flip is enough — no direction-syncing needed
+                like the bouncing loaders (CarLoader/LoadingCar). */}
+            <Ionicons name="car-sport" size={13} color="#FFFFFF" style={{ transform: [{ scaleX: -1 }] }} />
           </Animated.View>
         )}
         <View style={styles.flowRow}>
@@ -81,7 +87,7 @@ function VehicleApprovalFlow({ currentStep }: { currentStep: number }) {
             const done = stepNum < currentStep;
             const active = stepNum === currentStep;
             return (
-              <React.Fragment key={step.label}>
+              <React.Fragment key={step.labelKey}>
                 <View
                   style={styles.flowStep}
                   onLayout={(e) => handleStepLayout(i, e.nativeEvent.layout.x, e.nativeEvent.layout.width)}
@@ -93,7 +99,7 @@ function VehicleApprovalFlow({ currentStep }: { currentStep: number }) {
                       <Ionicons name={step.icon} size={16} color={active ? colors.accentText : colors.textMuted} />
                     )}
                   </View>
-                  <Text style={[styles.flowStepLabel, active && styles.flowStepLabelActive]}>{step.label}</Text>
+                  <Text style={[styles.flowStepLabel, active && styles.flowStepLabelActive]}>{t(step.labelKey)}</Text>
                 </View>
                 {i < APPROVAL_FLOW_STEPS.length - 1 && (
                   <View style={[styles.flowConnector, done && styles.flowConnectorDone]} />
@@ -109,6 +115,7 @@ function VehicleApprovalFlow({ currentStep }: { currentStep: number }) {
 
 export default function OfferRideScreen({ navigation }: any) {
   useScreenView("OfferRideScreen");
+  const { t } = useTranslation();
   const [source, setSource] = useState<Point>(DEFAULT_SOURCE);
   const [destination, setDestination] = useState<Point | null>(null);
   const [travelDate, setTravelDate] = useState(() => {
@@ -190,16 +197,16 @@ export default function OfferRideScreen({ navigation }: any) {
   // screen makes the real api.createRide() call once a route is picked.
   function handleContinue() {
     if (!destination) {
-      showAlert("Add a destination", "Pick where this ride is headed before publishing.");
+      showAlert(t("offerRide.addDestinationTitle"), t("offerRide.addDestinationBody"));
       return;
     }
     if (vehicles && vehicles.length > 1 && !vehicleId) {
-      showAlert("Select a vehicle", "Choose which vehicle this ride uses before publishing.");
+      showAlert(t("offerRide.selectVehicleTitle"), t("offerRide.selectVehicleBody"));
       return;
     }
-    const validationErrors = validateRidePricing({ seats: String(seats), price });
+    const validationErrors = validateRidePricing({ seats: String(seats), price }, t);
     if (priceExceedsCap) {
-      validationErrors.price = `Price per seat can't exceed Rs ${fareCap} for this distance.`;
+      validationErrors.price = t("offerRide.priceCapError", { cap: fareCap });
     }
     setErrors(validationErrors);
     if (Object.keys(validationErrors).length > 0) return;
@@ -217,7 +224,7 @@ export default function OfferRideScreen({ navigation }: any) {
 
   return (
     <SafeAreaView style={styles.screen} edges={["top"]}>
-      <Text style={{ ...typography.title, padding: spacing.lg, paddingBottom: spacing.sm }}>Offer a ride</Text>
+      <Text style={{ ...typography.title, padding: spacing.lg, paddingBottom: spacing.sm }}>{t("offerRide.title")}</Text>
 
       {vehicles === null && !vehiclesError ? (
         <View style={styles.centerState}>
@@ -228,10 +235,10 @@ export default function OfferRideScreen({ navigation }: any) {
           contentContainerStyle={styles.centerState}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => loadVehicles(true)} colors={[colors.accent]} tintColor={colors.accent} />}
         >
-          <Text style={styles.noVehicleTitle}>Your vehicle is pending review</Text>
-          <Text style={styles.noVehicleSubtitle}>An admin needs to approve it before you can publish rides — pull down to check again.</Text>
+          <Text style={styles.noVehicleTitle}>{t("offerRide.vehiclePendingTitle")}</Text>
+          <Text style={styles.noVehicleSubtitle}>{t("offerRide.vehiclePendingSubtitle")}</Text>
           <Pressable style={styles.button} onPress={() => navigation.navigate("VehicleList")}>
-            <Text style={styles.buttonText}>View your vehicles</Text>
+            <Text style={styles.buttonText}>{t("offerRide.viewYourVehicles")}</Text>
           </Pressable>
           <VehicleApprovalFlow currentStep={2} />
         </ScrollView>
@@ -240,10 +247,10 @@ export default function OfferRideScreen({ navigation }: any) {
           contentContainerStyle={styles.centerState}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => loadVehicles(true)} colors={[colors.accent]} tintColor={colors.accent} />}
         >
-          <Text style={styles.noVehicleTitle}>Add a vehicle to publish rides</Text>
-          <Text style={styles.noVehicleSubtitle}>Passengers need to know what they're getting picked up in.</Text>
+          <Text style={styles.noVehicleTitle}>{t("offerRide.addVehicleToPublish")}</Text>
+          <Text style={styles.noVehicleSubtitle}>{t("offerRide.addVehicleSubtitle")}</Text>
           <Pressable style={styles.button} onPress={() => navigation.navigate("AddVehicle")}>
-            <Text style={styles.buttonText}>Add vehicle</Text>
+            <Text style={styles.buttonText}>{t("vehicle.addVehicle")}</Text>
           </Pressable>
           <VehicleApprovalFlow currentStep={1} />
         </ScrollView>
@@ -252,7 +259,7 @@ export default function OfferRideScreen({ navigation }: any) {
       <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
         {vehicles && vehicles.length > 1 && (
           <>
-            <Text style={styles.label}>Vehicle</Text>
+            <Text style={styles.label}>{t("offerRide.vehicle")}</Text>
             <View style={styles.chipRow}>
               {vehicles.map((v) => (
                 <Pressable
@@ -280,27 +287,27 @@ export default function OfferRideScreen({ navigation }: any) {
           >
             <View style={[styles.dot, { backgroundColor: colors.danger }]} />
             <Text style={[styles.fieldText, !destination && { color: colors.textMuted }]}>
-              {destination?.address || "Where to?"}
+              {destination?.address || t("home.whereTo")}
             </Text>
           </Pressable>
         </View>
 
         <View style={styles.row}>
-          <Text style={styles.label}>Departure</Text>
+          <Text style={styles.label}>{t("offerRide.departure")}</Text>
           <Pressable style={styles.chip} onPress={() => setOptionsVisible(true)}>
-            <Text style={styles.chipText}>{formatSearchDate(travelDate)}</Text>
+            <Text style={styles.chipText}>{formatSearchDate(travelDate, t)}</Text>
           </Pressable>
         </View>
 
         <View style={styles.row}>
-          <Text style={styles.label}>Seats available</Text>
+          <Text style={styles.label}>{t("offerRide.seatsAvailable")}</Text>
           <Pressable style={styles.chip} onPress={() => setOptionsVisible(true)}>
             <Text style={styles.chipText}>{seats}</Text>
           </Pressable>
         </View>
         <FieldError message={errors.seats} />
 
-        <Text style={styles.label}>Price per seat</Text>
+        <Text style={styles.label}>{t("offerRide.pricePerSeat")}</Text>
         <TextInput
           style={[styles.input, errors.price && styles.inputError]}
           keyboardType="number-pad"
@@ -310,11 +317,11 @@ export default function OfferRideScreen({ navigation }: any) {
         <FieldError message={errors.price} />
         <Text style={[styles.hint, priceExceedsCap && { color: colors.danger }]}>
           {fareCap !== null
-            ? `Up to Rs ${fareCap} per seat for this distance (cost-sharing cap)`
-            : "Pick a destination to see the price cap for this route"}
+            ? t("offerRide.priceCapHint", { cap: fareCap })
+            : t("offerRide.pickDestinationHint")}
         </Text>
 
-        <Text style={[styles.label, { marginTop: spacing.lg }]}>Preferences</Text>
+        <Text style={[styles.label, { marginTop: spacing.lg }]}>{t("offerRide.preferences")}</Text>
         <View style={styles.chipRow}>
           {PREFERENCE_OPTIONS.map((opt) => {
             const active = opt.inverted ? !preferences[opt.key] : preferences[opt.key];
@@ -324,14 +331,14 @@ export default function OfferRideScreen({ navigation }: any) {
                 style={[styles.chip, active && styles.chipActive]}
                 onPress={() => togglePreference(opt.key)}
               >
-                <Text style={[styles.chipText, active && styles.chipTextActive]}>{opt.label}</Text>
+                <Text style={[styles.chipText, active && styles.chipTextActive]}>{t(opt.labelKey)}</Text>
               </Pressable>
             );
           })}
         </View>
 
         <Pressable style={styles.button} onPress={handleContinue}>
-          <Text style={styles.buttonText}>Search routes</Text>
+          <Text style={styles.buttonText}>{t("offerRide.searchRoutes")}</Text>
         </Pressable>
       </ScrollView>
       </KeyboardAvoider>

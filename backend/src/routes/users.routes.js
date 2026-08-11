@@ -1,21 +1,15 @@
 import { Router } from "express";
-import { PutObjectCommand, GetObjectCommand } from "@aws-sdk/client-s3";
+import { PutObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { prisma } from "../lib/prisma.js";
 import { requireAuth } from "../middleware/auth.js";
 import { validate, isNonEmptyString, isEmail, isOneOf } from "../lib/validate.js";
 import { serializeUser } from "../lib/serializeUser.js";
 import { r2, R2_BUCKET } from "../lib/r2.js";
+import { photoViewUrl } from "../lib/photo.js";
 
 const router = Router();
 const UPLOAD_URL_TTL_SECONDS = 600; // 10 min
-const VIEW_URL_TTL_SECONDS = 300; // 5 min — never long-lived, matches documents.routes.js
-
-async function photoViewUrl(photoR2Key) {
-  if (!photoR2Key) return null;
-  const command = new GetObjectCommand({ Bucket: R2_BUCKET, Key: photoR2Key });
-  return getSignedUrl(r2, command, { expiresIn: VIEW_URL_TTL_SECONDS });
-}
 
 // PUT /api/users/me — completes registration (name/email/role) after
 // first-time OTP verification.
@@ -90,6 +84,98 @@ router.put("/me/role", requireAuth, async (req, res) => {
     },
   });
   res.json(serializeUser(updated));
+});
+
+// Bookings/rides/refunds in a state where deleting the account out from
+// under them would leave the other party stranded (a driver mid-trip, a
+// payment mid-refund, a request no one will ever accept/reject) — shared
+// by the eligibility check and the delete endpoint itself, since the
+// delete endpoint re-checks server-side rather than trusting whatever
+// the client saw a moment earlier.
+const ACTIVE_BOOKING_STATUSES = ["BOOKED", "AWAITING_PAYMENT", "CHARGE_ATTEMPTED", "PAYMENT_PENDING", "CONFIRMED", "IN_PROGRESS"];
+const ACTIVE_RIDE_STATUSES = ["PUBLISHED", "IN_PROGRESS"];
+const ACTIVE_REFUND_STATUSES = ["INITIATED", "PROCESSING"];
+
+async function findDeletionBlockers(userId) {
+  const blockers = [];
+
+  const activeBookingCount = await prisma.booking.count({
+    where: { passengerId: userId, status: { in: ACTIVE_BOOKING_STATUSES } },
+  });
+  if (activeBookingCount > 0) {
+    blockers.push(
+      activeBookingCount === 1
+        ? "You have an active booking. Cancel or complete it first."
+        : `You have ${activeBookingCount} active bookings. Cancel or complete them first.`
+    );
+  }
+
+  const activeRideCount = await prisma.ride.count({
+    where: { driverId: userId, status: { in: ACTIVE_RIDE_STATUSES } },
+  });
+  if (activeRideCount > 0) {
+    blockers.push(
+      activeRideCount === 1
+        ? "You have a published or in-progress ride. Cancel or complete it first."
+        : `You have ${activeRideCount} published or in-progress rides. Cancel or complete them first.`
+    );
+  }
+
+  const activeRefundCount = await prisma.refund.count({
+    where: { status: { in: ACTIVE_REFUND_STATUSES }, booking: { passengerId: userId } },
+  });
+  if (activeRefundCount > 0) {
+    blockers.push("A refund to you is still processing. Please wait for it to complete first.");
+  }
+
+  return blockers;
+}
+
+// GET /api/users/me/deletion-check — lets the app show exactly what's
+// blocking deletion (if anything) before the user commits to the
+// confirm screen, instead of only finding out after tapping delete.
+router.get("/me/deletion-check", requireAuth, async (req, res) => {
+  const blockers = await findDeletionBlockers(req.user.id);
+  res.json({ canDelete: blockers.length === 0, blockers });
+});
+
+// DELETE /api/users/me — self-service account deletion. Soft-delete,
+// not a real row drop: other users' ride/booking/rating history
+// references this row (see schema.prisma's deletedAt comment), so
+// hard-deleting would either cascade-wipe their history or fail on the
+// foreign keys. Blocks login the same way an admin-disabled account
+// already does (disabled=true, checked in middleware/auth.js and at
+// login in auth.routes.js), and scrubs the PII this account directly
+// owns — historical trip/rating records tied to *other* users keep
+// existing, just without anything left here that identifies who this
+// was.
+router.delete("/me", requireAuth, async (req, res) => {
+  const blockers = await findDeletionBlockers(req.user.id);
+  if (blockers.length > 0) {
+    return res.status(409).json({ error: "Account can't be deleted yet.", blockers });
+  }
+
+  await prisma.$transaction([
+    prisma.user.update({
+      where: { id: req.user.id },
+      data: {
+        disabled: true,
+        deletedAt: new Date(),
+        name: null,
+        email: null,
+        photoR2Key: null,
+        fcmToken: null,
+        passcodeHash: null,
+        passcodeCreatedAt: null,
+        whatsappOptIn: false,
+      },
+    }),
+    // Fully theirs, nothing else references it — deleted outright
+    // rather than scrubbed in place.
+    prisma.emergencyContact.deleteMany({ where: { userId: req.user.id } }),
+  ]);
+
+  res.json({ deleted: true });
 });
 
 // GET /api/users/:id/public — shown to the other party in a booking

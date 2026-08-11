@@ -67,6 +67,12 @@ export const api = {
   updateProfile: (payload: { name: string; email?: string; role: "PASSENGER" | "DRIVER"; whatsappOptIn?: boolean }) =>
     request("/api/users/me", { method: "PUT", body: JSON.stringify(payload) }),
 
+  // Lets DeleteAccountScreen show exactly what's blocking deletion (if
+  // anything) before the user reaches the confirm step.
+  getDeletionCheck: () => request("/api/users/me/deletion-check"),
+
+  deleteAccount: () => request("/api/users/me", { method: "DELETE" }),
+
   // Switches which profile is active on this phone number, or sets up
   // the other one for the first time — see users.routes.js PUT /me/role.
   switchRole: (role: "PASSENGER" | "DRIVER") =>
@@ -211,6 +217,14 @@ export const api = {
 
   reverseGeocode: (lat: number, lng: number) =>
     request(`/api/geocode/reverse?lat=${lat}&lng=${lng}`),
+
+  // "Top searches" for LocationSearchScreen — the most frequently
+  // published-to/from addresses across all rides (see rides.routes.js).
+  getPopularLocations: () => request("/api/rides/popular-locations"),
+
+  // "Popular routes" for Home — the most-published source→destination
+  // pairs, tap one to jump straight into search with both ends filled.
+  getPopularRoutes: () => request("/api/rides/popular-routes"),
 
   getCurrentLocation: async () => {
     let { status } = await Location.getForegroundPermissionsAsync();

@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { View, Text, TextInput, ScrollView, StyleSheet } from "react-native";
+import { View, Text, TextInput, Image, ScrollView, StyleSheet } from "react-native";
 import { Pressable } from "../components/Pressable";
 import { Ionicons } from "@expo/vector-icons";
 import { showAlert } from "../lib/alert";
@@ -10,6 +10,7 @@ import { FieldError } from "../components/FieldError";
 import { KeyboardAvoider } from "../components/KeyboardAvoider";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useScreenView } from "../lib/useScreenView";
+import { useTranslation } from "../lib/i18n/I18nContext";
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -20,22 +21,19 @@ const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 // it's already been answered.
 export default function RegisterScreen({ navigation }: any) {
   useScreenView("RegisterScreen");
+  const { t } = useTranslation();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [role, setRole] = useState<"PASSENGER" | "DRIVER" | null>(null);
-  // Opt-in, defaults unchecked — nothing in this codebase sends WhatsApp
-  // messages yet (see User.whatsappOptIn in the schema), but whatever
-  // eventually does should only message people who actually asked for it.
-  const [whatsappOptIn, setWhatsappOptIn] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [errors, setErrors] = useState<{ name?: string; email?: string; role?: string }>({});
 
   function validateForm() {
     const next: typeof errors = {};
-    if (!name.trim()) next.name = "Name is required.";
-    else if (name.trim().length > 100) next.name = "Name is too long.";
-    if (email.trim() && !EMAIL_PATTERN.test(email.trim())) next.email = "Enter a valid email address.";
-    if (!role) next.role = "Select whether you're a driver or a passenger.";
+    if (!name.trim()) next.name = t("register.nameRequired");
+    else if (name.trim().length > 100) next.name = t("register.nameTooLong");
+    if (email.trim() && !EMAIL_PATTERN.test(email.trim())) next.email = t("register.emailInvalid");
+    if (!role) next.role = t("register.roleRequired");
     setErrors(next);
     return Object.keys(next).length === 0;
   }
@@ -44,14 +42,22 @@ export default function RegisterScreen({ navigation }: any) {
     if (!validateForm()) return;
     setSubmitting(true);
     try {
-      await api.updateProfile({ name: name.trim(), email: email.trim(), role: role!, whatsappOptIn });
+      // whatsappOptIn deliberately not sent here — it was already asked
+      // and saved on PhoneEntryScreen (see OtpScreens.tsx), and
+      // users.routes.js's PUT /me only overwrites it when the field is
+      // actually present in the body. Asking again here with a second,
+      // differently-defaulted checkbox meant a new user who left the
+      // login-screen one checked (the default there) could get silently
+      // opted back out a few taps later without ever touching a
+      // checkbox themselves.
+      await api.updateProfile({ name: name.trim(), email: email.trim(), role: role! });
       Analytics.signUp(role!);
       navigation.reset({
         index: 0,
         routes: [{ name: role === "DRIVER" ? "DriverOnboarding" : "Home" }],
       });
     } catch (err: any) {
-      showAlert("Couldn't save profile", err.message);
+      showAlert(t("register.couldntSaveProfile"), err.message);
     } finally {
       setSubmitting(false);
     }
@@ -62,25 +68,25 @@ export default function RegisterScreen({ navigation }: any) {
       <KeyboardAvoider>
         <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
           <View style={styles.brandIcon}>
-            <Ionicons name="person-add-outline" size={26} color={colors.accentText} />
+            <Image source={require("../../assets/brand-mark.png")} style={styles.brandIconImage} resizeMode="contain" />
           </View>
-          <Text style={styles.title}>Tell us about you</Text>
-          <Text style={styles.subtitle}>Just a couple of details before you get going.</Text>
+          <Text style={styles.title}>{t("register.title")}</Text>
+          <Text style={styles.subtitle}>{t("register.subtitle")}</Text>
 
-          <Text style={styles.label}>Name</Text>
+          <Text style={styles.label}>{t("register.nameLabel")}</Text>
           <TextInput
             style={[styles.input, errors.name && styles.inputError]}
-            placeholder="Your full name"
+            placeholder={t("register.namePlaceholder")}
             placeholderTextColor={colors.textMuted}
             value={name}
             onChangeText={(v) => { setName(v); if (errors.name) setErrors((e) => ({ ...e, name: undefined })); }}
           />
           <FieldError message={errors.name} />
 
-          <Text style={styles.label}>Email (optional)</Text>
+          <Text style={styles.label}>{t("register.emailLabel")}</Text>
           <TextInput
             style={[styles.input, errors.email && styles.inputError]}
-            placeholder="you@example.com"
+            placeholder={t("register.emailPlaceholder")}
             placeholderTextColor={colors.textMuted}
             keyboardType="email-address"
             autoCapitalize="none"
@@ -89,7 +95,7 @@ export default function RegisterScreen({ navigation }: any) {
           />
           <FieldError message={errors.email} />
 
-          <Text style={styles.label}>I want to</Text>
+          <Text style={styles.label}>{t("register.roleLabel")}</Text>
           <View style={styles.roleRow}>
             <Pressable
               style={[styles.roleCard, role === "PASSENGER" && styles.roleCardActive]}
@@ -103,8 +109,8 @@ export default function RegisterScreen({ navigation }: any) {
               <View style={[styles.roleIconWrap, role === "PASSENGER" && styles.roleIconWrapActive]}>
                 <Ionicons name="person" size={24} color={role === "PASSENGER" ? "#FFFFFF" : colors.accentText} />
               </View>
-              <Text style={[styles.roleText, role === "PASSENGER" && styles.roleTextActive]}>Passenger</Text>
-              <Text style={styles.roleSub}>Search and book rides</Text>
+              <Text style={[styles.roleText, role === "PASSENGER" && styles.roleTextActive]}>{t("register.passenger")}</Text>
+              <Text style={styles.roleSub}>{t("register.passengerSub")}</Text>
             </Pressable>
             <Pressable
               style={[styles.roleCard, role === "DRIVER" && styles.roleCardActive]}
@@ -118,22 +124,15 @@ export default function RegisterScreen({ navigation }: any) {
               <View style={[styles.roleIconWrap, role === "DRIVER" && styles.roleIconWrapActive]}>
                 <Ionicons name="car-sport" size={24} color={role === "DRIVER" ? "#FFFFFF" : colors.accentText} />
               </View>
-              <Text style={[styles.roleText, role === "DRIVER" && styles.roleTextActive]}>Driver</Text>
-              <Text style={styles.roleSub}>Offer rides, earn money</Text>
+              <Text style={[styles.roleText, role === "DRIVER" && styles.roleTextActive]}>{t("register.driver")}</Text>
+              <Text style={styles.roleSub}>{t("register.driverSub")}</Text>
             </Pressable>
           </View>
           <FieldError message={errors.role} />
 
-          <Pressable style={styles.checkboxRow} onPress={() => setWhatsappOptIn((v) => !v)}>
-            <View style={[styles.checkbox, whatsappOptIn && styles.checkboxChecked]}>
-              {whatsappOptIn && <Ionicons name="checkmark" size={13} color="#FFFFFF" />}
-            </View>
-            <Text style={styles.checkboxLabel}>Get WhatsApp updates</Text>
-          </Pressable>
-
           <Pressable style={styles.button} onPress={handleSubmit} disabled={submitting}>
             {!submitting && <Ionicons name="arrow-forward-circle-outline" size={18} color="#FFFFFF" />}
-            <Text style={styles.buttonText}>{submitting ? "Saving..." : "Continue"}</Text>
+            <Text style={styles.buttonText}>{submitting ? t("register.saving") : t("register.continue")}</Text>
           </Pressable>
         </ScrollView>
       </KeyboardAvoider>
@@ -145,9 +144,11 @@ const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.bg },
   scroll: { padding: spacing.lg, flexGrow: 1, justifyContent: "center" },
   brandIcon: {
-    width: 56, height: 56, borderRadius: 28, backgroundColor: colors.accentBg,
+    width: 56, height: 56, borderRadius: 18, backgroundColor: "#FFFFFF", padding: 8,
+    borderWidth: 1, borderColor: colors.border,
     alignItems: "center", justifyContent: "center", alignSelf: "center", marginBottom: spacing.md,
   },
+  brandIconImage: { width: "100%", height: "100%" },
   title: { ...typography.title, fontSize: 18, textAlign: "center" },
   subtitle: { ...typography.small, color: colors.textMuted, textAlign: "center", marginTop: 4, marginBottom: spacing.lg },
   label: { ...typography.caption, color: colors.textSecondary, marginBottom: spacing.xs, marginTop: spacing.md },
@@ -185,13 +186,6 @@ const styles = StyleSheet.create({
   roleText: { ...typography.title, fontSize: 14 },
   roleTextActive: { color: colors.accentText },
   roleSub: { ...typography.small, color: colors.textMuted, marginTop: 2, textAlign: "center" },
-  checkboxRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm, marginTop: spacing.lg, padding: spacing.xs },
-  checkbox: {
-    width: 20, height: 20, borderRadius: 5, borderWidth: 1.5, borderColor: colors.border,
-    backgroundColor: colors.surface, alignItems: "center", justifyContent: "center",
-  },
-  checkboxChecked: { backgroundColor: colors.accent, borderColor: colors.accent },
-  checkboxLabel: { ...typography.caption, color: colors.textSecondary },
   button: {
     flexDirection: "row",
     gap: spacing.xs,

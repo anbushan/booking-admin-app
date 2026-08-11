@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { View, TextInput, FlatList, Text, StyleSheet, ActivityIndicator } from "react-native";
 import { Pressable } from "../components/Pressable";
+import { useFocusEffect } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
 import { colors, spacing, radius, typography } from "../theme/theme";
 import { api } from "../lib/api";
@@ -9,8 +10,11 @@ import { useToast } from "../components/Toast";
 import { EmptyState } from "../components/EmptyState";
 import { KeyboardAvoider } from "../components/KeyboardAvoider";
 import { useScreenView } from "../lib/useScreenView";
+import { getRecentSearches, addRecentSearch, RecentLocation } from "../lib/recentSearches";
+import { useTranslation } from "../lib/i18n/I18nContext";
 
 type Suggestion = { placeId: string; description: string };
+type PopularLocation = { address: string; lat: number; lng: number; count: number };
 
 // Generates a fresh session token per search session — Autocomplete billing
 // is per-session, not per-keystroke, as long as the session ends with a
@@ -22,6 +26,7 @@ function newSessionToken() {
 
 export default function LocationSearchScreen({ navigation, route }: any) {
   useScreenView("LocationSearchScreen");
+  const { t } = useTranslation();
   // skipMapConfirm: true bypasses MapPinConfirmScreen (which needs
   // react-native-maps, a native module Expo Go can't load) for callers that
   // only need an approximate point — e.g. Home's ride search — rather than
@@ -32,7 +37,32 @@ export default function LocationSearchScreen({ navigation, route }: any) {
   const [sessionToken] = useState(newSessionToken);
   const [resolving, setResolving] = useState(false);
   const [locating, setLocating] = useState(false);
+  const [recent, setRecent] = useState<RecentLocation[]>([]);
+  const [popular, setPopular] = useState<PopularLocation[]>([]);
   const { showError } = useToast();
+
+  // Recent searches are re-read on every focus (a pick made elsewhere
+  // this session should show up immediately), popular locations only
+  // once — they're a slow-moving, shared list, not worth refetching
+  // every time this screen opens.
+  useFocusEffect(
+    React.useCallback(() => {
+      getRecentSearches().then(setRecent);
+    }, [])
+  );
+  React.useEffect(() => {
+    api.getPopularLocations().then(setPopular).catch(() => setPopular([]));
+  }, []);
+
+  function finishSelection(loc: { lat: number; lng: number; address: string }) {
+    addRecentSearch(loc);
+    if (skipMapConfirm) {
+      onSelect?.(loc);
+      navigation.goBack();
+      return;
+    }
+    navigation.navigate("MapPinConfirm", { ...loc, onSelect });
+  }
 
   async function handleChangeText(text: string) {
     setQuery(text);
@@ -45,7 +75,7 @@ export default function LocationSearchScreen({ navigation, route }: any) {
       setSuggestions(results);
     } catch {
       setSuggestions([]);
-      showError("Couldn't search locations. Check your connection and try again.");
+      showError(t("locationSearch.couldntSearch"));
     }
   }
 
@@ -56,22 +86,19 @@ export default function LocationSearchScreen({ navigation, route }: any) {
       // This call terminates the Autocomplete session with a Place Details
       // request — required for the keystroke billing to zero out.
       const details = await api.placesDetails(suggestion.placeId, sessionToken);
-      if (skipMapConfirm) {
-        onSelect?.({ lat: details.lat, lng: details.lng, address: details.address });
-        navigation.goBack();
-        return;
-      }
-      navigation.navigate("MapPinConfirm", {
-        lat: details.lat,
-        lng: details.lng,
-        address: details.address,
-        onSelect,
-      });
+      finishSelection({ lat: details.lat, lng: details.lng, address: details.address });
     } catch {
-      showError("Couldn't resolve that location. Try again.");
+      showError(t("locationSearch.couldntResolve"));
     } finally {
       setResolving(false);
     }
+  }
+
+  // Recent/popular entries already have lat/lng resolved (from a past
+  // Place Details call or from an actual published ride) — no need to
+  // spend another Autocomplete/Details round trip re-resolving them.
+  function handlePickKnown(loc: { lat: number; lng: number; address: string }) {
+    finishSelection(loc);
   }
 
   async function handleUseCurrentLocation() {
@@ -86,7 +113,7 @@ export default function LocationSearchScreen({ navigation, route }: any) {
       }
       navigation.navigate("MapPinConfirm", { ...loc, onSelect });
     } catch (err: any) {
-      showError(err?.message || "Couldn't get your current location.");
+      showError(err?.message || t("locationSearch.couldntGetLocation"));
     } finally {
       setLocating(false);
     }
@@ -100,7 +127,7 @@ export default function LocationSearchScreen({ navigation, route }: any) {
           <Ionicons name="search-outline" size={16} color={colors.textMuted} />
           <TextInput
             style={styles.input}
-            placeholder="Search for a location"
+            placeholder={t("locationSearch.searchPlaceholder")}
             placeholderTextColor={colors.textMuted}
             value={query}
             onChangeText={handleChangeText}
@@ -117,7 +144,7 @@ export default function LocationSearchScreen({ navigation, route }: any) {
             <Ionicons name="locate" size={16} color={colors.accentText} />
           )}
         </View>
-        <Text style={styles.currentLocationText}>{locating ? "Finding you..." : "Use current location"}</Text>
+        <Text style={styles.currentLocationText}>{locating ? t("locationSearch.findingYou") : t("locationSearch.useCurrentLocation")}</Text>
       </Pressable>
 
       <FlatList
@@ -131,9 +158,41 @@ export default function LocationSearchScreen({ navigation, route }: any) {
             <Text style={styles.rowText}>{item.description}</Text>
           </Pressable>
         )}
+        // Recent/popular only make sense before the person has typed
+        // anything worth showing actual matches for — once there's a
+        // real query, real suggestions replace them rather than sitting
+        // above a second, unrelated list.
+        ListHeaderComponent={
+          query.length < 3 ? (
+            <>
+              {recent.length > 0 && (
+                <View style={styles.section}>
+                  <Text style={styles.sectionTitle}>{t("locationSearch.recent")}</Text>
+                  {recent.map((loc) => (
+                    <Pressable key={loc.address} style={styles.row} onPress={() => handlePickKnown(loc)}>
+                      <Ionicons name="time-outline" size={16} color={colors.textMuted} />
+                      <Text style={styles.rowText} numberOfLines={1}>{loc.address}</Text>
+                    </Pressable>
+                  ))}
+                </View>
+              )}
+              {popular.length > 0 && (
+                <View style={styles.section}>
+                  <Text style={styles.sectionTitle}>{t("locationSearch.topSearches")}</Text>
+                  {popular.map((loc) => (
+                    <Pressable key={loc.address} style={styles.row} onPress={() => handlePickKnown(loc)}>
+                      <Ionicons name="trending-up-outline" size={16} color={colors.textMuted} />
+                      <Text style={styles.rowText} numberOfLines={1}>{loc.address}</Text>
+                    </Pressable>
+                  ))}
+                </View>
+              )}
+            </>
+          ) : null
+        }
         ListEmptyComponent={
           query.length >= 3 ? (
-            <EmptyState icon="search-outline" title="No matches" subtitle="Try a different spelling or a nearby landmark." />
+            <EmptyState icon="search-outline" title={t("locationSearch.noMatches")} subtitle={t("locationSearch.noMatchesSubtitle")} />
           ) : null
         }
       />
@@ -163,4 +222,6 @@ const styles = StyleSheet.create({
   currentLocationText: { ...typography.body, color: colors.accentText, fontWeight: "700" },
   row: { flexDirection: "row", alignItems: "center", gap: spacing.sm, padding: spacing.md, borderBottomWidth: 1, borderBottomColor: colors.border },
   rowText: { ...typography.body, flex: 1 },
+  section: { paddingTop: spacing.sm },
+  sectionTitle: { ...typography.caption, color: colors.textMuted, textTransform: "uppercase", letterSpacing: 0.5, paddingHorizontal: spacing.md, paddingBottom: spacing.xs },
 });

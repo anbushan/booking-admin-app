@@ -12,6 +12,7 @@ import { useToast } from "../components/Toast";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { AppBottomNav } from "../components/AppBottomNav";
 import { useScreenView } from "../lib/useScreenView";
+import { useTranslation } from "../lib/i18n/I18nContext";
 
 type Earnings = {
   totalThisMonth: number;
@@ -27,20 +28,21 @@ type Earnings = {
   }[];
 };
 
-function formatTripDate(iso: string | null) {
+function formatTripDate(iso: string | null, t?: (key: string) => string) {
   if (!iso) return "";
   const date = new Date(iso);
   const now = new Date();
   const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
   const startOfTarget = new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime();
   const diffDays = Math.round((startOfTarget - startOfToday) / 86400000);
-  if (diffDays === 0) return "Today";
-  if (diffDays === -1) return "Yesterday";
+  if (diffDays === 0) return t ? t("searchOptions.today") : "Today";
+  if (diffDays === -1) return t ? t("notifications.yesterday") : "Yesterday";
   return date.toLocaleDateString(undefined, { day: "numeric", month: "short" });
 }
 
 export default function EarningsScreen({ navigation }: any) {
   useScreenView("EarningsScreen");
+  const { t } = useTranslation();
   const [data, setData] = useState<Earnings | null>(null);
   const [profile, setProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -66,20 +68,20 @@ export default function EarningsScreen({ navigation }: any) {
       await api.collectCash(bookingId);
       load();
     } catch (err: any) {
-      showError(err.message || "Couldn't update");
+      showError(err.message || t("earnings.couldntUpdate"));
     }
   }
 
   return (
     <SafeAreaView style={styles.screen} edges={["top"]}>
-      <Text style={{ ...typography.title, padding: spacing.lg, paddingBottom: spacing.sm }}>Earnings</Text>
+      <Text style={{ ...typography.title, padding: spacing.lg, paddingBottom: spacing.sm }}>{t("home.earnings")}</Text>
 
       {loading ? (
         <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
           <CarLoader size="lg" />
         </View>
       ) : error ? (
-        <ErrorState message="Couldn't load earnings." onRetry={load} />
+        <ErrorState message={t("earnings.couldntLoad")} onRetry={load} />
       ) : (
         <>
           <View style={styles.summaryCard}>
@@ -88,18 +90,18 @@ export default function EarningsScreen({ navigation }: any) {
                 <Ionicons name="wallet" size={22} color="#FFFFFF" />
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={styles.summaryLabel}>Earned this month</Text>
+                <Text style={styles.summaryLabel}>{t("earnings.earnedThisMonth")}</Text>
                 <Text style={styles.summaryValue}>Rs {data?.totalThisMonth ?? 0}</Text>
               </View>
             </View>
             <View style={styles.summaryStatsRow}>
               <View style={styles.summaryStat}>
                 <Ionicons name="checkmark-done-outline" size={14} color="#FFFFFF" />
-                <Text style={styles.summaryStatText}>{data?.tripsCompleted ?? 0} trips completed</Text>
+                <Text style={styles.summaryStatText}>{t("earnings.tripsCompletedCount", { count: data?.tripsCompleted ?? 0 })}</Text>
               </View>
               <View style={styles.summaryStat}>
                 <Ionicons name="trending-up-outline" size={14} color="#FFFFFF" />
-                <Text style={styles.summaryStatText}>Rs {data?.avgPerTrip ?? 0} avg / trip</Text>
+                <Text style={styles.summaryStatText}>{t("earnings.avgPerTrip", { amount: data?.avgPerTrip ?? 0 })}</Text>
               </View>
             </View>
           </View>
@@ -114,9 +116,9 @@ export default function EarningsScreen({ navigation }: any) {
                 <Ionicons name="cash-outline" size={18} color={colors.warning} />
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={styles.pendingTitle}>Rs {data.pendingCollectionAmount} yet to collect</Text>
+                <Text style={styles.pendingTitle}>{t("earnings.yetToCollect", { amount: data.pendingCollectionAmount })}</Text>
                 <Text style={styles.pendingSub}>
-                  {data.pendingCollectionCount} trip{data.pendingCollectionCount === 1 ? "" : "s"} where you haven't marked cash/UPI as collected
+                  {t("earnings.tripsWhereNotCollected", { count: data.pendingCollectionCount })}
                 </Text>
               </View>
             </View>
@@ -124,13 +126,10 @@ export default function EarningsScreen({ navigation }: any) {
 
           <View style={styles.notice}>
             <Ionicons name="information-circle-outline" size={16} color={colors.accentText} />
-            <Text style={styles.noticeText}>
-              These are cash/UPI amounts collected directly from passengers — the platform fee
-              they pay upfront isn't included here.
-            </Text>
+            <Text style={styles.noticeText}>{t("earnings.platformFeeNotIncluded")}</Text>
           </View>
 
-          <Text style={styles.sectionLabel}>Recent trips</Text>
+          <Text style={styles.sectionLabel}>{t("earnings.recentTrips")}</Text>
           <FlatList
             style={{ flex: 1 }}
             data={data?.recentTrips || []}
@@ -148,19 +147,19 @@ export default function EarningsScreen({ navigation }: any) {
                 <View style={{ flex: 1 }}>
                   <View style={styles.tripTopRow}>
                     <Text style={styles.tripRoute} numberOfLines={1}>{item.route}</Text>
-                    <Text style={styles.tripDate}>{formatTripDate(item.completedAt)}</Text>
+                    <Text style={styles.tripDate}>{formatTripDate(item.completedAt, t)}</Text>
                   </View>
-                  <Text style={styles.tripPassenger} numberOfLines={1}>{item.passengerName || "Passenger"}</Text>
+                  <Text style={styles.tripPassenger} numberOfLines={1}>{item.passengerName || t("register.passenger")}</Text>
                   <View style={styles.tripBottomRow}>
                     {item.cashCollected ? (
                       <View style={styles.collectedChip}>
                         <Ionicons name="checkmark-circle" size={12} color={colors.success} />
-                        <Text style={styles.collectedText}>Rs {item.amount} collected</Text>
+                        <Text style={styles.collectedText}>{t("earnings.collectedAmount", { amount: item.amount })}</Text>
                       </View>
                     ) : (
                       <Pressable style={styles.collectChip} onPress={() => markCollected(item.id)}>
                         <Ionicons name="cash-outline" size={12} color={colors.warning} />
-                        <Text style={styles.collectChipText}>Rs {item.amount} · mark collected</Text>
+                        <Text style={styles.collectChipText}>{t("earnings.markCollected", { amount: item.amount })}</Text>
                       </Pressable>
                     )}
                     {/* Only the most recent trip (index 0 — recentTrips
@@ -173,18 +172,18 @@ export default function EarningsScreen({ navigation }: any) {
                           navigation.navigate("RateReview", {
                             bookingId: item.id,
                             toUserId: item.passengerId,
-                            toUserName: item.passengerName || "your passenger",
+                            toUserName: item.passengerName || t("startTrip.passengerFallback"),
                           })
                         }
                       >
-                        <Text style={styles.rateLink}>Rate {item.passengerName || "passenger"}</Text>
+                        <Text style={styles.rateLink}>{t("earnings.ratePassenger", { name: item.passengerName || t("register.passenger") })}</Text>
                       </Pressable>
                     )}
                   </View>
                 </View>
               </Pressable>
             )}
-            ListEmptyComponent={<EmptyState icon="wallet-outline" title="No trips yet this month" />}
+            ListEmptyComponent={<EmptyState icon="wallet-outline" title={t("earnings.noTripsThisMonth")} />}
           />
         </>
       )}

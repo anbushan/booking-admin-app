@@ -9,6 +9,7 @@ import { issueDriverStrike, isDriverStrikeBlocked } from "../lib/strikes.js";
 import { clearChatForBooking } from "../lib/chat.js";
 import { isWithinIndia } from "../lib/geo.js";
 import { validate, isNonEmptyString, isLat, isLng, isPositiveInt } from "../lib/validate.js";
+import { photoViewUrl, photoViewUrlsByUser } from "../lib/photo.js";
 
 const router = Router();
 
@@ -41,6 +42,29 @@ async function attachUnreadCounts(bookings, userId, readAtField) {
     ).length;
     return { ...b, unreadMessageCount };
   });
+}
+
+// Resolves each booking's `ride.driver.photoViewUrl` in one batched pass
+// (unique drivers only, same driver often repeats across a list) —
+// requires the caller's `include` to have selected `driver.photoR2Key`.
+async function attachDriverPhotos(bookings) {
+  const drivers = bookings.map((b) => b.ride.driver).filter(Boolean);
+  const urlById = await photoViewUrlsByUser(drivers);
+  return bookings.map((b) => ({
+    ...b,
+    ride: { ...b.ride, driver: { ...b.ride.driver, photoViewUrl: urlById.get(b.ride.driver.id) || null } },
+  }));
+}
+
+// Same as attachDriverPhotos but for `passenger.photoViewUrl` — requires
+// `passenger.photoR2Key` to have been selected.
+async function attachPassengerPhotos(bookings) {
+  const passengers = bookings.map((b) => b.passenger).filter(Boolean);
+  const urlById = await photoViewUrlsByUser(passengers);
+  return bookings.map((b) => ({
+    ...b,
+    passenger: { ...b.passenger, photoViewUrl: urlById.get(b.passenger.id) || null },
+  }));
 }
 
 // POST /api/bookings — passenger books a seat.
@@ -81,6 +105,13 @@ router.post("/", requireAuth, requireRole("PASSENGER"), async (req, res) => {
     const ride = await prisma.ride.findUnique({ where: { id: rideId } });
     if (!ride || ride.status !== "PUBLISHED") {
       return res.status(400).json({ error: "Ride is not available." });
+    }
+    // Same phone number can hold both driver and passenger history (role
+    // is just "currently active" — see auth.routes.js's dual-role flow),
+    // so this is the same User row publishing the ride and now booking
+    // it back to itself. Block it server-side, not just in the UI.
+    if (ride.driverId === req.user.id) {
+      return res.status(400).json({ error: "You can't book your own ride." });
     }
     if (ride.seatsAvailable < seatsBooked) {
       return res.status(400).json({ error: "Not enough seats left." });
@@ -305,10 +336,10 @@ router.put("/:id/driver-cancel", requireAuth, requireRole("DRIVER"), async (req,
 router.get("/my", requireAuth, requireRole("PASSENGER"), async (req, res) => {
   const bookings = await prisma.booking.findMany({
     where: { passengerId: req.user.id },
-    include: { ride: { include: { driver: { select: { name: true, ratingAvg: true } } } } },
+    include: { ride: { include: { driver: { select: { id: true, name: true, ratingAvg: true, photoR2Key: true } } } } },
     orderBy: { createdAt: "desc" },
   });
-  res.json(await attachUnreadCounts(bookings, req.user.id, "passengerLastReadAt"));
+  res.json(await attachUnreadCounts(await attachDriverPhotos(bookings), req.user.id, "passengerLastReadAt"));
 });
 
 // GET /api/bookings/driver-pending — every pending (BOOKED, awaiting
@@ -325,11 +356,11 @@ router.get("/driver-pending", requireAuth, requireRole("DRIVER"), async (req, re
       // request from every ride interleaved in one flat list, with no
       // visual separation of which request belongs to which trip.
       ride: { select: { id: true, sourceAddress: true, destAddress: true, travelDate: true } },
-      passenger: { select: { name: true, ratingAvg: true } },
+      passenger: { select: { id: true, name: true, ratingAvg: true, photoR2Key: true } },
     },
     orderBy: { expiresAt: "asc" },
   });
-  res.json(bookings);
+  res.json(await attachPassengerPhotos(bookings));
 });
 
 // GET /api/bookings/driver-active — every active-ish booking across all
@@ -349,11 +380,11 @@ router.get("/driver-active", requireAuth, requireRole("DRIVER"), async (req, res
       // Payment queue and Start trip now, both grouped by which ride
       // each booking belongs to.
       ride: { select: { sourceAddress: true, destAddress: true, travelDate: true } },
-      passenger: { select: { id: true, name: true } },
+      passenger: { select: { id: true, name: true, photoR2Key: true } },
     },
     orderBy: { createdAt: "desc" },
   });
-  res.json(await attachUnreadCounts(bookings, req.user.id, "driverLastReadAt"));
+  res.json(await attachUnreadCounts(await attachPassengerPhotos(bookings), req.user.id, "driverLastReadAt"));
 });
 
 // GET /api/bookings/active-trip — the caller's own current IN_PROGRESS
@@ -385,8 +416,8 @@ router.get("/:id", requireAuth, async (req, res) => {
   const booking = await prisma.booking.findUnique({
     where: { id: req.params.id },
     include: {
-      ride: { include: { driver: { select: { id: true, name: true, phone: true, ratingAvg: true } } } },
-      passenger: { select: { id: true, name: true, phone: true, ratingAvg: true } },
+      ride: { include: { driver: { select: { id: true, name: true, phone: true, ratingAvg: true, photoR2Key: true } } } },
+      passenger: { select: { id: true, name: true, phone: true, ratingAvg: true, photoR2Key: true } },
       refund: true,
     },
   });
@@ -398,7 +429,30 @@ router.get("/:id", requireAuth, async (req, res) => {
     return res.status(403).json({ error: "Not permitted." });
   }
 
-  res.json(booking);
+  // The review (if any) the OTHER party on this booking left about the
+  // person currently viewing — only ever exists once the trip's done and
+  // RateReviewScreen was actually used, so this is commonly null. Scoped
+  // to toUserId === req.user.id rather than returning every review tied
+  // to the booking, since the reviewer shouldn't see their own
+  // just-submitted rating reflected back as if it were feedback on them.
+  const reviewForMe = await prisma.review.findFirst({
+    where: { bookingId: booking.id, toUserId: req.user.id },
+    include: { fromUser: { select: { name: true } } },
+  });
+
+  res.json({
+    ...booking,
+    ride: { ...booking.ride, driver: { ...booking.ride.driver, photoViewUrl: await photoViewUrl(booking.ride.driver.photoR2Key) } },
+    passenger: { ...booking.passenger, photoViewUrl: await photoViewUrl(booking.passenger.photoR2Key) },
+    reviewForMe: reviewForMe
+      ? {
+          rating: reviewForMe.rating,
+          comment: reviewForMe.comment,
+          fromUserName: reviewForMe.fromUser.name,
+          createdAt: reviewForMe.createdAt,
+        }
+      : null,
+  });
 });
 
 export default router;

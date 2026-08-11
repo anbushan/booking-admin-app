@@ -14,33 +14,76 @@ import { KeyboardAvoider } from "../components/KeyboardAvoider";
 import { BackHeader } from "../components/BackHeader";
 import { dialProxyNumber } from "../lib/callHelper";
 import { useScreenView } from "../lib/useScreenView";
+import Avatar from "../components/Avatar";
+import { useTranslation } from "../lib/i18n/I18nContext";
 
 export default function StartTripScreen({ route, navigation }: any) {
   useScreenView("StartTripScreen");
+  const { t } = useTranslation();
   const { bookingId } = route.params;
   const [code, setCode] = useState("");
   const [verifying, setVerifying] = useState(false);
   const [arriving, setArriving] = useState(true);
-  const [passengerName, setPassengerName] = useState("your passenger");
+  const [arriveFailed, setArriveFailed] = useState(false);
+  const [passengerName, setPassengerName] = useState(t("startTrip.passengerFallback"));
+  const [passengerPhoto, setPassengerPhoto] = useState<string | null>(null);
   const [passengerRating, setPassengerRating] = useState<number | null>(null);
   const [calling, setCalling] = useState(false);
   const { showError } = useToast();
 
   useEffect(() => {
+    let cancelled = false;
     // Entering this screen IS "I've arrived" — it generates the pickup
     // code server-side and notifies the passenger, who reads it back to
     // you below. Previously this step was never triggered from anywhere,
     // so the code the driver typed here could never match (nothing had
     // generated one yet).
+    //
+    // Both calls are awaited together before leaving the "arriving"
+    // state: this used to flip to the verify-pickup form as soon as
+    // startTrip's own promise settled, regardless of whether the
+    // passenger's name had loaded yet — a driver with a slow connection
+    // routinely saw "Letting your passenger know..." (the placeholder)
+    // the whole time, because getBookingDetail's result arrived after
+    // the arriving card had already unmounted and had nowhere left to
+    // render into. Waiting for both means the name is always in by the
+    // time either message needs it.
+    Promise.allSettled([api.startTrip(bookingId), api.getBookingDetail(bookingId)]).then(
+      ([startResult, detailResult]) => {
+        if (cancelled) return;
+        if (detailResult.status === "fulfilled") {
+          const booking = detailResult.value;
+          if (booking.passenger?.name) setPassengerName(booking.passenger.name);
+          if (booking.passenger?.photoViewUrl) setPassengerPhoto(booking.passenger.photoViewUrl);
+          if (booking.passenger?.ratingAvg != null) setPassengerRating(booking.passenger.ratingAvg);
+        }
+        if (startResult.status === "rejected") {
+          // Previously this silently fell through to the verify-pickup
+          // form even on failure — the passenger was never actually
+          // notified and no OTP exists server-side yet, so any code the
+          // driver typed next was guaranteed to fail with a confusing
+          // error. Surface the failure and offer a retry instead.
+          setArriveFailed(true);
+          showAlert(t("startTrip.couldntNotifyAlert"), (startResult.reason as any)?.message);
+        }
+        setArriving(false);
+      }
+    );
+    return () => { cancelled = true; };
+  }, [bookingId]);
+
+  function retryArrival() {
+    setArriveFailed(false);
+    setArriving(true);
     api
       .startTrip(bookingId)
-      .catch((err: any) => showAlert("Couldn't notify the passenger", err.message))
-      .finally(() => setArriving(false));
-    api.getBookingDetail(bookingId).then((booking) => {
-      if (booking.passenger?.name) setPassengerName(booking.passenger.name);
-      if (booking.passenger?.ratingAvg != null) setPassengerRating(booking.passenger.ratingAvg);
-    }).catch(() => {});
-  }, [bookingId]);
+      .then(() => setArriving(false))
+      .catch((err: any) => {
+        setArriveFailed(true);
+        setArriving(false);
+        showAlert(t("startTrip.couldntNotifyAlert"), err.message);
+      });
+  }
 
   async function handleStart() {
     setVerifying(true);
@@ -49,7 +92,7 @@ export default function StartTripScreen({ route, navigation }: any) {
       Analytics.tripStarted(bookingId);
       await primeLocationIfNeeded(navigation, "ActiveTrip", { bookingId, role: "DRIVER" });
     } catch (err: any) {
-      showAlert("Couldn't start trip", err.message);
+      showAlert(t("startTrip.couldntStartTrip"), err.message);
     } finally {
       setVerifying(false);
     }
@@ -61,7 +104,7 @@ export default function StartTripScreen({ route, navigation }: any) {
       const { proxyNumber } = await api.initiateCall(bookingId, "PASSENGER");
       await dialProxyNumber(proxyNumber);
     } catch (err: any) {
-      showError(err.message || "Couldn't start the call");
+      showError(err.message || t("common.couldntStartCall"));
     } finally {
       setCalling(false);
     }
@@ -69,20 +112,30 @@ export default function StartTripScreen({ route, navigation }: any) {
 
   return (
     <SafeAreaView style={styles.screen} edges={["top", "bottom"]}>
-      <BackHeader title="Start trip" onBack={() => navigation.goBack()} />
+      <BackHeader title={t("startTrip.title")} onBack={() => navigation.goBack()} />
       <KeyboardAvoider style={styles.centerContent}>
         {arriving ? (
           <View style={styles.arrivingCard}>
             <CarLoader size="md" />
-            <Text style={styles.arrivingText}>Letting {passengerName} know you've arrived...</Text>
+            <Text style={styles.arrivingText}>{t("startTrip.lettingKnow", { name: passengerName })}</Text>
+          </View>
+        ) : arriveFailed ? (
+          <View style={styles.arrivingCard}>
+            <Ionicons name="alert-circle-outline" size={32} color={colors.danger} />
+            <Text style={styles.arrivingText}>{t("startTrip.couldntNotifyName", { name: passengerName })}</Text>
+            <Text style={styles.subtitle}>{t("startTrip.checkConnection")}</Text>
+            <Pressable style={styles.button} onPress={retryArrival}>
+              <Ionicons name="refresh-outline" size={18} color="#FFFFFF" />
+              <Text style={styles.buttonText}>{t("startTrip.retry")}</Text>
+            </Pressable>
           </View>
         ) : (
           <>
             <View style={styles.brandIcon}>
               <Ionicons name="key-outline" size={24} color={colors.accentText} />
             </View>
-            <Text style={styles.title}>Verify pickup</Text>
-            <Text style={styles.subtitle}>Ask {passengerName} to read out their code, or type their Booking ID</Text>
+            <Text style={styles.title}>{t("startTrip.verifyPickup")}</Text>
+            <Text style={styles.subtitle}>{t("startTrip.askForCode", { name: passengerName })}</Text>
 
             <View style={styles.inputWrap}>
               <Ionicons name="keypad-outline" size={16} color={colors.textMuted} />
@@ -90,7 +143,7 @@ export default function StartTripScreen({ route, navigation }: any) {
                 style={styles.input}
                 autoCapitalize="none"
                 autoCorrect={false}
-                placeholder="OTP or Booking ID"
+                placeholder={t("startTrip.otpPlaceholder")}
                 placeholderTextColor={colors.textMuted}
                 value={code}
                 onChangeText={setCode}
@@ -99,9 +152,7 @@ export default function StartTripScreen({ route, navigation }: any) {
             </View>
 
             <View style={styles.passengerBar}>
-              <View style={styles.avatar}>
-                <Text style={styles.avatarText}>{passengerName.charAt(0).toUpperCase()}</Text>
-              </View>
+              <Avatar uri={passengerPhoto} name={passengerName} size={38} />
               <View style={{ flex: 1 }}>
                 <Text style={styles.passengerName}>{passengerName}</Text>
                 {passengerRating != null && (
@@ -118,7 +169,7 @@ export default function StartTripScreen({ route, navigation }: any) {
 
             <Pressable style={styles.button} onPress={handleStart} disabled={verifying || code.trim().length < 4}>
               {!verifying && <Ionicons name="checkmark-circle-outline" size={18} color="#FFFFFF" />}
-              <Text style={styles.buttonText}>{verifying ? "Starting..." : "Start trip"}</Text>
+              <Text style={styles.buttonText}>{verifying ? t("startTrip.starting") : t("upcomingTrips.startTrip")}</Text>
             </Pressable>
           </>
         )}
@@ -149,8 +200,6 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border,
     borderRadius: radius.md, padding: spacing.md, marginBottom: spacing.lg,
   },
-  avatar: { width: 38, height: 38, borderRadius: 19, backgroundColor: colors.accentBg, alignItems: "center", justifyContent: "center" },
-  avatarText: { color: colors.accentText, fontWeight: "700", fontSize: 15 },
   passengerName: { ...typography.body, fontWeight: "700" },
   ratingRow: { flexDirection: "row", alignItems: "center", gap: 3, marginTop: 1 },
   passengerMeta: { ...typography.small, color: colors.textMuted },

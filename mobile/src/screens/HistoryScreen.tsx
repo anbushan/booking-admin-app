@@ -19,6 +19,7 @@ import { AppBottomNav } from "../components/AppBottomNav";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { appEvents } from "../lib/appEvents";
 import { useScreenView } from "../lib/useScreenView";
+import { useTranslation } from "../lib/i18n/I18nContext";
 
 // CONFIRMED deliberately excluded — once the platform fee's paid, the
 // seat is locked in for real; self-cancelling never refunded it anyway
@@ -26,15 +27,23 @@ import { useScreenView } from "../lib/useScreenView";
 // rather than offering a button that only ever hurt the passenger.
 const CANCELLABLE_STATUSES = ["BOOKED", "AWAITING_PAYMENT"];
 
-// This screen shows the active trip(s) only, not a running history —
-// full history lives in admin. COMPLETED is deliberately excluded here
-// too: rating the driver now happens right when the trip ends (see
-// LiveTrackingScreen), not by digging through this list afterward.
-const ACTIVE_BOOKING_STATUSES = ["BOOKED", "AWAITING_PAYMENT", "CHARGE_ATTEMPTED", "PAYMENT_PENDING", "CONFIRMED", "IN_PROGRESS"];
+// Passenger's full booking record — every status, not just active ones.
+// This used to only show the same in-flight subset as "My requests"
+// (its own bottom-nav tab), which meant the two tabs showed identical
+// data and no one could tell what the difference between them was
+// supposed to be. Now "My requests" is the action queue (what needs
+// your attention right now) and this is the complete record (that,
+// plus everything that's finished, been declined, or expired) —
+// distinct, non-overlapping purposes for the two tabs.
+const IN_FLIGHT_BOOKING_STATUSES = ["BOOKED", "AWAITING_PAYMENT", "CHARGE_ATTEMPTED", "PAYMENT_PENDING", "CONFIRMED", "IN_PROGRESS"];
+// Driver's own "Your rides" (reached from Home, not a bottom-nav tab —
+// no duplicate-tab problem here) stays scoped to what's still open or
+// underway; full ride history isn't this screen's job for the driver side.
 const ACTIVE_RIDE_STATUSES = ["PUBLISHED", "IN_PROGRESS"];
 
 export default function HistoryScreen({ navigation, route }: any) {
   useScreenView("HistoryScreen");
+  const { t } = useTranslation();
   // role is optional — screens that already know it (e.g. a driver-only
   // flow) can pass it, but History is also reachable generically (side
   // menu, deep links) with no params at all, so fall back to the caller's
@@ -52,10 +61,17 @@ export default function HistoryScreen({ navigation, route }: any) {
     if (isRefresh) setRefreshing(true);
     else setLoading(true);
     setError(false);
-    const loadFn = role === "DRIVER" ? api.getMyRides : api.getMyBookings;
-    const activeStatuses = role === "DRIVER" ? ACTIVE_RIDE_STATUSES : ACTIVE_BOOKING_STATUSES;
-    loadFn()
-      .then((data: any[]) => setItems(data.filter((item) => activeStatuses.includes(item.status))))
+    if (role === "DRIVER") {
+      api.getMyRides()
+        .then((data: any[]) => setItems(data.filter((item) => ACTIVE_RIDE_STATUSES.includes(item.status))))
+        .catch(() => setError(true))
+        .finally(() => { setLoading(false); setRefreshing(false); });
+      return;
+    }
+    // Passenger: every booking, not filtered by status — see the
+    // IN_FLIGHT_BOOKING_STATUSES comment above for why.
+    api.getMyBookings()
+      .then((data: any[]) => setItems(data))
       .catch(() => setError(true))
       .finally(() => { setLoading(false); setRefreshing(false); });
   }
@@ -88,42 +104,54 @@ export default function HistoryScreen({ navigation, route }: any) {
   // CANCELLABLE_STATUSES) — always a free withdrawal, nothing to warn
   // about forfeiting.
   function confirmCancel(bookingId: string) {
-    showAlert("Cancel booking", "Are you sure you want to cancel this booking?", [
-      { text: "Keep booking", style: "cancel" },
+    showAlert(t("history.cancelBooking"), t("history.cancelBookingConfirm"), [
+      { text: t("history.keepBooking"), style: "cancel" },
       {
-        text: "Cancel booking",
+        text: t("history.cancelBooking"),
         style: "destructive",
         onPress: async () => {
           try {
             await api.cancelBooking(bookingId);
             Analytics.bookingCancelled(bookingId, "PASSENGER");
-            showSuccess("Booking cancelled");
+            showSuccess(t("history.bookingCancelled"));
             load();
           } catch (err: any) {
-            showError(err.message || "Couldn't cancel");
+            showError(err.message || t("history.couldntCancel"));
           }
         },
       },
     ]);
   }
 
+  // Surfaced via a small info icon next to (or in place of) the "Cancel
+  // ride" action, so a driver can see the actual rule — including why
+  // cancelling might not even be offered right now — before deciding,
+  // rather than only finding out from a rejected request. Mirrors the
+  // real server-side rule in rides.routes.js DELETE /:id.
+  function showCancelPolicy(hasConfirmedBooking: boolean) {
+    showAlert(
+      t("history.cancelPolicyTitle"),
+      hasConfirmedBooking ? t("history.cancelPolicyBlocked") : t("history.cancelPolicyAvailable")
+    );
+  }
+
   function confirmCancelRide(rideId: string) {
     showAlert(
-      "Cancel this ride?",
-      "Confirmed passengers will be notified and refunded if already charged.",
+      t("history.cancelThisRide"),
+      t("history.cancelRideConfirm"),
       [
-        { text: "Keep ride", style: "cancel" },
+        { text: t("history.keepRide"), style: "cancel" },
         {
-          text: "Cancel ride",
+          text: t("history.cancelRide"),
           style: "destructive",
           onPress: async () => {
             try {
               await api.deleteRide(rideId);
               Analytics.rideCancelled(rideId);
-              showSuccess("Ride cancelled");
+              showSuccess(t("history.rideCancelled"));
               load();
             } catch (err: any) {
-              showError(err.message || "Couldn't cancel");
+              showError(err.message || t("history.couldntCancel"));
             }
           },
         },
@@ -133,13 +161,13 @@ export default function HistoryScreen({ navigation, route }: any) {
 
   return (
     <SafeAreaView style={styles.screen} edges={["top"]}>
-      <Text style={{ ...typography.title, padding: spacing.lg, paddingBottom: spacing.sm }}>{role === "DRIVER" ? "Your rides" : "Your bookings"}</Text>
+      <Text style={{ ...typography.title, padding: spacing.lg, paddingBottom: spacing.sm }}>{role === "DRIVER" ? t("home.yourRides") : t("history.yourBookings")}</Text>
       {loading ? (
         <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
           <CarLoader size="lg" />
         </View>
       ) : error ? (
-        <ErrorState message="Couldn't load your history." onRetry={load} />
+        <ErrorState message={t("history.couldntLoadHistory")} onRetry={load} />
       ) : (
       <FlatList
         style={{ flex: 1 }}
@@ -152,7 +180,7 @@ export default function HistoryScreen({ navigation, route }: any) {
             <View style={styles.card}>
               <View style={styles.routeRow}>
                 <Ionicons name="navigate-outline" size={13} color={colors.textMuted} />
-                <Text style={styles.route}>{item.sourceAddress} to {item.destAddress}</Text>
+                <Text style={styles.route}>{t("common.routeTo", { source: item.sourceAddress, dest: item.destAddress })}</Text>
               </View>
               <View style={styles.rowBetween}>
                 <Text style={styles.meta}>{new Date(item.travelDate).toLocaleDateString()}</Text>
@@ -162,17 +190,26 @@ export default function HistoryScreen({ navigation, route }: any) {
                 <View style={styles.actionRow}>
                   <ActionChip
                     icon="mail-unread-outline"
-                    label="Booking requests"
+                    label={t("home.bookingRequests")}
                     onPress={() => navigation.navigate("BookingRequests", { rideId: item.id })}
                   />
-                  <ActionChip icon="create-outline" label="Edit ride" onPress={() => navigation.navigate("EditRide", { ride: item })} />
+                  <ActionChip icon="create-outline" label={t("history.editRide")} onPress={() => navigation.navigate("EditRide", { ride: item })} />
                   {/* Once a passenger has actually paid, the ride can only
                       be edited, not cancelled outright — see DELETE /:id's
                       own guard, which enforces this regardless of what's
-                      shown here. */}
+                      shown here. The info icon stays visible either way
+                      (available or blocked) so the policy is one tap away
+                      before a driver commits to cancelling. */}
                   {!item.hasConfirmedBooking && (
-                    <ActionChip icon="close-circle-outline" label="Cancel ride" danger onPress={() => confirmCancelRide(item.id)} />
+                    <ActionChip icon="close-circle-outline" label={t("history.cancelRide")} danger onPress={() => confirmCancelRide(item.id)} />
                   )}
+                  <Pressable
+                    style={styles.infoIconButton}
+                    onPress={() => showCancelPolicy(!!item.hasConfirmedBooking)}
+                    hitSlop={8}
+                  >
+                    <Ionicons name="information-circle-outline" size={16} color={colors.textMuted} />
+                  </Pressable>
                 </View>
               )}
             </View>
@@ -183,20 +220,31 @@ export default function HistoryScreen({ navigation, route }: any) {
             <Pressable style={styles.card} onPress={() => navigation.navigate("BookingDetail", { bookingId: item.id })}>
               <View style={styles.routeRow}>
                 <Ionicons name="navigate-outline" size={13} color={colors.textMuted} />
-                <Text style={styles.route}>{item.ride?.sourceAddress} to {item.ride?.destAddress}</Text>
+                <Text style={styles.route}>{t("common.routeTo", { source: item.ride?.sourceAddress, dest: item.ride?.destAddress })}</Text>
               </View>
-              <Text style={styles.fare}>Rs {Number(item.ride?.pricePerSeat) * item.seatsBooked} total</Text>
+              <View style={styles.rowBetween}>
+                <Text style={styles.fare}>{t("history.totalFare", { amount: Number(item.ride?.pricePerSeat) * item.seatsBooked })}</Text>
+                {!IN_FLIGHT_BOOKING_STATUSES.includes(item.status) && <StatusBadge status={item.status} size="sm" />}
+              </View>
 
-              <View style={styles.trackerWrap}>
-                <StepTracker steps={bookingJourneySteps(item.status)} />
-              </View>
+              {/* The step tracker only makes sense for a booking still
+                  moving through the journey — a finished, declined, or
+                  expired one gets a plain status badge above instead
+                  (bookingJourneySteps has no real mapping for those, so
+                  showing it anyway used to render every terminal booking
+                  as if it were stuck at "Requested"). */}
+              {IN_FLIGHT_BOOKING_STATUSES.includes(item.status) && (
+                <View style={styles.trackerWrap}>
+                  <StepTracker steps={bookingJourneySteps(item.status, t)} />
+                </View>
+              )}
 
               {(item.status === "AWAITING_PAYMENT" || item.status === "PAYMENT_PENDING" || item.status === "CONFIRMED" || item.status === "IN_PROGRESS" || CANCELLABLE_STATUSES.includes(item.status)) && (
                 <View style={styles.actionRow}>
                   {item.status === "AWAITING_PAYMENT" && (
                     <ActionChip
                       icon="wallet-outline"
-                      label="Pay platform fee"
+                      label={t("history.payPlatformFee")}
                       primary
                       onPress={() => navigation.navigate("Payment", {
                         bookingId: item.id,
@@ -214,7 +262,7 @@ export default function HistoryScreen({ navigation, route }: any) {
                   {item.status === "PAYMENT_PENDING" && (
                     <ActionChip
                       icon="refresh-outline"
-                      label="Retry payment"
+                      label={t("history.retryPayment")}
                       primary
                       onPress={() => navigation.navigate("Payment", {
                         bookingId: item.id,
@@ -226,10 +274,10 @@ export default function HistoryScreen({ navigation, route }: any) {
                   )}
                   {item.status === "CONFIRMED" && (
                     <>
-                      <ActionChip icon="key-outline" label="Trip code" onPress={() => navigation.navigate("TripOtp", { bookingId: item.id })} />
+                      <ActionChip icon="key-outline" label={t("history.tripCode")} onPress={() => navigation.navigate("TripOtp", { bookingId: item.id })} />
                       <ActionChip
                         icon="chatbubble-outline"
-                        label="Chat"
+                        label={t("history.chat")}
                         badge={item.unreadMessageCount}
                         onPress={() => navigation.navigate("ChatDetail", { bookingId: item.id, calleeRole: "DRIVER" })}
                       />
@@ -238,13 +286,13 @@ export default function HistoryScreen({ navigation, route }: any) {
                   {item.status === "IN_PROGRESS" && (
                     <ActionChip
                       icon="locate-outline"
-                      label="Track trip"
+                      label={t("history.trackTrip")}
                       primary
                       onPress={() => primeLocationIfNeeded(navigation, "LiveTracking", { bookingId: item.id, role: "PASSENGER" })}
                     />
                   )}
                   {CANCELLABLE_STATUSES.includes(item.status) && (
-                    <ActionChip icon="close-circle-outline" label="Cancel booking" danger onPress={() => confirmCancel(item.id)} />
+                    <ActionChip icon="close-circle-outline" label={t("history.cancelBooking")} danger onPress={() => confirmCancel(item.id)} />
                   )}
                 </View>
               )}
@@ -254,8 +302,8 @@ export default function HistoryScreen({ navigation, route }: any) {
         ListEmptyComponent={
           <EmptyState
             icon={role === "DRIVER" ? "car-outline" : "receipt-outline"}
-            title={role === "DRIVER" ? "No active rides" : "No active bookings"}
-            subtitle={role === "DRIVER" ? "Offer a ride to see it here." : "Book a ride to see it here."}
+            title={role === "DRIVER" ? t("history.noActiveRides") : t("history.noBookingsYet")}
+            subtitle={role === "DRIVER" ? t("history.offerRideToSeeHere") : t("history.bookRideToSeeHere")}
           />
         }
       />
@@ -308,4 +356,5 @@ const styles = StyleSheet.create({
   chipText: { ...typography.small, color: colors.accentText, fontWeight: "700" },
   chipTextPrimary: { color: "#FFFFFF" },
   chipTextDanger: { color: colors.danger },
+  infoIconButton: { width: 30, height: 30, borderRadius: 15, alignItems: "center", justifyContent: "center" },
 });

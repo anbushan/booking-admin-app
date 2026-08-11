@@ -12,8 +12,15 @@ import { HowItWorksSheet, DRIVER_STEPS, PASSENGER_STEPS } from "../components/Ho
 import { TrustBadges } from "../components/TrustBadges";
 import { api } from "../lib/api";
 import { useScreenView } from "../lib/useScreenView";
+import Avatar from "../components/Avatar";
+import { getRecentSearches, RecentLocation } from "../lib/recentSearches";
+import { useTranslation } from "../lib/i18n/I18nContext";
 
 type Point = { lat: number; lng: number; address: string };
+type PopularRoute = {
+  sourceAddress: string; sourceLat: number; sourceLng: number;
+  destAddress: string; destLat: number; destLng: number; count: number;
+};
 
 const DEFAULT_SOURCE: Point = { lat: 12.9352, lng: 77.6146, address: "Koramangala, Bengaluru" };
 
@@ -22,14 +29,15 @@ const DEFAULT_SOURCE: Point = { lat: 12.9352, lng: 77.6146, address: "Koramangal
 // requests" reads as an inbox, "Earnings" as a wallet, before anyone
 // reads the word.
 const DRIVER_ACTIONS = [
-  { route: "BookingRequests", label: "Booking requests", icon: "mail-unread-outline" },
-  { route: "UpcomingTrips", label: "Start trip now", icon: "navigate-outline" },
-  { route: "History", label: "Your rides", params: { role: "DRIVER" }, icon: "car-outline" },
-  { route: "Earnings", label: "Earnings", icon: "wallet-outline" },
+  { route: "BookingRequests", labelKey: "home.bookingRequests", icon: "mail-unread-outline" },
+  { route: "UpcomingTrips", labelKey: "home.startTripNow", icon: "navigate-outline" },
+  { route: "History", labelKey: "home.yourRides", params: { role: "DRIVER" }, icon: "car-outline" },
+  { route: "Earnings", labelKey: "home.earnings", icon: "wallet-outline" },
 ] as const;
 
 export default function HomeScreen({ navigation }: any) {
   useScreenView("HomeScreen");
+  const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const [source, setSource] = useState<Point>(DEFAULT_SOURCE);
   const [destination, setDestination] = useState<Point | null>(null);
@@ -40,15 +48,38 @@ export default function HomeScreen({ navigation }: any) {
   });
   const [seats, setSeats] = useState(1);
   const [optionsVisible, setOptionsVisible] = useState(false);
-  const [profile, setProfile] = useState<{ id?: string; name?: string; role?: string } | null>(null);
+  const [profile, setProfile] = useState<{ id?: string; name?: string; role?: string; photoViewUrl?: string | null } | null>(null);
   const [checkingActiveTrip, setCheckingActiveTrip] = useState(true);
   const [pendingRequestCount, setPendingRequestCount] = useState(0);
   const [howItWorksVisible, setHowItWorksVisible] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [recentSearches, setRecentSearches] = useState<RecentLocation[]>([]);
+  const [popularRoutes, setPopularRoutes] = useState<PopularRoute[]>([]);
 
   useEffect(() => {
     api.getMyProfile().then(setProfile).catch(() => {});
   }, []);
+
+  // Recent re-reads on every focus (a pick made on LocationSearch just
+  // now should show up back here immediately); popular routes are a
+  // slow-moving, shared list, fetched once.
+  useFocusEffect(
+    useCallback(() => {
+      getRecentSearches().then(setRecentSearches);
+    }, [])
+  );
+  useEffect(() => {
+    api.getPopularRoutes().then(setPopularRoutes).catch(() => setPopularRoutes([]));
+  }, []);
+
+  function searchRoute(src: Point, dest: Point) {
+    navigation.navigate("SearchResults", {
+      sourceLat: src.lat, sourceLng: src.lng, sourceAddress: src.address,
+      destLat: dest.lat, destLng: dest.lng, destAddress: dest.address,
+      date: travelDate.toISOString(),
+      seats,
+    });
+  }
 
   // Driver's Home is the one screen that's mostly a live dashboard
   // (pending request count, quick links) rather than a form — pull to
@@ -114,7 +145,7 @@ export default function HomeScreen({ navigation }: any) {
   // Home when the hour rolls past a boundary, not stuck on whatever it
   // was when the screen first mounted.
   const hour = new Date().getHours();
-  const greeting = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : hour < 21 ? "Good evening" : "Good night";
+  const greeting = hour < 12 ? t("home.goodMorning") : hour < 17 ? t("home.goodAfternoon") : hour < 21 ? t("home.goodEvening") : t("home.goodNight");
 
   if (checkingActiveTrip) {
     // AppBottomNav still renders here, not just in the loaded return
@@ -173,10 +204,16 @@ export default function HomeScreen({ navigation }: any) {
         <View style={styles.headerTopRow}>
           <View>
             <Text style={styles.greeting}>{greeting}</Text>
-            <Text style={styles.name}>{firstName || "there"}</Text>
+            <Text style={styles.name}>{firstName || t("home.thereFallback")}</Text>
           </View>
           <Pressable style={styles.avatarButton} onPress={() => navigation.navigate("Profile")} hitSlop={8}>
-            <Text style={styles.avatarButtonText}>{(profile?.name || "?").charAt(0).toUpperCase()}</Text>
+            <Avatar
+              uri={profile?.photoViewUrl}
+              name={profile?.name}
+              size={38}
+              fallbackStyle={{ backgroundColor: "transparent" }}
+              fallbackTextStyle={{ color: "#FFFFFF" }}
+            />
           </Pressable>
         </View>
       </View>
@@ -191,7 +228,7 @@ export default function HomeScreen({ navigation }: any) {
         <View style={styles.driverPanel}>
           <Pressable style={styles.ctaMarigold} onPress={() => navigation.navigate("OfferRide")}>
             <Ionicons name="add-circle-outline" size={18} color="#FFFFFF" />
-            <Text style={styles.ctaText}>Offer a ride</Text>
+            <Text style={styles.ctaText}>{t("home.offerARide")}</Text>
           </Pressable>
           {DRIVER_ACTIONS.map((action) => (
             <Pressable
@@ -202,7 +239,7 @@ export default function HomeScreen({ navigation }: any) {
               <View style={styles.driverActionIconWrap}>
                 <Ionicons name={action.icon as any} size={17} color={colors.accentText} />
               </View>
-              <Text style={styles.driverActionText}>{action.label}</Text>
+              <Text style={styles.driverActionText}>{t(action.labelKey)}</Text>
               {action.route === "BookingRequests" && pendingRequestCount > 0 && (
                 <View style={styles.badge}>
                   <Text style={styles.badgeText}>{pendingRequestCount > 9 ? "9+" : pendingRequestCount}</Text>
@@ -211,11 +248,7 @@ export default function HomeScreen({ navigation }: any) {
               <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
             </Pressable>
           ))}
-          <Text style={styles.driverHint}>
-            Publish a ride with your route and seats — passengers searching that route can then
-            request to book. Accept or decline from "Booking requests", then start each trip from
-            "Start trip now" once you arrive at pickup.
-          </Text>
+          <Text style={styles.driverHint}>{t("home.driverHint")}</Text>
 
           {/* A static preview of the whole flow, not tied to any one
               ride — new drivers land here with zero context for what
@@ -229,11 +262,11 @@ export default function HomeScreen({ navigation }: any) {
             <View style={styles.howItWorksBody}>
               <View style={styles.howItWorksHeaderRow}>
                 <Ionicons name="information-circle-outline" size={16} color={colors.accentText} />
-                <Text style={styles.howItWorksTitle}>New to offering rides?</Text>
+                <Text style={styles.howItWorksTitle}>{t("home.newToOfferingRides")}</Text>
               </View>
               <View style={styles.howItWorksPreviewRow}>
                 {DRIVER_STEPS.map((step, i) => (
-                  <React.Fragment key={step.title}>
+                  <React.Fragment key={step.titleKey}>
                     <View style={styles.howItWorksIconWrap}>
                       <Ionicons name={step.icon} size={13} color={colors.accentText} />
                     </View>
@@ -245,7 +278,7 @@ export default function HomeScreen({ navigation }: any) {
                   above plus a bare chevron wasn't reading as tappable on
                   its own; this makes the clickability unambiguous. */}
               <View style={styles.howItWorksLinkRow}>
-                <Text style={styles.howItWorksLinkLabel}>See how it works, step by step</Text>
+                <Text style={styles.howItWorksLinkLabel}>{t("home.seeHowItWorks")}</Text>
                 <Ionicons name="chevron-forward" size={13} color={colors.accentText} />
               </View>
             </View>
@@ -266,7 +299,7 @@ export default function HomeScreen({ navigation }: any) {
             >
               <View style={[styles.dot, { backgroundColor: colors.marigold }]} />
               <Text style={[styles.fieldText, !destination && { color: colors.textMuted }]}>
-                {destination?.address || "Where to?"}
+                {destination?.address || t("home.whereTo")}
               </Text>
             </Pressable>
           </View>
@@ -274,7 +307,7 @@ export default function HomeScreen({ navigation }: any) {
           <View style={styles.row}>
             <Pressable style={[styles.chip, { flex: 1 }]} onPress={() => setOptionsVisible(true)}>
               <Ionicons name="calendar-outline" size={14} color={colors.textSecondary} />
-              <Text style={styles.chipText}>{formatSearchDate(travelDate)}</Text>
+              <Text style={styles.chipText}>{formatSearchDate(travelDate, t)}</Text>
             </Pressable>
             <Pressable style={[styles.chip, { width: 76 }]} onPress={() => setOptionsVisible(true)}>
               <Ionicons name="people-outline" size={14} color={colors.textSecondary} />
@@ -284,55 +317,72 @@ export default function HomeScreen({ navigation }: any) {
 
           <Pressable style={styles.cta} onPress={handleSearch}>
             <Ionicons name="search-outline" size={18} color="#FFFFFF" />
-            <Text style={styles.ctaText}>Search rides</Text>
+            <Text style={styles.ctaText}>{t("home.searchRides")}</Text>
           </Pressable>
 
           <Pressable style={styles.howItWorksLink} onPress={() => setHowItWorksVisible(true)}>
             <Ionicons name="information-circle-outline" size={14} color={colors.accentText} />
-            <Text style={styles.howItWorksLinkText}>How booking a ride works</Text>
+            <Text style={styles.howItWorksLinkText}>{t("home.howBookingWorks")}</Text>
           </Pressable>
 
           <TrustBadges role="PASSENGER" />
 
-          <Text style={styles.sectionLabel}>Recent</Text>
-          <Pressable
-            style={styles.recentCard}
-            onPress={() => setDestination({ lat: 12.8449, lng: 77.6621, address: "Electronic City, Bengaluru" })}
-          >
-            <View style={styles.recentIconWrap}>
-              <Ionicons name="time-outline" size={15} color={colors.textMuted} />
-            </View>
-            <View style={styles.recentBody}>
-              <View style={styles.recentRoute}>
-                <View style={[styles.recentDot, { backgroundColor: colors.accent }]} />
-                <Text style={styles.recentText} numberOfLines={1}>HSR Layout</Text>
-              </View>
-              <View style={styles.recentRoute}>
-                <View style={[styles.recentDot, { backgroundColor: colors.marigold }]} />
-                <Text style={styles.recentText} numberOfLines={1}>Electronic City, Bengaluru</Text>
-              </View>
-            </View>
-            <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
-          </Pressable>
-          <Pressable
-            style={styles.recentCard}
-            onPress={() => setDestination({ lat: 13.0827, lng: 80.2707, address: "Chennai" })}
-          >
-            <View style={styles.recentIconWrap}>
-              <Ionicons name="time-outline" size={15} color={colors.textMuted} />
-            </View>
-            <View style={styles.recentBody}>
-              <View style={styles.recentRoute}>
-                <View style={[styles.recentDot, { backgroundColor: colors.accent }]} />
-                <Text style={styles.recentText} numberOfLines={1}>Bengaluru</Text>
-              </View>
-              <View style={styles.recentRoute}>
-                <View style={[styles.recentDot, { backgroundColor: colors.marigold }]} />
-                <Text style={styles.recentText} numberOfLines={1}>Chennai</Text>
-              </View>
-            </View>
-            <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
-          </Pressable>
+          {popularRoutes.length > 0 && (
+            <>
+              <Text style={styles.sectionLabel}>{t("home.popularRoutes")}</Text>
+              {popularRoutes.map((r) => (
+                <Pressable
+                  key={`${r.sourceAddress}-${r.destAddress}`}
+                  style={styles.recentCard}
+                  onPress={() =>
+                    searchRoute(
+                      { lat: r.sourceLat, lng: r.sourceLng, address: r.sourceAddress },
+                      { lat: r.destLat, lng: r.destLng, address: r.destAddress }
+                    )
+                  }
+                >
+                  <View style={styles.recentIconWrap}>
+                    <Ionicons name="trending-up-outline" size={15} color={colors.textMuted} />
+                  </View>
+                  <View style={styles.recentBody}>
+                    <View style={styles.recentRoute}>
+                      <View style={[styles.recentDot, { backgroundColor: colors.accent }]} />
+                      <Text style={styles.recentText} numberOfLines={1}>{r.sourceAddress}</Text>
+                    </View>
+                    <View style={styles.recentRoute}>
+                      <View style={[styles.recentDot, { backgroundColor: colors.marigold }]} />
+                      <Text style={styles.recentText} numberOfLines={1}>{r.destAddress}</Text>
+                    </View>
+                  </View>
+                  <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
+                </Pressable>
+              ))}
+            </>
+          )}
+
+          {recentSearches.length > 0 && (
+            <>
+              <Text style={styles.sectionLabel}>{t("home.recent")}</Text>
+              {recentSearches.map((loc) => (
+                <Pressable
+                  key={loc.address}
+                  style={styles.recentCard}
+                  onPress={() => setDestination(loc)}
+                >
+                  <View style={styles.recentIconWrap}>
+                    <Ionicons name="time-outline" size={15} color={colors.textMuted} />
+                  </View>
+                  <View style={styles.recentBody}>
+                    <View style={styles.recentRoute}>
+                      <View style={[styles.recentDot, { backgroundColor: colors.marigold }]} />
+                      <Text style={styles.recentText} numberOfLines={1}>{loc.address}</Text>
+                    </View>
+                  </View>
+                  <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
+                </Pressable>
+              ))}
+            </>
+          )}
         </>
       )}
 
@@ -376,7 +426,6 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(255,255,255,0.16)",
     alignItems: "center", justifyContent: "center",
   },
-  avatarButtonText: { ...typography.title, color: "#FFFFFF", fontSize: 15 },
   greeting: { color: "#FFFFFF", opacity: 0.8, fontSize: 13 },
   name: { color: "#FFFFFF", fontSize: 18, fontWeight: "700", marginTop: 2 },
   searchCard: {

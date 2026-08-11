@@ -13,13 +13,14 @@ import { KeyboardAvoider } from "../components/KeyboardAvoider";
 import { BackHeader } from "../components/BackHeader";
 import { useScreenView } from "../lib/useScreenView";
 import { pickImage, uploadToSignedUrl, DOCUMENT_QUALITY } from "../lib/imageUpload";
+import { useTranslation } from "../lib/i18n/I18nContext";
 
 // Two-wheeler and auto are placeholders for now — UI-only, no backend
 // field yet. Only "car" is selectable until that's built out.
 const VEHICLE_TYPES = [
-  { key: "car", label: "Car", icon: "car-sport-outline" as const },
-  { key: "two_wheeler", label: "Two-wheeler", icon: "bicycle-outline" as const, comingSoon: true },
-  { key: "auto", label: "Auto", icon: "cube-outline" as const, comingSoon: true },
+  { key: "car", labelKey: "vehicle.car", icon: "car-sport-outline" as const },
+  { key: "two_wheeler", labelKey: "vehicle.twoWheeler", icon: "bicycle-outline" as const, comingSoon: true },
+  { key: "auto", labelKey: "vehicle.auto", icon: "cube-outline" as const, comingSoon: true },
 ];
 const SEAT_OPTIONS = [4, 5, 6, 7];
 
@@ -31,14 +32,15 @@ type UploadKind = "PHOTO" | "RC" | "DL";
 // a real chance to review or swap it out first.
 type StagedAsset = { uri: string; mimeType?: string } | null;
 
-const UPLOAD_FIELDS: { kind: UploadKind; label: string; required: boolean; icon: keyof typeof Ionicons.glyphMap }[] = [
-  { kind: "PHOTO", label: "Car photo", required: false, icon: "camera-outline" },
-  { kind: "RC", label: "RC book", required: true, icon: "document-text-outline" },
-  { kind: "DL", label: "Driving license", required: false, icon: "card-outline" },
+const UPLOAD_FIELDS: { kind: UploadKind; labelKey: string; required: boolean; icon: keyof typeof Ionicons.glyphMap }[] = [
+  { kind: "PHOTO", labelKey: "vehicle.carPhoto", required: false, icon: "camera-outline" },
+  { kind: "RC", labelKey: "vehicle.rcBook", required: true, icon: "document-text-outline" },
+  { kind: "DL", labelKey: "vehicle.drivingLicense", required: false, icon: "card-outline" },
 ];
 
 export default function AddVehicleScreen({ navigation }: any) {
   useScreenView("AddVehicleScreen");
+  const { t } = useTranslation();
   const [make, setMake] = useState("");
   const [model, setModel] = useState("");
   const [regNumber, setRegNumber] = useState("");
@@ -65,9 +67,9 @@ export default function AddVehicleScreen({ navigation }: any) {
   }
 
   async function handleSubmit() {
-    const validationErrors = validateVehicle({ make, model, regNumber });
+    const validationErrors = validateVehicle({ make, model, regNumber }, t);
     if (!staged.RC) {
-      validationErrors.RC = "Select your vehicle's RC book to continue.";
+      validationErrors.RC = t("vehicle.rcRequired");
     }
     setErrors(validationErrors);
     if (Object.keys(validationErrors).length > 0) return;
@@ -99,7 +101,7 @@ export default function AddVehicleScreen({ navigation }: any) {
       // shows is more honest than implying it's ready to use right now.
       navigation.navigate("VehicleList");
     } catch (err: any) {
-      showAlert("Couldn't save vehicle", err.message);
+      showAlert(t("vehicle.couldntSaveVehicle"), err.message);
     } finally {
       setSubmitting(false);
     }
@@ -107,22 +109,22 @@ export default function AddVehicleScreen({ navigation }: any) {
 
   return (
     <SafeAreaView style={styles.screen} edges={["top", "bottom"]}>
-      <BackHeader title="Add your vehicle" onBack={() => navigation.goBack()} />
+      <BackHeader title={t("vehicle.addYourVehicle")} onBack={() => navigation.goBack()} />
 
       <KeyboardAvoider>
       <ScrollView contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
-        <Text style={styles.label}>Vehicle type</Text>
+        <Text style={styles.label}>{t("vehicle.vehicleType")}</Text>
         <View style={styles.chipRow}>
-          {VEHICLE_TYPES.map((t) => (
-            <View key={t.key} style={[styles.typeChip, t.key === "car" && styles.typeChipActive, t.comingSoon && styles.typeChipDisabled]}>
-              <Ionicons name={t.icon} size={16} color={t.key === "car" ? colors.success : colors.textSecondary} />
-              <Text style={[styles.typeChipText, t.key === "car" && styles.typeChipTextActive]}>{t.label}</Text>
-              {t.comingSoon && <Text style={styles.comingSoonBadge}>Coming soon</Text>}
+          {VEHICLE_TYPES.map((vt) => (
+            <View key={vt.key} style={[styles.typeChip, vt.key === "car" && styles.typeChipActive, vt.comingSoon && styles.typeChipDisabled]}>
+              <Ionicons name={vt.icon} size={16} color={vt.key === "car" ? colors.success : colors.textSecondary} />
+              <Text style={[styles.typeChipText, vt.key === "car" && styles.typeChipTextActive]}>{t(vt.labelKey)}</Text>
+              {vt.comingSoon && <Text style={styles.comingSoonBadge}>{t("vehicle.comingSoon")}</Text>}
             </View>
           ))}
         </View>
 
-        <Text style={styles.label}>Make</Text>
+        <Text style={styles.label}>{t("vehicle.make")}</Text>
         <TextInput
           style={[styles.input, errors.make && styles.inputError]}
           placeholder="Maruti"
@@ -131,7 +133,7 @@ export default function AddVehicleScreen({ navigation }: any) {
         />
         <FieldError message={errors.make} />
 
-        <Text style={styles.label}>Model</Text>
+        <Text style={styles.label}>{t("vehicle.model")}</Text>
         <TextInput
           style={[styles.input, errors.model && styles.inputError]}
           placeholder="Swift Dzire"
@@ -140,7 +142,7 @@ export default function AddVehicleScreen({ navigation }: any) {
         />
         <FieldError message={errors.model} />
 
-        <Text style={styles.label}>Registration number</Text>
+        <Text style={styles.label}>{t("vehicle.registrationNumber")}</Text>
         <TextInput
           style={[styles.input, errors.regNumber && styles.inputError]}
           placeholder="TN09AB1234"
@@ -150,10 +152,10 @@ export default function AddVehicleScreen({ navigation }: any) {
         />
         <FieldError message={errors.regNumber} />
 
-        <Text style={styles.label}>Color (optional)</Text>
+        <Text style={styles.label}>{t("vehicle.colorOptional")}</Text>
         <TextInput style={styles.input} placeholder="White" value={color} onChangeText={setColor} />
 
-        <Text style={styles.label}>Seats</Text>
+        <Text style={styles.label}>{t("vehicle.seats")}</Text>
         <View style={styles.chipRow}>
           {SEAT_OPTIONS.map((n) => (
             <Pressable
@@ -161,16 +163,13 @@ export default function AddVehicleScreen({ navigation }: any) {
               style={[styles.seatChip, seatCapacity === n && styles.typeChipActive]}
               onPress={() => setSeatCapacity(n)}
             >
-              <Text style={[styles.typeChipText, seatCapacity === n && styles.typeChipTextActive]}>{n}-seater</Text>
+              <Text style={[styles.typeChipText, seatCapacity === n && styles.typeChipTextActive]}>{t("vehicle.seaterSuffix", { n })}</Text>
             </Pressable>
           ))}
         </View>
 
-        <Text style={styles.label}>Documents</Text>
-        <Text style={styles.docsHint}>
-          An admin reviews these before your vehicle can be used to publish rides. Tap a selected
-          document to preview it, or the × to remove it, before saving.
-        </Text>
+        <Text style={styles.label}>{t("vehicle.documents")}</Text>
+        <Text style={styles.docsHint}>{t("vehicle.docsHintAdd")}</Text>
         {UPLOAD_FIELDS.map((field) => {
           const asset = staged[field.kind];
           return (
@@ -195,18 +194,18 @@ export default function AddVehicleScreen({ navigation }: any) {
               </Pressable>
               <View style={{ flex: 1 }}>
                 <View style={styles.docLabelRow}>
-                  <Text style={styles.docLabel}>{field.label}</Text>
+                  <Text style={styles.docLabel}>{t(field.labelKey)}</Text>
                   <Text style={field.required ? styles.requiredTag : styles.optionalTag}>
-                    {field.required ? "Required" : "Optional"}
+                    {field.required ? t("vehicle.required") : t("vehicle.optional")}
                   </Text>
                 </View>
                 <View style={{ flexDirection: "row", gap: spacing.md }}>
                   <Pressable onPress={() => handlePick(field.kind)} hitSlop={4}>
-                    <Text style={styles.docActionText}>{asset ? "Replace" : "Select"}</Text>
+                    <Text style={styles.docActionText}>{asset ? t("vehicle.replace") : t("vehicle.select")}</Text>
                   </Pressable>
                   {asset && (
                     <Pressable onPress={() => setPreviewUri(asset.uri)} hitSlop={4}>
-                      <Text style={styles.docViewText}>Preview</Text>
+                      <Text style={styles.docViewText}>{t("vehicle.preview")}</Text>
                     </Pressable>
                   )}
                 </View>
@@ -220,7 +219,7 @@ export default function AddVehicleScreen({ navigation }: any) {
         <FieldError message={errors.RC} />
 
         <Pressable style={styles.button} onPress={handleSubmit} disabled={submitting}>
-          <Text style={styles.buttonText}>{submitting ? "Uploading & saving..." : "Save vehicle"}</Text>
+          <Text style={styles.buttonText}>{submitting ? t("vehicle.uploadingAndSaving") : t("vehicle.saveVehicle")}</Text>
         </Pressable>
       </ScrollView>
       </KeyboardAvoider>

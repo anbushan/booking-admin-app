@@ -8,9 +8,11 @@ import { api } from "../lib/api";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { BackHeader } from "../components/BackHeader";
 import { useScreenView } from "../lib/useScreenView";
+import { useTranslation } from "../lib/i18n/I18nContext";
 
 export default function MapPinConfirmScreen({ route, navigation }: any) {
   useScreenView("MapPinConfirmScreen");
+  const { t } = useTranslation();
   const { lat, lng, address, onSelect } = route.params;
   const [position, setPosition] = useState({ lat, lng });
   const [currentAddress, setCurrentAddress] = useState(address);
@@ -39,7 +41,7 @@ export default function MapPinConfirmScreen({ route, navigation }: any) {
 
   return (
     <SafeAreaView style={styles.screen} edges={["top", "bottom"]}>
-      <BackHeader title="Confirm location" onBack={() => navigation.goBack()} />
+      <BackHeader title={t("mapPinConfirm.title")} onBack={() => navigation.goBack()} />
       <View style={styles.mapContainer}>
         <MapView
           style={{ flex: 1 }}
@@ -73,17 +75,17 @@ export default function MapPinConfirmScreen({ route, navigation }: any) {
             <Ionicons name="location" size={16} color={colors.marigold} />
           </View>
           <View style={{ flex: 1 }}>
-            <Text style={styles.addressLabel}>Pickup location</Text>
+            <Text style={styles.addressLabel}>{t("mapPinConfirm.pickupLocation")}</Text>
             <Text style={styles.address}>{currentAddress}</Text>
           </View>
         </View>
         <View style={styles.hintRow}>
           <Ionicons name="hand-left-outline" size={13} color={colors.textMuted} />
-          <Text style={styles.hint}>Drag the pin to fine-tune the exact spot</Text>
+          <Text style={styles.hint}>{t("mapPinConfirm.dragHint")}</Text>
         </View>
         <Pressable style={styles.confirmButton} onPress={handleConfirm} disabled={confirming}>
           <Ionicons name="checkmark-circle-outline" size={18} color="#FFFFFF" />
-          <Text style={styles.confirmButtonText}>Confirm location</Text>
+          <Text style={styles.confirmButtonText}>{t("mapPinConfirm.title")}</Text>
         </Pressable>
       </View>
     </SafeAreaView>

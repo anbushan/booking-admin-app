@@ -12,6 +12,8 @@ import { useToast } from "../components/Toast";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { KeyboardAvoider } from "../components/KeyboardAvoider";
 import { useScreenView } from "../lib/useScreenView";
+import Avatar from "../components/Avatar";
+import { useTranslation } from "../lib/i18n/I18nContext";
 
 type Message = { id: string; senderId: string; text: string; type?: "TEXT" | "LOCATION"; createdAt: string };
 
@@ -26,6 +28,7 @@ function formatMessageTime(iso: string) {
 
 export default function ChatDetailScreen({ route, navigation }: any) {
   useScreenView("ChatDetailScreen");
+  const { t } = useTranslation();
   const { bookingId, currentUserId: paramUserId, calleeRole } = route.params;
   const [currentUserId, setCurrentUserId] = useState<string | undefined>(paramUserId);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -34,6 +37,7 @@ export default function ChatDetailScreen({ route, navigation }: any) {
   const [sharingLocation, setSharingLocation] = useState(false);
   const [ended, setEnded] = useState(false);
   const [otherName, setOtherName] = useState<string | null>(null);
+  const [otherPhoto, setOtherPhoto] = useState<string | null>(null);
   const socketRef = useRef<any>(null);
   const { showError } = useToast();
 
@@ -53,7 +57,9 @@ export default function ChatDetailScreen({ route, navigation }: any) {
       api.getBookingDetail(bookingId)
         .then((booking) => {
           setEnded(booking.status !== "CONFIRMED");
-          setOtherName((calleeRole === "DRIVER" ? booking.ride?.driver?.name : booking.passenger?.name) || null);
+          const other = calleeRole === "DRIVER" ? booking.ride?.driver : booking.passenger;
+          setOtherName(other?.name || null);
+          setOtherPhoto(other?.photoViewUrl || null);
         })
         .catch(() => {});
       // Opening this conversation is what clears its unread badge
@@ -106,7 +112,7 @@ export default function ChatDetailScreen({ route, navigation }: any) {
       const { proxyNumber } = await api.initiateCall(bookingId, calleeRole);
       await dialProxyNumber(proxyNumber);
     } catch (err: any) {
-      showError(err.message || "Couldn't start the call");
+      showError(err.message || t("common.couldntStartCall"));
     } finally {
       setCalling(false);
     }
@@ -118,7 +124,7 @@ export default function ChatDetailScreen({ route, navigation }: any) {
       const { lat, lng } = await api.getCurrentLocation();
       socketRef.current?.emit("message:send", { bookingId, text: `${lat},${lng}`, type: "LOCATION" });
     } catch (err: any) {
-      showError(err.message || "Couldn't share your location");
+      showError(err.message || t("chatDetail.couldntShareLocation"));
     } finally {
       setSharingLocation(false);
     }
@@ -136,12 +142,10 @@ export default function ChatDetailScreen({ route, navigation }: any) {
         <Pressable style={styles.backButton} onPress={() => navigation.goBack()} hitSlop={8}>
           <Ionicons name="chevron-back" size={22} color={colors.textPrimary} />
         </Pressable>
-        <View style={styles.avatar}>
-          <Text style={styles.avatarText}>{(otherName || "?").charAt(0).toUpperCase()}</Text>
-        </View>
+        <Avatar uri={otherPhoto} name={otherName} size={32} />
         <View style={{ flex: 1 }}>
-          <Text style={styles.title}>{otherName || "Chat"}</Text>
-          {!!calleeRole && <Text style={styles.subtitle}>{calleeRole === "DRIVER" ? "Your driver" : "Your passenger"}</Text>}
+          <Text style={styles.title}>{otherName || t("chatDetail.title")}</Text>
+          {!!calleeRole && <Text style={styles.subtitle}>{calleeRole === "DRIVER" ? t("chatDetail.yourDriver") : t("chatDetail.yourPassenger")}</Text>}
         </View>
         {!!calleeRole && !ended && (
           <Pressable style={styles.callButton} onPress={handleCall} disabled={calling} hitSlop={6}>
@@ -164,9 +168,9 @@ export default function ChatDetailScreen({ route, navigation }: any) {
               >
                 <View style={styles.locationRow}>
                   <Ionicons name="location" size={14} color={isMine ? "#FFFFFF" : colors.accentText} />
-                  <Text style={[styles.locationText, isMine && { color: "#FFFFFF" }]}>Shared location</Text>
+                  <Text style={[styles.locationText, isMine && { color: "#FFFFFF" }]}>{t("chatDetail.sharedLocation")}</Text>
                 </View>
-                <Text style={[styles.locationHint, isMine && { color: "rgba(255,255,255,0.75)" }]}>Tap to open in Maps</Text>
+                <Text style={[styles.locationHint, isMine && { color: "rgba(255,255,255,0.75)" }]}>{t("chatDetail.tapToOpenMaps")}</Text>
                 <Text style={[styles.timeText, isMine && { color: "rgba(255,255,255,0.7)" }]}>{formatMessageTime(item.createdAt)}</Text>
               </Pressable>
             );
@@ -182,7 +186,7 @@ export default function ChatDetailScreen({ route, navigation }: any) {
       {ended ? (
         <View style={styles.endedBanner}>
           <Ionicons name="lock-closed-outline" size={14} color={colors.textMuted} />
-          <Text style={styles.endedBannerText}>This conversation has ended.</Text>
+          <Text style={styles.endedBannerText}>{t("chatDetail.conversationEnded")}</Text>
         </View>
       ) : (
         <View style={styles.inputRow}>
@@ -193,7 +197,7 @@ export default function ChatDetailScreen({ route, navigation }: any) {
             style={styles.input}
             value={text}
             onChangeText={setText}
-            placeholder="Message"
+            placeholder={t("chatDetail.messagePlaceholder")}
             placeholderTextColor={colors.textMuted}
           />
           <Pressable style={styles.sendButton} onPress={handleSend}>
@@ -210,8 +214,6 @@ const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.bg },
   header: { flexDirection: "row", alignItems: "center", gap: spacing.sm, paddingLeft: spacing.xs, paddingRight: spacing.lg, paddingVertical: spacing.md, borderBottomWidth: 1, borderBottomColor: colors.border, backgroundColor: colors.surface },
   backButton: { width: 36, height: 36, borderRadius: 18, alignItems: "center", justifyContent: "center" },
-  avatar: { width: 32, height: 32, borderRadius: 16, backgroundColor: colors.accentBg, alignItems: "center", justifyContent: "center" },
-  avatarText: { ...typography.title, fontSize: 13, color: colors.accentText },
   title: { ...typography.title, fontSize: 14 },
   subtitle: { ...typography.small, color: colors.textMuted, marginTop: 1 },
   callButton: { width: 34, height: 34, borderRadius: 17, backgroundColor: colors.successBg, alignItems: "center", justifyContent: "center" },

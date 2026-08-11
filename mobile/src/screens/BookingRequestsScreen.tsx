@@ -15,10 +15,12 @@ import { AppBottomNav } from "../components/AppBottomNav";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { groupByRide } from "../lib/groupByRide";
 import { useScreenView } from "../lib/useScreenView";
+import Avatar from "../components/Avatar";
+import { useTranslation } from "../lib/i18n/I18nContext";
 
 type BookingRequest = {
   id: string;
-  passenger: { name: string; ratingAvg: number };
+  passenger: { name: string; ratingAvg: number; photoViewUrl?: string | null };
   seatsBooked: number;
   isCustomPickup: boolean;
   pickupAddress: string;
@@ -33,6 +35,7 @@ function minutesLeft(expiresAt: string) {
 
 export default function BookingRequestsScreen({ route, navigation }: any) {
   useScreenView("BookingRequestsScreen");
+  const { t } = useTranslation();
   const { rideId } = route.params || {};
   const [requests, setRequests] = useState<BookingRequest[]>([]);
   const [profile, setProfile] = useState<any>(null);
@@ -70,9 +73,9 @@ export default function BookingRequestsScreen({ route, navigation }: any) {
       if (action === "accept") { await api.acceptBooking(bookingId); Analytics.bookingAccepted(bookingId); }
       else { await api.rejectBooking(bookingId); Analytics.bookingRejected(bookingId); }
       setRequests((prev) => prev.filter((r) => r.id !== bookingId));
-      showSuccess(action === "accept" ? "Booking accepted — passenger has to pay the platform fee to confirm" : "Booking declined");
+      showSuccess(action === "accept" ? t("bookingRequests.acceptedToast") : t("bookingRequests.declinedToast"));
     } catch (err: any) {
-      showError(err.message || "Couldn't update booking");
+      showError(err.message || t("bookingRequests.couldntUpdate"));
     }
   }
 
@@ -80,14 +83,14 @@ export default function BookingRequestsScreen({ route, navigation }: any) {
 
   return (
     <SafeAreaView style={styles.screen} edges={["top"]}>
-      <Text style={{ ...typography.title, padding: spacing.lg, paddingBottom: spacing.sm }}>{rideId ? "Booking requests" : "All booking requests"}</Text>
+      <Text style={{ ...typography.title, padding: spacing.lg, paddingBottom: spacing.sm }}>{rideId ? t("home.bookingRequests") : t("bookingRequests.allTitle")}</Text>
 
       {loading ? (
         <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
           <CarLoader size="lg" />
         </View>
       ) : error ? (
-        <ErrorState message="Couldn't load requests." onRetry={load} />
+        <ErrorState message={t("bookingRequests.couldntLoad")} onRetry={load} />
       ) : (
       <SectionList
         style={{ flex: 1 }}
@@ -115,24 +118,22 @@ export default function BookingRequestsScreen({ route, navigation }: any) {
           <View style={styles.card}>
             <Pressable onPress={() => navigation.navigate("BookingRequestDetail", { request: item })}>
               <View style={styles.cardTop}>
-                <View style={styles.avatar}>
-                  <Text style={styles.avatarText}>{(item.passenger?.name || "?").charAt(0).toUpperCase()}</Text>
-                </View>
+                <Avatar uri={item.passenger?.photoViewUrl} name={item.passenger?.name} size={32} />
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.passengerName}>{item.passenger?.name || "Passenger"}</Text>
+                  <Text style={styles.passengerName}>{item.passenger?.name || t("register.passenger")}</Text>
                   <Text style={styles.meta}>
-                    <Ionicons name="star" size={10} color={colors.marigold} /> {(item.passenger?.ratingAvg ?? 0).toFixed(1)} · {item.seatsBooked} seat(s)
+                    <Ionicons name="star" size={10} color={colors.marigold} /> {(item.passenger?.ratingAvg ?? 0).toFixed(1)} · {t("common.seatsCount", { count: item.seatsBooked })}
                   </Text>
                 </View>
                 <View style={styles.countdown}>
                   <Ionicons name="time-outline" size={11} color={colors.warning} />
-                  <Text style={styles.countdownText}>{minutesLeft(item.expiresAt)}m left</Text>
+                  <Text style={styles.countdownText}>{t("common.minutesLeft", { mins: minutesLeft(item.expiresAt) })}</Text>
                 </View>
               </View>
               <View style={styles.pickupRow}>
                 <Ionicons name="location-outline" size={12} color={colors.textMuted} />
                 <Text style={styles.pickup}>
-                  {item.isCustomPickup ? `Custom pickup: ${item.pickupAddress}` : "Default pickup point"}
+                  {item.isCustomPickup ? t("bookingRequests.customPickup", { address: item.pickupAddress }) : t("bookingRequests.defaultPickup")}
                 </Text>
               </View>
 
@@ -141,23 +142,23 @@ export default function BookingRequestsScreen({ route, navigation }: any) {
                   start of the same line (not a standalone card) makes
                   what accepting actually does obvious. */}
               <View style={styles.trackerWrap}>
-                <StepTracker steps={bookingJourneySteps("BOOKED")} />
+                <StepTracker steps={bookingJourneySteps("BOOKED", t)} />
               </View>
             </Pressable>
             <View style={styles.actionRow}>
               <Pressable style={styles.acceptButton} onPress={() => respond(item.id, "accept")}>
                 <Ionicons name="checkmark" size={16} color="#FFFFFF" />
-                <Text style={styles.acceptText}>Accept</Text>
+                <Text style={styles.acceptText}>{t("driver.acceptBooking")}</Text>
               </Pressable>
               <Pressable style={styles.declineButton} onPress={() => respond(item.id, "reject")}>
                 <Ionicons name="close" size={16} color={colors.textSecondary} />
-                <Text style={styles.declineText}>Decline</Text>
+                <Text style={styles.declineText}>{t("driver.declineBooking")}</Text>
               </Pressable>
             </View>
           </View>
         )}
         ListEmptyComponent={
-          <EmptyState icon="mail-open-outline" title="No pending requests" subtitle="New booking requests will show up here." />
+          <EmptyState icon="mail-open-outline" title={t("myRequests.emptyTitle")} subtitle={t("bookingRequests.emptySubtitle")} />
         }
       />
       )}
@@ -179,8 +180,6 @@ const styles = StyleSheet.create({
   sectionTitle: { ...typography.title, fontSize: 13, color: colors.accentText },
   sectionSubtitle: { ...typography.small, color: colors.textMuted, marginTop: 1 },
   cardTop: { flexDirection: "row", gap: spacing.sm, alignItems: "center" },
-  avatar: { width: 32, height: 32, borderRadius: 16, backgroundColor: colors.accentBg, alignItems: "center", justifyContent: "center" },
-  avatarText: { ...typography.title, fontSize: 13, color: colors.accentText },
   passengerName: { ...typography.title, fontSize: 14 },
   meta: { ...typography.small, color: colors.textMuted },
   countdown: { flexDirection: "row", alignItems: "center", gap: 3, backgroundColor: colors.warningBg, paddingVertical: 3, paddingHorizontal: 7, borderRadius: 999 },

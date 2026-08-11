@@ -11,6 +11,7 @@ import { primeLocationIfNeeded } from "../lib/locationPriming";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { AppBottomNav } from "../components/AppBottomNav";
 import { useScreenView } from "../lib/useScreenView";
+import { useTranslation } from "../lib/i18n/I18nContext";
 
 // A passenger's own view of where each of their outstanding requests
 // stands with the driver — a focused queue separate from "My bookings"
@@ -21,13 +22,16 @@ import { useScreenView } from "../lib/useScreenView";
 // with no visible sign the payment went through.
 const ACTIVE_STATUSES = ["BOOKED", "AWAITING_PAYMENT", "CHARGE_ATTEMPTED", "PAYMENT_PENDING", "CONFIRMED", "IN_PROGRESS"];
 
-const STATUS_LABELS: Record<string, string> = {
-  BOOKED: "Waiting for driver to respond",
-  AWAITING_PAYMENT: "Accepted — pay to confirm",
-  CHARGE_ATTEMPTED: "Payment in progress",
-  PAYMENT_PENDING: "Payment failed — retry",
-  CONFIRMED: "Confirmed — trip code ready",
-  IN_PROGRESS: "Trip in progress",
+// Reuse status.* labelKeys where the wording matches exactly (payment
+// in progress / failed); the rest carry extra context beyond a bare
+// status name, so they live under myRequests.* instead.
+const STATUS_LABEL_KEYS: Record<string, string> = {
+  BOOKED: "myRequests.statusBooked",
+  AWAITING_PAYMENT: "myRequests.statusAwaitingPayment",
+  CHARGE_ATTEMPTED: "status.paymentInProgress",
+  PAYMENT_PENDING: "status.paymentFailedRetry",
+  CONFIRMED: "myRequests.statusConfirmed",
+  IN_PROGRESS: "myRequests.statusInProgress",
 };
 
 type RequestItem = {
@@ -47,6 +51,7 @@ function minutesLeft(expiresAt: string | null) {
 
 export default function MyRequestsScreen({ navigation }: any) {
   useScreenView("MyRequestsScreen");
+  const { t } = useTranslation();
   const [requests, setRequests] = useState<RequestItem[]>([]);
   const [profile, setProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -72,14 +77,14 @@ export default function MyRequestsScreen({ navigation }: any) {
 
   return (
     <SafeAreaView style={styles.screen} edges={["top"]}>
-      <Text style={{ ...typography.title, padding: spacing.lg, paddingBottom: spacing.sm }}>My requests</Text>
+      <Text style={{ ...typography.title, padding: spacing.lg, paddingBottom: spacing.sm }}>{t("myRequests.title")}</Text>
 
       {loading ? (
         <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
           <CarLoader size="lg" />
         </View>
       ) : error ? (
-        <ErrorState message="Couldn't load your requests." onRetry={load} />
+        <ErrorState message={t("myRequests.couldntLoad")} onRetry={load} />
       ) : (
         <FlatList
           style={{ flex: 1 }}
@@ -94,25 +99,25 @@ export default function MyRequestsScreen({ navigation }: any) {
               // status-specific action button below stays its own
               // Pressable and still fires independently on its own tap.
               <Pressable style={styles.card} onPress={() => navigation.navigate("BookingDetail", { bookingId: item.id })}>
-                <Text style={styles.route}>{item.ride?.sourceAddress} to {item.ride?.destAddress}</Text>
+                <Text style={styles.route}>{t("common.routeTo", { source: item.ride?.sourceAddress, dest: item.ride?.destAddress })}</Text>
                 <View style={styles.rowBetween}>
                   <Text style={styles.meta}>
-                    {item.ride?.driver?.name || "Driver"} · {item.seatsBooked} seat(s)
+                    {item.ride?.driver?.name || t("register.driver")} · {t("common.seatsCount", { count: item.seatsBooked })}
                   </Text>
-                  {mins != null && <Text style={styles.countdown}>{mins}m left</Text>}
+                  {mins != null && <Text style={styles.countdown}>{t("common.minutesLeft", { mins })}</Text>}
                 </View>
-                <Text style={styles.status}>{STATUS_LABELS[item.status] || item.status}</Text>
+                <Text style={styles.status}>{STATUS_LABEL_KEYS[item.status] ? t(STATUS_LABEL_KEYS[item.status]) : item.status}</Text>
                 {(item.status === "AWAITING_PAYMENT" || item.status === "PAYMENT_PENDING") && (
                   <Pressable
                     style={styles.payButton}
                     onPress={() => navigation.navigate("Payment", {
                       bookingId: item.id,
                       amount: Number(item.platformFeeAmount),
-                      description: "Platform fee",
+                      description: t("payment.platformFeeLabel"),
                       retry: item.status === "PAYMENT_PENDING",
                     })}
                   >
-                    <Text style={styles.payButtonText}>{item.status === "PAYMENT_PENDING" ? "Retry payment" : "Pay now"}</Text>
+                    <Text style={styles.payButtonText}>{item.status === "PAYMENT_PENDING" ? t("history.retryPayment") : t("myRequests.payNow")}</Text>
                   </Pressable>
                 )}
                 {item.status === "CONFIRMED" && (
@@ -120,7 +125,7 @@ export default function MyRequestsScreen({ navigation }: any) {
                     style={styles.payButton}
                     onPress={() => navigation.navigate("TripOtp", { bookingId: item.id })}
                   >
-                    <Text style={styles.payButtonText}>View trip code</Text>
+                    <Text style={styles.payButtonText}>{t("myRequests.viewTripCode")}</Text>
                   </Pressable>
                 )}
                 {item.status === "IN_PROGRESS" && (
@@ -128,7 +133,7 @@ export default function MyRequestsScreen({ navigation }: any) {
                     style={styles.payButton}
                     onPress={() => primeLocationIfNeeded(navigation, "LiveTracking", { bookingId: item.id, role: "PASSENGER" })}
                   >
-                    <Text style={styles.payButtonText}>Track trip</Text>
+                    <Text style={styles.payButtonText}>{t("history.trackTrip")}</Text>
                   </Pressable>
                 )}
               </Pressable>
@@ -137,8 +142,8 @@ export default function MyRequestsScreen({ navigation }: any) {
           ListEmptyComponent={
             <EmptyState
               icon="hourglass-outline"
-              title="No pending requests"
-              subtitle="Requests you send to drivers will show up here until they're confirmed."
+              title={t("myRequests.emptyTitle")}
+              subtitle={t("myRequests.emptySubtitle")}
             />
           }
         />

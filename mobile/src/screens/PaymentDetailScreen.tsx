@@ -5,9 +5,11 @@ import { colors, spacing, radius, typography } from "../theme/theme";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { BackHeader } from "../components/BackHeader";
 import { useScreenView } from "../lib/useScreenView";
+import { useTranslation } from "../lib/i18n/I18nContext";
 
 export default function PaymentDetailScreen({ route, navigation }: any) {
   useScreenView("PaymentDetailScreen");
+  const { t } = useTranslation();
   const { booking } = route.params;
   const platformFee = booking.platformFeeAmount != null ? Number(booking.platformFeeAmount) : null;
   const remainingFare = booking.remainingFareAmount != null ? Number(booking.remainingFareAmount) : null;
@@ -15,32 +17,32 @@ export default function PaymentDetailScreen({ route, navigation }: any) {
 
   return (
     <SafeAreaView style={styles.screen} edges={["top", "bottom"]}>
-      <BackHeader title="Receipt" onBack={() => navigation.goBack()} />
+      <BackHeader title={t("payment.receipt")} onBack={() => navigation.goBack()} />
 
       <View style={styles.body}>
         <View style={styles.card}>
-          <Text style={styles.route}>{booking.ride?.sourceAddress} to {booking.ride?.destAddress}</Text>
+          <Text style={styles.route}>{t("common.routeTo", { source: booking.ride?.sourceAddress, dest: booking.ride?.destAddress })}</Text>
           <Text style={styles.date}>
             {booking.tripCompletedAt ? new Date(booking.tripCompletedAt).toLocaleString() : "—"}
           </Text>
 
           <View style={styles.row}>
-            <Text style={styles.label}>Seats</Text>
+            <Text style={styles.label}>{t("searchOptions.seats")}</Text>
             <Text style={styles.value}>{booking.seatsBooked}</Text>
           </View>
           <View style={[styles.row, { borderBottomWidth: 0 }]}>
-            <Text style={styles.totalLabel}>Platform fee (paid in-app)</Text>
+            <Text style={styles.totalLabel}>{t("payment.platformFeePaidInApp")}</Text>
             <Text style={styles.totalValue}>{platformFee != null ? `Rs ${platformFee}` : "—"}</Text>
           </View>
           {remainingFare != null && (
             <View style={[styles.row, { borderBottomWidth: 0 }]}>
-              <Text style={styles.label}>Remaining fare (cash/UPI to driver)</Text>
+              <Text style={styles.label}>{t("payment.remainingFareCashUpi")}</Text>
               <Text style={styles.value}>Rs {remainingFare}</Text>
             </View>
           )}
 
           <Text style={[styles.statusTag, isPaid ? styles.paid : styles.pending]}>
-            {isPaid ? "Fee paid" : booking.status}
+            {isPaid ? t("payment.feePaid") : booking.status}
           </Text>
         </View>
 
@@ -49,7 +51,7 @@ export default function PaymentDetailScreen({ route, navigation }: any) {
             style={styles.refundLink}
             onPress={() => navigation.navigate("RefundStatus", { refund: booking.refund })}
           >
-            <Text style={styles.refundLinkText}>View refund status</Text>
+            <Text style={styles.refundLinkText}>{t("payment.viewRefundStatus")}</Text>
           </Pressable>
         )}
       </View>

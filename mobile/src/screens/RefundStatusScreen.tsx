@@ -4,49 +4,50 @@ import { colors, spacing, radius, typography } from "../theme/theme";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { BackHeader } from "../components/BackHeader";
 import { useScreenView } from "../lib/useScreenView";
+import { useTranslation } from "../lib/i18n/I18nContext";
 
-const STATUS_COPY: Record<string, string> = {
-  INITIATED: "Your refund has been initiated.",
-  PROCESSING: "Your refund is being processed.",
-  COMPLETED: "Your refund has been completed.",
-  FAILED: "Something went wrong with this refund — contact support.",
+const STATUS_COPY_KEYS: Record<string, string> = {
+  INITIATED: "payment.refundInitiated",
+  PROCESSING: "payment.refundProcessing",
+  COMPLETED: "payment.refundCompleted",
+  FAILED: "payment.refundFailed",
 };
 
 export default function RefundStatusScreen({ route, navigation }: any) {
   useScreenView("RefundStatusScreen");
+  const { t } = useTranslation();
   const { refund } = route.params;
 
   return (
     <SafeAreaView style={styles.screen} edges={["top", "bottom"]}>
-      <BackHeader title="Refund status" onBack={() => navigation.goBack()} />
+      <BackHeader title={t("payment.refundStatus")} onBack={() => navigation.goBack()} />
 
       <View style={styles.body}>
         <Text style={styles.amount}>Rs {Number(refund.amount)}</Text>
-        <Text style={styles.statusText}>{STATUS_COPY[refund.status] || refund.status}</Text>
+        <Text style={styles.statusText}>
+          {STATUS_COPY_KEYS[refund.status] ? t(STATUS_COPY_KEYS[refund.status]) : refund.status}
+        </Text>
 
         <View style={styles.timeline}>
           <View style={styles.timelineRow}>
-            <Text style={styles.timelineLabel}>Initiated</Text>
+            <Text style={styles.timelineLabel}>{t("payment.initiatedLabel")}</Text>
             <Text style={styles.timelineValue}>{new Date(refund.initiatedAt).toLocaleDateString()}</Text>
           </View>
           <View style={styles.timelineRow}>
-            <Text style={styles.timelineLabel}>Estimated by</Text>
+            <Text style={styles.timelineLabel}>{t("payment.estimatedBy")}</Text>
             <Text style={styles.timelineValue}>
               {new Date(refund.estimatedCompletionAt).toLocaleDateString()}
             </Text>
           </View>
           {refund.completedAt && (
             <View style={[styles.timelineRow, { borderBottomWidth: 0 }]}>
-              <Text style={styles.timelineLabel}>Completed</Text>
+              <Text style={styles.timelineLabel}>{t("status.completed")}</Text>
               <Text style={styles.timelineValue}>{new Date(refund.completedAt).toLocaleDateString()}</Text>
             </View>
           )}
         </View>
 
-        <Text style={styles.note}>
-          Refunds are promised within 3 working days of being initiated,
-          though the exact timing can vary by payment method.
-        </Text>
+        <Text style={styles.note}>{t("payment.refundNote")}</Text>
       </View>
     </SafeAreaView>
   );

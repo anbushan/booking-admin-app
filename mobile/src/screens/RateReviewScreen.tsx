@@ -10,9 +10,11 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { KeyboardAvoider } from "../components/KeyboardAvoider";
 import { BackHeader } from "../components/BackHeader";
 import { useScreenView } from "../lib/useScreenView";
+import { useTranslation } from "../lib/i18n/I18nContext";
 
 export default function RateReviewScreen({ route, navigation }: any) {
   useScreenView("RateReviewScreen");
+  const { t } = useTranslation();
   const { bookingId, toUserId, toUserName } = route.params;
   const [rating, setRating] = useState(0);
   const [comment, setComment] = useState("");
@@ -21,14 +23,14 @@ export default function RateReviewScreen({ route, navigation }: any) {
 
   async function handleSubmit() {
     if (rating === 0) {
-      showAlert("Choose a rating", "Tap a star to rate your trip.");
+      showAlert(t("rateReview.chooseRatingTitle"), t("rateReview.chooseRatingBody"));
       return;
     }
     setSubmitting(true);
     try {
       await api.submitReview({ bookingId, toUserId, rating, comment });
       Analytics.reviewSubmitted(rating);
-      showSuccess("Review submitted");
+      showSuccess(t("rateReview.reviewSubmitted"));
       // Not goBack() — this screen is reached via navigation.replace()
       // from a just-ended trip (see LiveTrackingScreen), so "back" is
       // whatever happened to precede that, not a predictable place.
@@ -36,7 +38,7 @@ export default function RateReviewScreen({ route, navigation }: any) {
       // way, for both the passenger and driver rate-review flows.
       navigation.reset({ index: 0, routes: [{ name: "Home" }] });
     } catch (err: any) {
-      showAlert("Couldn't submit review", err.message);
+      showAlert(t("rateReview.couldntSubmit"), err.message);
     } finally {
       setSubmitting(false);
     }
@@ -45,16 +47,16 @@ export default function RateReviewScreen({ route, navigation }: any) {
   return (
     <SafeAreaView style={styles.screen} edges={["top", "bottom"]}>
       <BackHeader
-        title="Rate your trip"
+        title={t("rateReview.title")}
         onBack={() => (navigation.canGoBack() ? navigation.goBack() : navigation.reset({ index: 0, routes: [{ name: "Home" }] }))}
         right={
           <Pressable onPress={() => navigation.reset({ index: 0, routes: [{ name: "Home" }] })} hitSlop={8}>
-            <Text style={styles.skipText}>Skip</Text>
+            <Text style={styles.skipText}>{t("onboarding.skip")}</Text>
           </Pressable>
         }
       />
       <KeyboardAvoider style={styles.centerContent}>
-        <Text style={styles.title}>Rate your trip with {toUserName}</Text>
+        <Text style={styles.title}>{t("rateReview.rateTripWith", { name: toUserName })}</Text>
 
         <View style={styles.stars}>
           {[1, 2, 3, 4, 5].map((n) => (
@@ -66,7 +68,7 @@ export default function RateReviewScreen({ route, navigation }: any) {
 
         <TextInput
           style={styles.input}
-          placeholder="Add a comment (optional)"
+          placeholder={t("rateReview.commentPlaceholder")}
           placeholderTextColor={colors.textMuted}
           value={comment}
           onChangeText={setComment}
@@ -74,7 +76,7 @@ export default function RateReviewScreen({ route, navigation }: any) {
         />
 
         <Pressable style={styles.button} onPress={handleSubmit} disabled={submitting}>
-          <Text style={styles.buttonText}>{submitting ? "Submitting..." : "Submit review"}</Text>
+          <Text style={styles.buttonText}>{submitting ? t("rateReview.submitting") : t("rateReview.submitReview")}</Text>
         </Pressable>
       </KeyboardAvoider>
     </SafeAreaView>

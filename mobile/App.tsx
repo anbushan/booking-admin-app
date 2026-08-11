@@ -26,7 +26,6 @@ import UpcomingTripsScreen from "./src/screens/UpcomingTripsScreen";
 import VehicleListScreen from "./src/screens/VehicleListScreen";
 import EditVehicleScreen from "./src/screens/EditVehicleScreen";
 import EarningsScreen from "./src/screens/EarningsScreen";
-import DocumentUploadScreen from "./src/screens/DocumentUploadScreen";
 import EditRideScreen from "./src/screens/EditRideScreen";
 
 import PaymentScreen from "./src/screens/PaymentScreen";
@@ -44,8 +43,10 @@ import RateReviewScreen from "./src/screens/RateReviewScreen";
 import { ProfileScreen, EditProfileScreen } from "./src/screens/ProfileScreens";
 import PublicProfileScreen from "./src/screens/PublicProfileScreen";
 import { ToastProvider } from "./src/components/Toast";
+import { I18nProvider } from "./src/lib/i18n/I18nContext";
 
 import { SettingsScreen, HelpSupportScreen, AboutScreen } from "./src/screens/SettingsScreens";
+import DeleteAccountScreen from "./src/screens/DeleteAccountScreen";
 import LoginPasscodeScreen from "./src/screens/LoginPasscodeScreen";
 import LanguageSelectionScreen from "./src/screens/LanguageSelectionScreen";
 
@@ -64,6 +65,7 @@ const Stack = createNativeStackNavigator();
 
 export default function App() {
   return (
+    <I18nProvider>
     <SafeAreaProvider>
     <ToastProvider>
     <NavigationContainer ref={navigationRef}>
@@ -110,7 +112,6 @@ export default function App() {
         <Stack.Screen name="VehicleList" component={VehicleListScreen} />
         <Stack.Screen name="EditVehicle" component={EditVehicleScreen} />
         <Stack.Screen name="Earnings" component={EarningsScreen} />
-        <Stack.Screen name="DocumentUpload" component={DocumentUploadScreen} />
         <Stack.Screen name="EditRide" component={EditRideScreen} />
         <Stack.Screen name="PaymentQueue" component={PaymentQueueScreen} />
 
@@ -145,6 +146,7 @@ export default function App() {
         <Stack.Screen name="LanguageSelection" component={LanguageSelectionScreen} />
         <Stack.Screen name="HelpSupport" component={HelpSupportScreen} />
         <Stack.Screen name="About" component={AboutScreen} />
+        <Stack.Screen name="DeleteAccount" component={DeleteAccountScreen} />
 
         {/* Newly closed gaps */}
         <Stack.Screen name="RatingsReceived" component={RatingsReceivedScreen} />
@@ -158,5 +160,6 @@ export default function App() {
     </NavigationContainer>
     </ToastProvider>
     </SafeAreaProvider>
+    </I18nProvider>
   );
 }

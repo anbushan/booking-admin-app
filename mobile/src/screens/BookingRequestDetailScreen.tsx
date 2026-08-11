@@ -9,9 +9,12 @@ import { StepTracker, bookingJourneySteps } from "../components/StepTracker";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { BackHeader } from "../components/BackHeader";
 import { useScreenView } from "../lib/useScreenView";
+import Avatar from "../components/Avatar";
+import { useTranslation } from "../lib/i18n/I18nContext";
 
 export default function BookingRequestDetailScreen({ route, navigation }: any) {
   useScreenView("BookingRequestDetailScreen");
+  const { t } = useTranslation();
   const { request } = route.params;
   const [responding, setResponding] = useState(false);
 
@@ -22,7 +25,7 @@ export default function BookingRequestDetailScreen({ route, navigation }: any) {
       else await api.rejectBooking(request.id);
       navigation.goBack();
     } catch (err: any) {
-      showAlert("Couldn't update booking", err.message);
+      showAlert(t("bookingRequests.couldntUpdate"), err.message);
     } finally {
       setResponding(false);
     }
@@ -30,17 +33,15 @@ export default function BookingRequestDetailScreen({ route, navigation }: any) {
 
   return (
     <SafeAreaView style={styles.screen} edges={["top", "bottom"]}>
-      <BackHeader title="Booking request" onBack={() => navigation.goBack()} />
+      <BackHeader title={t("bookingRequestDetail.title")} onBack={() => navigation.goBack()} />
 
       <View style={styles.body}>
         <View style={styles.profileRow}>
-          <View style={styles.avatar}>
-            <Text style={styles.avatarText}>{(request.passenger?.name || "?")[0]}</Text>
-          </View>
+          <Avatar uri={request.passenger?.photoViewUrl} name={request.passenger?.name} size={44} />
           <View>
-            <Text style={styles.name}>{request.passenger?.name || "Passenger"}</Text>
+            <Text style={styles.name}>{request.passenger?.name || t("register.passenger")}</Text>
             <Text style={styles.meta}>
-              <Ionicons name="star" size={11} color={colors.marigold} /> {(request.passenger?.ratingAvg ?? 0).toFixed(1)} rating
+              <Ionicons name="star" size={11} color={colors.marigold} /> {t("publicProfile.rating", { rating: (request.passenger?.ratingAvg ?? 0).toFixed(1) })}
             </Text>
           </View>
         </View>
@@ -48,23 +49,23 @@ export default function BookingRequestDetailScreen({ route, navigation }: any) {
         <View style={styles.infoRow}>
           <View style={styles.infoLabelRow}>
             <Ionicons name="people-outline" size={14} color={colors.textSecondary} />
-            <Text style={styles.infoLabel}>Seats requested</Text>
+            <Text style={styles.infoLabel}>{t("bookingRequestDetail.seatsRequested")}</Text>
           </View>
           <Text style={styles.infoValue}>{request.seatsBooked}</Text>
         </View>
         <View style={styles.infoRow}>
           <View style={styles.infoLabelRow}>
             <Ionicons name="location-outline" size={14} color={colors.textSecondary} />
-            <Text style={styles.infoLabel}>Pickup point</Text>
+            <Text style={styles.infoLabel}>{t("bookingRequestDetail.pickupPoint")}</Text>
           </View>
           <Text style={styles.infoValue}>
-            {request.isCustomPickup ? request.pickupAddress : "Default pickup point"}
+            {request.isCustomPickup ? request.pickupAddress : t("bookingRequests.defaultPickup")}
           </Text>
         </View>
 
-        <Text style={styles.sectionLabel}>What happens next</Text>
+        <Text style={styles.sectionLabel}>{t("bookingRequestDetail.whatHappensNext")}</Text>
         <View style={styles.trackerCard}>
-          <StepTracker steps={bookingJourneySteps("BOOKED")} />
+          <StepTracker steps={bookingJourneySteps("BOOKED", t)} />
         </View>
 
         <Pressable
@@ -73,7 +74,7 @@ export default function BookingRequestDetailScreen({ route, navigation }: any) {
           disabled={responding}
         >
           {!responding && <Ionicons name="checkmark-circle-outline" size={18} color="#FFFFFF" />}
-          <Text style={styles.acceptButtonText}>{responding ? "..." : "Accept booking"}</Text>
+          <Text style={styles.acceptButtonText}>{responding ? "..." : t("bookingRequestDetail.acceptBooking")}</Text>
         </Pressable>
         <Pressable
           style={styles.declineButton}
@@ -81,7 +82,7 @@ export default function BookingRequestDetailScreen({ route, navigation }: any) {
           disabled={responding}
         >
           <Ionicons name="close-circle-outline" size={15} color={colors.danger} />
-          <Text style={styles.declineButtonText}>Decline</Text>
+          <Text style={styles.declineButtonText}>{t("driver.declineBooking")}</Text>
         </Pressable>
       </View>
     </SafeAreaView>
@@ -92,8 +93,6 @@ const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.bg },
   body: { padding: spacing.lg },
   profileRow: { flexDirection: "row", alignItems: "center", gap: spacing.md, paddingBottom: spacing.lg, borderBottomWidth: 1, borderBottomColor: colors.border },
-  avatar: { width: 44, height: 44, borderRadius: 22, backgroundColor: colors.accentBg, alignItems: "center", justifyContent: "center" },
-  avatarText: { fontSize: 16, fontWeight: "700", color: colors.accentText },
   name: { ...typography.title, fontSize: 15 },
   meta: { ...typography.small, color: colors.textMuted, marginTop: 2 },
   infoRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingVertical: spacing.sm, borderBottomWidth: 1, borderBottomColor: colors.border },

@@ -9,6 +9,7 @@ import { clearChatForBooking } from "../lib/chat.js";
 import { isWithinIndia } from "../lib/geo.js";
 import { getRouteAlternatives, decodePolyline, pointToPolylineDistanceKm, progressAlongRouteKm } from "../lib/directions.js";
 import { validate, isLat, isLng, isNonEmptyString, isFutureDate, isPositiveInt, isPositiveNumber } from "../lib/validate.js";
+import { photoViewUrl, photoViewUrlsByUser } from "../lib/photo.js";
 
 const router = Router();
 
@@ -271,6 +272,56 @@ function matchRideSegment(ride, pickupLat, pickupLng, dropLat, dropLng, radiusKm
   return {};
 }
 
+// GET /api/rides/popular-locations — the most frequently searched-for
+// pickup/drop points across everyone's rides, for LocationSearchScreen's
+// "Top searches" list. Derived from existing Ride rows (source AND dest
+// addresses, unioned) rather than a dedicated search-log table — no new
+// writes needed on every keystroke, and a location only counts once
+// someone actually published a ride to/from it, which is a better signal
+// of a genuinely popular place than raw autocomplete traffic would be.
+router.get("/popular-locations", requireAuth, async (req, res) => {
+  const rows = await prisma.$queryRaw`
+    SELECT address, MAX(lat) AS lat, MAX(lng) AS lng, COUNT(*)::int AS count
+    FROM (
+      SELECT "sourceAddress" AS address, "sourceLat" AS lat, "sourceLng" AS lng FROM "Ride"
+      UNION ALL
+      SELECT "destAddress" AS address, "destLat" AS lat, "destLng" AS lng FROM "Ride"
+    ) t
+    GROUP BY address
+    ORDER BY count DESC
+    LIMIT 8
+  `;
+  res.json(rows.map((r) => ({ address: r.address, lat: Number(r.lat), lng: Number(r.lng), count: r.count })));
+});
+
+// GET /api/rides/popular-routes — the most-published source→destination
+// pairs, for Home's "Popular routes" shortcut (tap one, jump straight
+// into search with both ends already filled in) — a step up from
+// popular-locations above, which only knows single points, not pairs.
+router.get("/popular-routes", requireAuth, async (req, res) => {
+  const rows = await prisma.$queryRaw`
+    SELECT
+      "sourceAddress" AS "sourceAddress", MAX("sourceLat") AS "sourceLat", MAX("sourceLng") AS "sourceLng",
+      "destAddress" AS "destAddress", MAX("destLat") AS "destLat", MAX("destLng") AS "destLng",
+      COUNT(*)::int AS count
+    FROM "Ride"
+    GROUP BY "sourceAddress", "destAddress"
+    ORDER BY count DESC
+    LIMIT 5
+  `;
+  res.json(
+    rows.map((r) => ({
+      sourceAddress: r.sourceAddress,
+      sourceLat: Number(r.sourceLat),
+      sourceLng: Number(r.sourceLng),
+      destAddress: r.destAddress,
+      destLat: Number(r.destLat),
+      destLng: Number(r.destLng),
+      count: r.count,
+    }))
+  );
+});
+
 router.get("/search", requireAuth, async (req, res) => {
   const { sourceLat, sourceLng, destLat, destLng, date, seats, startTime, endTime } = req.query;
   const radiusKm = 8;
@@ -295,7 +346,7 @@ router.get("/search", requireAuth, async (req, res) => {
       travelDate: travelDateFilter,
     },
     include: {
-      driver: { select: { id: true, name: true, ratingAvg: true, photoUrl: true } },
+      driver: { select: { id: true, name: true, ratingAvg: true, photoR2Key: true } },
       vehicle: { select: { make: true, model: true, seatCapacity: true } },
     },
     orderBy: { travelDate: "asc" },
@@ -329,10 +380,25 @@ router.get("/search", requireAuth, async (req, res) => {
     })
   );
 
+  // Same batch-per-unique-driver approach as verifiedDriverIds above —
+  // resolves each driver's signed photo URL once even if they have
+  // multiple rides in the result set.
+  const photoUrlByDriverId = await photoViewUrlsByUser(
+    driverIds.map((id) => ({ id, photoR2Key: inRadius.find((r) => r.driverId === id)?.driver?.photoR2Key }))
+  );
+
   const minSeats = Number(seats || 1);
   const results = inRadius.map((r) => ({
     ...r,
+    driver: { ...r.driver, photoViewUrl: photoUrlByDriverId.get(r.driverId) || null },
     seatsFull: r.seatsAvailable < minSeats,
+    // Same phone number can hold both driver and passenger history (role
+    // is just "currently active" — see auth.routes.js's dual-role flow),
+    // so a driver's own published ride can otherwise surface in their
+    // own passenger search. Flagged rather than filtered out, same as
+    // seatsFull, so the client can show it read-only instead of pretending
+    // it doesn't exist.
+    isOwnRide: r.driverId === req.user.id,
     driverVerified: verifiedDriverIds.has(r.driverId),
     ...estimateArrival(r, matchInfoByRideId.get(r.id)?.dropProgressKm),
   }));
@@ -347,7 +413,11 @@ router.get("/:id/details", requireAuth, async (req, res) => {
     include: { driver: true, vehicle: true },
   });
   if (!ride) return res.status(404).json({ error: "Ride not found." });
-  res.json({ ...ride, ...estimateArrival(ride) });
+  res.json({
+    ...ride,
+    driver: { ...ride.driver, photoViewUrl: await photoViewUrl(ride.driver.photoR2Key) },
+    ...estimateArrival(ride),
+  });
 });
 
 // POST /api/rides/:id/validate-pickup — checks a passenger-proposed
@@ -376,11 +446,18 @@ router.get("/:id/bookings", requireAuth, requireRole("DRIVER"), async (req, res)
 
   const bookings = await prisma.booking.findMany({
     where: { rideId: req.params.id, status: "BOOKED" },
-    include: { passenger: { select: { name: true, ratingAvg: true } } },
+    include: { passenger: { select: { name: true, ratingAvg: true, photoR2Key: true } } },
     orderBy: { createdAt: "asc" },
   });
 
-  res.json(bookings);
+  const withPhotos = await Promise.all(
+    bookings.map(async (b) => ({
+      ...b,
+      passenger: { ...b.passenger, photoViewUrl: await photoViewUrl(b.passenger.photoR2Key) },
+    }))
+  );
+
+  res.json(withPhotos);
 });
 
 router.get("/my", requireAuth, requireRole("DRIVER"), async (req, res) => {

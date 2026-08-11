@@ -7,9 +7,11 @@ import { api } from "../lib/api";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { BackHeader } from "../components/BackHeader";
 import { useScreenView } from "../lib/useScreenView";
+import { useTranslation } from "../lib/i18n/I18nContext";
 
 export default function PublicProfileScreen({ route, navigation }: any) {
   useScreenView("PublicProfileScreen");
+  const { t } = useTranslation();
   const { userId } = route.params;
   const [profile, setProfile] = useState<any>(null);
   const [reviews, setReviews] = useState<any[]>([]);
@@ -22,14 +24,14 @@ export default function PublicProfileScreen({ route, navigation }: any) {
   if (!profile) {
     return (
       <SafeAreaView style={styles.screen} edges={["top", "bottom"]}>
-        <BackHeader title="Profile" onBack={() => navigation.goBack()} />
+        <BackHeader title={t("settings.profile")} onBack={() => navigation.goBack()} />
       </SafeAreaView>
     );
   }
 
   return (
     <SafeAreaView style={styles.screen} edges={["top", "bottom"]}>
-      <BackHeader title="Profile" onBack={() => navigation.goBack()} />
+      <BackHeader title={t("settings.profile")} onBack={() => navigation.goBack()} />
 
       <View style={styles.profileCard}>
         <View style={styles.avatar}>
@@ -40,16 +42,16 @@ export default function PublicProfileScreen({ route, navigation }: any) {
           )}
         </View>
         <Text style={styles.name}>{profile.name}</Text>
-        <Text style={styles.meta}>{profile.role === "DRIVER" ? "Driver" : "Passenger"}</Text>
+        <Text style={styles.meta}>{profile.role === "DRIVER" ? t("register.driver") : t("register.passenger")}</Text>
         {profile.ratingAvg && (
-          <Text style={styles.rating}>{profile.ratingAvg.toFixed(1)} rating</Text>
+          <Text style={styles.rating}>{t("publicProfile.rating", { rating: profile.ratingAvg.toFixed(1) })}</Text>
         )}
         <Text style={styles.since}>
-          Member since {new Date(profile.createdAt).toLocaleDateString(undefined, { month: "long", year: "numeric" })}
+          {t("publicProfile.memberSince", { date: new Date(profile.createdAt).toLocaleDateString(undefined, { month: "long", year: "numeric" }) })}
         </Text>
       </View>
 
-      <Text style={styles.sectionLabel}>Reviews</Text>
+      <Text style={styles.sectionLabel}>{t("publicProfile.reviews")}</Text>
       <FlatList
         data={reviews}
         keyExtractor={(item) => item.id}
@@ -68,13 +70,13 @@ export default function PublicProfileScreen({ route, navigation }: any) {
               <Text style={styles.reviewStars}>{"\u2605".repeat(item.rating)}</Text>
               {item.comment ? <Text style={styles.reviewComment}>{item.comment}</Text> : null}
               <View style={styles.reviewFromRow}>
-                <Text style={styles.reviewFrom}>{item.fromUser?.name || "Rider"}</Text>
+                <Text style={styles.reviewFrom}>{item.fromUser?.name || t("publicProfile.riderFallback")}</Text>
                 {canOpen && <Ionicons name="chevron-forward" size={13} color={colors.textMuted} />}
               </View>
             </Pressable>
           );
         }}
-        ListEmptyComponent={<Text style={styles.empty}>No reviews yet.</Text>}
+        ListEmptyComponent={<Text style={styles.empty}>{t("publicProfile.noReviewsYet")}</Text>}
       />
     </SafeAreaView>
   );

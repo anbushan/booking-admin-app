@@ -30,6 +30,15 @@ model User {
   photoR2Key  String?
   ratingAvg   Float?
   disabled    Boolean  @default(false)
+  // Self-service account deletion (Settings → Delete account). Reuses
+  // `disabled` (already checked at login and on every authenticated
+  // request — see middleware/auth.js) to block the account immediately;
+  // this timestamp just distinguishes "deleted by the user" from a
+  // manual admin suspension, and PII (name/email/photo/fcmToken/
+  // passcode) is scrubbed at the same time. The row itself is never
+  // hard-deleted — other users' ride/booking/rating history still
+  // references it, and dropping it would corrupt their records.
+  deletedAt   DateTime?
   fcmToken    String?
   createdAt   DateTime @default(now())
 

@@ -10,9 +10,11 @@ import { StatusBadge } from "../components/StatusBadge";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { BackHeader } from "../components/BackHeader";
 import { useScreenView } from "../lib/useScreenView";
+import { useTranslation } from "../lib/i18n/I18nContext";
 
 export default function BookingDetailScreen({ route, navigation }: any) {
   useScreenView("BookingDetailScreen");
+  const { t } = useTranslation();
   const { bookingId } = route.params;
   const [booking, setBooking] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -43,7 +45,7 @@ export default function BookingDetailScreen({ route, navigation }: any) {
   if (!booking) {
     return (
       <SafeAreaView style={[styles.screen, { justifyContent: "center", alignItems: "center" }]} edges={["top", "bottom"]}>
-        <Text style={styles.notFound}>Booking not found.</Text>
+        <Text style={styles.notFound}>{t("bookingDetail.notFound")}</Text>
       </SafeAreaView>
     );
   }
@@ -52,10 +54,10 @@ export default function BookingDetailScreen({ route, navigation }: any) {
 
   return (
     <SafeAreaView style={styles.screen} edges={["top", "bottom"]}>
-      <BackHeader title="Booking" onBack={() => navigation.goBack()} />
+      <BackHeader title={t("bookingDetail.title")} onBack={() => navigation.goBack()} />
 
       <View style={styles.body}>
-        <Text style={styles.route}>{booking.ride.sourceAddress} to {booking.ride.destAddress}</Text>
+        <Text style={styles.route}>{t("common.routeTo", { source: booking.ride.sourceAddress, dest: booking.ride.destAddress })}</Text>
         <Text style={styles.date}>{new Date(booking.ride.travelDate).toLocaleString()}</Text>
 
         <View style={styles.card}>
@@ -67,7 +69,7 @@ export default function BookingDetailScreen({ route, navigation }: any) {
             disabled={!booking.ride.driver.id}
             onPress={() => navigation.navigate("PublicProfile", { userId: booking.ride.driver.id })}
           >
-            <Text style={styles.label}>Driver</Text>
+            <Text style={styles.label}>{t("register.driver")}</Text>
             <View style={styles.valueRow}>
               <Text style={styles.value}>{booking.ride.driver.name || booking.ride.driver.phone}</Text>
               {!!booking.ride.driver.id && <Ionicons name="chevron-forward" size={14} color={colors.textMuted} />}
@@ -78,38 +80,56 @@ export default function BookingDetailScreen({ route, navigation }: any) {
             disabled={!booking.passenger.id}
             onPress={() => navigation.navigate("PublicProfile", { userId: booking.passenger.id })}
           >
-            <Text style={styles.label}>Passenger</Text>
+            <Text style={styles.label}>{t("register.passenger")}</Text>
             <View style={styles.valueRow}>
               <Text style={styles.value}>{booking.passenger.name || booking.passenger.phone}</Text>
               {!!booking.passenger.id && <Ionicons name="chevron-forward" size={14} color={colors.textMuted} />}
             </View>
           </Pressable>
           <View style={styles.row}>
-            <Text style={styles.label}>Seats</Text>
+            <Text style={styles.label}>{t("searchOptions.seats")}</Text>
             <Text style={styles.value}>{booking.seatsBooked}</Text>
           </View>
           <View style={styles.row}>
-            <Text style={styles.label}>Fare</Text>
+            <Text style={styles.label}>{t("booking.fare")}</Text>
             <Text style={styles.value}>Rs {amount}</Text>
           </View>
           {booking.remainingFareAmount != null && (
             <View style={styles.row}>
-              <Text style={styles.label}>Cash/UPI due to driver</Text>
+              <Text style={styles.label}>{t("bookingDetail.cashUpiDue")}</Text>
               <Text style={styles.value}>Rs {Number(booking.remainingFareAmount)}</Text>
             </View>
           )}
           <View style={[styles.row, { borderBottomWidth: 0 }]}>
-            <Text style={styles.label}>Status</Text>
+            <Text style={styles.label}>{t("bookingDetail.statusLabel")}</Text>
             <StatusBadge status={booking.status} size="sm" />
           </View>
         </View>
+
+        {/* Only ever present once the trip's done and the other party
+            actually used RateReviewScreen — scoped server-side to
+            reviews addressed to whoever's viewing (see bookings.routes.js
+            GET /:id), so this never shows your own just-submitted rating
+            reflected back at you. */}
+        {booking.reviewForMe && (
+          <View style={styles.reviewCard}>
+            <Text style={styles.reviewTitle}>{t("bookingDetail.feedbackReceived")}</Text>
+            <Text style={styles.reviewStars}>
+              {"★".repeat(booking.reviewForMe.rating)}{"☆".repeat(5 - booking.reviewForMe.rating)}
+            </Text>
+            {!!booking.reviewForMe.comment && (
+              <Text style={styles.reviewComment}>{booking.reviewForMe.comment}</Text>
+            )}
+            <Text style={styles.reviewFrom}>{t("bookingDetail.feedbackFrom", { name: booking.reviewForMe.fromUserName })}</Text>
+          </View>
+        )}
 
         {!!booking.platformFeePaidAt && (
           <Pressable
             style={styles.actionButton}
             onPress={() => navigation.navigate("PaymentDetail", { booking })}
           >
-            <Text style={styles.actionButtonText}>View receipt</Text>
+            <Text style={styles.actionButtonText}>{t("bookingDetail.viewReceipt")}</Text>
           </Pressable>
         )}
         {booking.refund && (
@@ -117,7 +137,7 @@ export default function BookingDetailScreen({ route, navigation }: any) {
             style={styles.actionButton}
             onPress={() => navigation.navigate("RefundStatus", { refund: booking.refund })}
           >
-            <Text style={styles.actionButtonText}>View refund status</Text>
+            <Text style={styles.actionButtonText}>{t("payment.viewRefundStatus")}</Text>
           </Pressable>
         )}
       </View>
@@ -141,4 +161,9 @@ const styles = StyleSheet.create({
   actionButton: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, height: 44, borderRadius: radius.sm, alignItems: "center", justifyContent: "center", marginTop: spacing.md },
   actionButtonText: { ...typography.body, color: colors.accentText },
   notFound: { ...typography.body, color: colors.textMuted },
+  reviewCard: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: radius.md, padding: spacing.md, marginTop: spacing.md },
+  reviewTitle: { ...typography.caption, color: colors.textSecondary, fontWeight: "700" },
+  reviewStars: { color: colors.warning, fontSize: 16, marginTop: spacing.xs },
+  reviewComment: { ...typography.body, marginTop: spacing.xs },
+  reviewFrom: { ...typography.small, color: colors.textMuted, marginTop: spacing.xs },
 });

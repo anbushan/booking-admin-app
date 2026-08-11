@@ -3,6 +3,7 @@ import { View, Text, Modal, ScrollView, TextInput, Animated, Easing, StyleSheet 
 import { Pressable } from "./Pressable";
 import { colors, spacing, radius, typography } from "../theme/theme";
 import { KeyboardAvoider } from "./KeyboardAvoider";
+import { useTranslation } from "../lib/i18n/I18nContext";
 
 // Off-screen starting offset for the slide-up — see HowItWorksSheet for
 // the same pattern and the reasoning (RN's Modal `animationType="slide"`
@@ -16,10 +17,28 @@ const OFFSCREEN_Y = 700;
 // react-native-razorpay elsewhere in this app) so the search flow keeps
 // working without a custom dev client.
 
-const DAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+// English fallbacks baked in directly (not routed through the i18n
+// bundle) — both functions are called from several screens that don't
+// all have a `t` handy at every call site, and a translator is optional
+// here specifically so none of those existing call sites break. Screens
+// that do pass one (this modal itself, plus any updated to use
+// useTranslation) get the real translated day names; the rest still get
+// correct English instead of a raw i18n key.
+const DAY_KEYS = ["searchOptions.day0", "searchOptions.day1", "searchOptions.day2", "searchOptions.day3", "searchOptions.day4", "searchOptions.day5", "searchOptions.day6"];
+const DAY_LABELS_EN = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const DAYS_AHEAD = 14;
 const MIN_SEATS = 1;
 const MAX_SEATS = 8;
+
+function dayLabel(dayIndex: number, t?: (key: string) => string) {
+  return t ? t(DAY_KEYS[dayIndex]) : DAY_LABELS_EN[dayIndex];
+}
+function todayLabel(t?: (key: string) => string) {
+  return t ? t("searchOptions.today") : "Today";
+}
+function tomorrowLabel(t?: (key: string) => string) {
+  return t ? t("searchOptions.tomorrow") : "Tomorrow";
+}
 
 function buildDateOptions() {
   const options = [];
@@ -33,24 +52,24 @@ function buildDateOptions() {
   return options;
 }
 
-function labelForDate(d: Date, index: number) {
-  if (index === 0) return "Today";
-  if (index === 1) return "Tomorrow";
-  return `${DAY_LABELS[d.getDay()]} ${d.getDate()}`;
+function labelForDate(d: Date, index: number, t?: (key: string) => string) {
+  if (index === 0) return todayLabel(t);
+  if (index === 1) return tomorrowLabel(t);
+  return `${dayLabel(d.getDay(), t)} ${d.getDate()}`;
 }
 
-export function formatSearchDate(date: Date) {
+export function formatSearchDate(date: Date, t?: (key: string) => string) {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const target = new Date(date);
   target.setHours(0, 0, 0, 0);
   const diffDays = Math.round((target.getTime() - today.getTime()) / 86400000);
-  const dayLabel = diffDays === 0 ? "Today" : diffDays === 1 ? "Tomorrow" : `${DAY_LABELS[target.getDay()]} ${target.getDate()}`;
+  const dLabel = diffDays === 0 ? todayLabel(t) : diffDays === 1 ? tomorrowLabel(t) : `${dayLabel(target.getDay(), t)} ${target.getDate()}`;
   const hours = date.getHours();
   const minutes = date.getMinutes();
   const ampm = hours >= 12 ? "PM" : "AM";
   const hour12 = hours % 12 === 0 ? 12 : hours % 12;
-  return `${dayLabel}, ${hour12}:${String(minutes).padStart(2, "0")}${ampm}`;
+  return `${dLabel}, ${hour12}:${String(minutes).padStart(2, "0")}${ampm}`;
 }
 
 function timeToText(date: Date) {
@@ -92,6 +111,7 @@ type Props = {
 };
 
 export default function SearchOptionsModal({ visible, initialDate, initialSeats, onClose, onConfirm, rangeMode = false }: Props) {
+  const { t } = useTranslation();
   const dateOptions = useState(buildDateOptions)[0];
   const [selectedDate, setSelectedDate] = useState(initialDate);
   const [timeText, setTimeText] = useState(() => timeToText(initialDate));
@@ -126,7 +146,7 @@ export default function SearchOptionsModal({ visible, initialDate, initialSeats,
       const start = parseTimeText(startTimeText);
       const end = parseTimeText(endTimeText);
       if (!start || !end) {
-        setTimeError("Enter times like 9:00 AM and 6:00 PM.");
+        setTimeError(t("searchOptions.timeRangeError"));
         return;
       }
       const dayOnly = new Date(selectedDate);
@@ -137,7 +157,7 @@ export default function SearchOptionsModal({ visible, initialDate, initialSeats,
 
     const parsed = parseTimeText(timeText);
     if (!parsed) {
-      setTimeError("Enter a time like 6:30 PM.");
+      setTimeError(t("searchOptions.timeError"));
       return;
     }
     const result = new Date(selectedDate);
@@ -158,7 +178,7 @@ export default function SearchOptionsModal({ visible, initialDate, initialSeats,
       <KeyboardAvoider style={styles.avoiderBackdrop}>
         <Animated.View style={{ transform: [{ translateY }] }}>
         <View style={styles.sheet}>
-          <Text style={styles.sheetTitle}>When are you traveling?</Text>
+          <Text style={styles.sheetTitle}>{t("searchOptions.whenTraveling")}</Text>
 
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.dateRow}>
             {dateOptions.map((d, i) => {
@@ -170,7 +190,7 @@ export default function SearchOptionsModal({ visible, initialDate, initialSeats,
                   onPress={() => setSelectedDate(d)}
                 >
                   <Text style={[styles.dateChipText, active && styles.dateChipTextActive]}>
-                    {labelForDate(d, i)}
+                    {labelForDate(d, i, t)}
                   </Text>
                 </Pressable>
               );
@@ -179,20 +199,20 @@ export default function SearchOptionsModal({ visible, initialDate, initialSeats,
 
           {rangeMode ? (
             <>
-              <Text style={styles.label}>Departing between</Text>
+              <Text style={styles.label}>{t("searchOptions.departingBetween")}</Text>
               <View style={styles.timeRangeRow}>
                 <TextInput
                   style={[styles.timeInput, styles.timeRangeInput]}
                   value={startTimeText}
-                  onChangeText={(t) => { setStartTimeText(t); setTimeError(""); }}
+                  onChangeText={(v) => { setStartTimeText(v); setTimeError(""); }}
                   placeholder="9:00 AM"
                   placeholderTextColor={colors.textMuted}
                 />
-                <Text style={styles.timeRangeSeparator}>to</Text>
+                <Text style={styles.timeRangeSeparator}>{t("searchOptions.to")}</Text>
                 <TextInput
                   style={[styles.timeInput, styles.timeRangeInput]}
                   value={endTimeText}
-                  onChangeText={(t) => { setEndTimeText(t); setTimeError(""); }}
+                  onChangeText={(v) => { setEndTimeText(v); setTimeError(""); }}
                   placeholder="6:00 PM"
                   placeholderTextColor={colors.textMuted}
                 />
@@ -200,11 +220,11 @@ export default function SearchOptionsModal({ visible, initialDate, initialSeats,
             </>
           ) : (
             <>
-              <Text style={styles.label}>Time</Text>
+              <Text style={styles.label}>{t("searchOptions.time")}</Text>
               <TextInput
                 style={styles.timeInput}
                 value={timeText}
-                onChangeText={(t) => { setTimeText(t); setTimeError(""); }}
+                onChangeText={(v) => { setTimeText(v); setTimeError(""); }}
                 placeholder="6:30 PM"
                 placeholderTextColor={colors.textMuted}
               />
@@ -212,7 +232,7 @@ export default function SearchOptionsModal({ visible, initialDate, initialSeats,
           )}
           {timeError ? <Text style={styles.errorText}>{timeError}</Text> : null}
 
-          <Text style={styles.label}>Seats</Text>
+          <Text style={styles.label}>{t("searchOptions.seats")}</Text>
           <View style={styles.seatRow}>
             <Pressable
               style={styles.seatButton}
@@ -233,10 +253,10 @@ export default function SearchOptionsModal({ visible, initialDate, initialSeats,
 
           <View style={styles.actionsRow}>
             <Pressable style={styles.cancelButton} onPress={onClose}>
-              <Text style={styles.cancelButtonText}>Cancel</Text>
+              <Text style={styles.cancelButtonText}>{t("searchOptions.cancel")}</Text>
             </Pressable>
             <Pressable style={styles.confirmButton} onPress={handleConfirm}>
-              <Text style={styles.confirmButtonText}>Done</Text>
+              <Text style={styles.confirmButtonText}>{t("searchOptions.done")}</Text>
             </Pressable>
           </View>
         </View>

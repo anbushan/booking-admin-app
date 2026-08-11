@@ -7,9 +7,11 @@ import { api } from "../lib/api";
 import { Analytics } from "../lib/analytics";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useScreenView } from "../lib/useScreenView";
+import { useTranslation } from "../lib/i18n/I18nContext";
 
 export default function CompleteTripConfirmationScreen({ route, navigation }: any) {
   useScreenView("CompleteTripConfirmationScreen");
+  const { t } = useTranslation();
   const { bookingId } = route.params;
   const [completing, setCompleting] = useState(false);
 
@@ -26,7 +28,7 @@ export default function CompleteTripConfirmationScreen({ route, navigation }: an
       // already-completed trip. reset() clears the whole stack instead.
       navigation.reset({ index: 0, routes: [{ name: "Earnings" }] });
     } catch (err: any) {
-      showAlert("Couldn't complete trip", err.message);
+      showAlert(t("completeTrip.couldntComplete"), err.message);
     } finally {
       setCompleting(false);
     }
@@ -38,21 +40,16 @@ export default function CompleteTripConfirmationScreen({ route, navigation }: an
         <View style={styles.iconCircle}>
           <Text style={styles.iconText}>{"\u2713"}</Text>
         </View>
-        <Text style={styles.title}>Complete this trip?</Text>
-        <Text style={styles.description}>
-          This ends the trip. The passenger already paid the platform fee
-          in-app — collect the remaining fare directly (cash/UPI) and
-          confirm it from your Earnings screen. Make sure you've reached
-          the drop-off point before confirming.
-        </Text>
+        <Text style={styles.title}>{t("completeTrip.title")}</Text>
+        <Text style={styles.description}>{t("completeTrip.description")}</Text>
 
         <Pressable style={styles.confirmButton} onPress={handleConfirm} disabled={completing}>
           <Text style={styles.confirmButtonText}>
-            {completing ? "Completing..." : "Complete trip"}
+            {completing ? t("completeTrip.completing") : t("liveTracking.completeTrip")}
           </Text>
         </Pressable>
         <Pressable style={styles.cancelButton} onPress={() => navigation.goBack()}>
-          <Text style={styles.cancelButtonText}>Not yet</Text>
+          <Text style={styles.cancelButtonText}>{t("completeTrip.notYet")}</Text>
         </Pressable>
       </View>
     </SafeAreaView>

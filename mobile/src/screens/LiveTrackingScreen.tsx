@@ -13,6 +13,8 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { decodePolyline, haversineKm, bearingDeg, LatLng } from "../lib/mapGeo";
 import { dialProxyNumber } from "../lib/callHelper";
 import { useScreenView } from "../lib/useScreenView";
+import Avatar from "../components/Avatar";
+import { useTranslation } from "../lib/i18n/I18nContext";
 
 const STALE_THRESHOLD_MS = 90 * 1000;
 const SOS_HOLD_MS = 3000;
@@ -23,8 +25,9 @@ const CAR_MOVE_DURATION_MS = 900; // matches the poll cadence closely enough to 
 // The three phases of a live trip, shown as a compact progress line at
 // the top of the info sheet — the same "where is this now" idea as the
 // booking step tracker, just condensed for a screen that's already
-// mostly map.
-const TRIP_PHASES = ["Trip started", "On the way", "Arriving"];
+// mostly map. journey.tripStarted/status.onTheWay are reused from
+// elsewhere in the app since the wording matches exactly.
+const TRIP_PHASE_KEYS = ["journey.tripStarted", "status.onTheWay", "liveTracking.arriving"];
 
 // Raw coordinates only — unlike lib/api.ts's getCurrentLocation (used
 // for pickup-point selection), this deliberately skips the
@@ -62,10 +65,12 @@ function closestRouteIndex(coords: LatLng[], point: { lat: number; lng: number }
 
 export default function LiveTrackingScreen({ route, navigation }: any) {
   useScreenView("LiveTrackingScreen");
+  const { t } = useTranslation();
   const { bookingId, role } = route.params; // role: "DRIVER" | "PASSENGER"
   const [lastLocationAt, setLastLocationAt] = useState<string | null>(null);
   const [position, setPosition] = useState<{ lat: number; lng: number } | null>(null);
   const [driverName, setDriverName] = useState<string | null>(null);
+  const [driverPhoto, setDriverPhoto] = useState<string | null>(null);
   const [ride, setRide] = useState<{
     sourceLat: number; sourceLng: number; destLat: number; destLng: number;
     sourceAddress: string; destAddress: string; routePolyline: string | null;
@@ -87,6 +92,7 @@ export default function LiveTrackingScreen({ route, navigation }: any) {
   // once — it never changes mid-trip, unlike position, which polls.
   useEffect(() => {
     api.getBookingDetail(bookingId).then((booking) => {
+      if (booking.ride?.driver?.photoViewUrl) setDriverPhoto(booking.ride.driver.photoViewUrl);
       if (booking.ride) {
         setRide({
           sourceLat: booking.ride.sourceLat,
@@ -139,7 +145,7 @@ export default function LiveTrackingScreen({ route, navigation }: any) {
         if (!navigatedAway.current && track.status === "COMPLETED") {
           navigatedAway.current = true;
           if (role === "PASSENGER") {
-            showAlert("Trip completed", `Please pay Rs ${track.amount ?? 0} directly to your driver (cash/UPI).`);
+            showAlert(t("liveTracking.tripCompletedTitle"), t("liveTracking.payDirectly", { amount: track.amount ?? 0 }));
             // Straight into rating the driver now, rather than relying on
             // the passenger to dig up this COMPLETED booking later —
             // "My bookings" is active-trip-only and won't list it once
@@ -154,7 +160,7 @@ export default function LiveTrackingScreen({ route, navigation }: any) {
           }
         } else if (!navigatedAway.current && track.status === "STOPPED") {
           navigatedAway.current = true;
-          showAlert("Ride closed", "This ride was stopped before reaching the destination.");
+          showAlert(t("liveTracking.rideClosedTitle"), t("liveTracking.rideClosedBody"));
           navigation.replace("History", { role });
         }
       } catch {
@@ -253,9 +259,9 @@ export default function LiveTrackingScreen({ route, navigation }: any) {
         const loc = position || { lat: 12.9352, lng: 77.6146 };
         await api.triggerSos(bookingId, loc);
         Analytics.sosTriggered(bookingId);
-        showAlert("Help is on the way", "Your emergency contact has been notified.");
+        showAlert(t("liveTracking.helpOnWayTitle"), t("liveTracking.helpOnWayBody"));
       } catch (err: any) {
-        showAlert("Couldn't send SOS", err.message);
+        showAlert(t("liveTracking.couldntSendSos"), err.message);
       }
     }, SOS_HOLD_MS);
   }
@@ -275,7 +281,7 @@ export default function LiveTrackingScreen({ route, navigation }: any) {
       const { proxyNumber } = await api.initiateCall(bookingId, role === "DRIVER" ? "PASSENGER" : "DRIVER");
       await dialProxyNumber(proxyNumber);
     } catch (err: any) {
-      showError(err.message || "Couldn't start the call");
+      showError(err.message || t("common.couldntStartCall"));
     } finally {
       setCalling(false);
     }
@@ -336,7 +342,7 @@ export default function LiveTrackingScreen({ route, navigation }: any) {
         <View style={styles.etaBadge}>
           <Ionicons name={isStale ? "sync-outline" : "time"} size={13} color={colors.accentText} />
           <Text style={styles.etaText}>
-            {isStale ? "Reconnecting..." : etaMinutes != null ? `ETA ${etaMinutes} min` : "Calculating..."}
+            {isStale ? t("trip.reconnecting") : etaMinutes != null ? t("liveTracking.etaMin", { min: etaMinutes }) : t("liveTracking.calculating")}
           </Text>
         </View>
       </View>
@@ -344,22 +350,22 @@ export default function LiveTrackingScreen({ route, navigation }: any) {
       <View style={styles.sheet}>
         <View style={styles.sheetHandle} />
 
-        <Text style={styles.statusTitle}>Trip in progress</Text>
+        <Text style={styles.statusTitle}>{t("liveTracking.tripInProgress")}</Text>
 
         {/* Zomato-style condensed progress — three phases instead of the
             full multi-step booking tracker, since by this point the trip
             has already started; what's left to communicate is just
             where along the drive it is right now. */}
         <View style={styles.phaseRow}>
-          {TRIP_PHASES.map((label, i) => (
-            <React.Fragment key={label}>
+          {TRIP_PHASE_KEYS.map((key, i) => (
+            <React.Fragment key={key}>
               <View style={styles.phaseStep}>
                 <View style={[styles.phaseDot, i <= phaseIndex && styles.phaseDotActive]}>
                   {i < phaseIndex ? <Ionicons name="checkmark" size={10} color="#FFFFFF" /> : null}
                 </View>
-                <Text style={[styles.phaseLabel, i <= phaseIndex && styles.phaseLabelActive]}>{label}</Text>
+                <Text style={[styles.phaseLabel, i <= phaseIndex && styles.phaseLabelActive]}>{t(key)}</Text>
               </View>
-              {i < TRIP_PHASES.length - 1 && (
+              {i < TRIP_PHASE_KEYS.length - 1 && (
                 <View style={[styles.phaseConnector, i < phaseIndex && styles.phaseConnectorActive]} />
               )}
             </React.Fragment>
@@ -368,12 +374,10 @@ export default function LiveTrackingScreen({ route, navigation }: any) {
 
         {role !== "DRIVER" && (
           <View style={styles.driverRow}>
-            <View style={styles.avatar}>
-              <Text style={styles.avatarText}>{(driverName || "D").charAt(0).toUpperCase()}</Text>
-            </View>
+            <Avatar uri={driverPhoto} name={driverName || "D"} size={40} />
             <View style={{ flex: 1 }}>
-              <Text style={styles.driverName}>{driverName || "Your driver"}</Text>
-              <Text style={styles.driverSub}>{isStale ? "Last known location a moment ago" : "En route to your destination"}</Text>
+              <Text style={styles.driverName}>{driverName || t("liveTracking.driverFallback")}</Text>
+              <Text style={styles.driverSub}>{isStale ? t("liveTracking.lastKnownAMomentAgo") : t("liveTracking.enRouteToDestination")}</Text>
             </View>
             <Pressable style={styles.callButton} onPress={handleCall} disabled={calling}>
               <Ionicons name={calling ? "call" : "call-outline"} size={17} color={colors.success} />
@@ -385,7 +389,7 @@ export default function LiveTrackingScreen({ route, navigation }: any) {
           {role === "DRIVER" && (
             <Pressable style={styles.completeButton} onPress={handleCompleteTrip}>
               <Ionicons name="flag-outline" size={17} color="#FFFFFF" />
-              <Text style={styles.completeButtonText}>Complete trip</Text>
+              <Text style={styles.completeButtonText}>{t("liveTracking.completeTrip")}</Text>
             </Pressable>
           )}
 
@@ -396,7 +400,7 @@ export default function LiveTrackingScreen({ route, navigation }: any) {
           >
             <Ionicons name="alert-circle-outline" size={16} color={holding ? "#FFFFFF" : colors.danger} />
             <Text style={[styles.sosText, holding && { color: "#FFFFFF" }]}>
-              {holding ? "Keep holding..." : "SOS · hold for help"}
+              {holding ? t("liveTracking.keepHolding") : t("trip.sosHold")}
             </Text>
           </Pressable>
         </View>
@@ -457,8 +461,6 @@ const styles = StyleSheet.create({
     flexDirection: "row", alignItems: "center", gap: spacing.md, marginTop: spacing.xl,
     paddingTop: spacing.lg, borderTopWidth: 1, borderTopColor: colors.border,
   },
-  avatar: { width: 40, height: 40, borderRadius: 20, backgroundColor: colors.accentBg, alignItems: "center", justifyContent: "center" },
-  avatarText: { color: colors.accentText, fontSize: 15, fontWeight: "700" },
   driverName: { ...typography.title, fontSize: 14 },
   driverSub: { ...typography.small, color: colors.textMuted, marginTop: 1 },
   callButton: { width: 40, height: 40, borderRadius: 20, backgroundColor: colors.successBg, alignItems: "center", justifyContent: "center" },

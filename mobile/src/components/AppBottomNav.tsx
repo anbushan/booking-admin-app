@@ -4,6 +4,7 @@ import SideMenu from "./SideMenu";
 import { BottomNavBar } from "./BottomNavBar";
 import { api } from "../lib/api";
 import { appEvents } from "../lib/appEvents";
+import { useTranslation } from "../lib/i18n/I18nContext";
 
 // The persistent chrome for every "hub" screen (Home, My bookings,
 // Requests, Notifications, Settings, Profile, Earnings, ...) — screens
@@ -28,6 +29,7 @@ type Props = {
 };
 
 export function AppBottomNav({ navigation, profile, active = "", unreadCountOverride }: Props) {
+  const { t } = useTranslation();
   const [menuVisible, setMenuVisible] = useState(false);
   const [pendingRequestCount, setPendingRequestCount] = useState(0);
   const [myRequestsCount, setMyRequestsCount] = useState(0);
@@ -74,16 +76,16 @@ export function AppBottomNav({ navigation, profile, active = "", unreadCountOver
   // the Notifications row inside the side menu.
   const navTabs = isDriver
     ? [
-        { key: "home", label: "Home", icon: "home-outline" as const, iconActive: "home" as const },
-        { key: "offerRide", label: "Offer ride", icon: "add-circle-outline" as const, iconActive: "add-circle" as const },
-        { key: "requests", label: "Requests", icon: "mail-unread-outline" as const, iconActive: "mail-open" as const, badge: pendingRequestCount },
-        { key: "menu", label: "Menu", icon: "grid-outline" as const, iconActive: "grid" as const },
+        { key: "home", label: t("navTabs.home"), icon: "home-outline" as const, iconActive: "home" as const },
+        { key: "offerRide", label: t("navTabs.offerRide"), icon: "add-circle-outline" as const, iconActive: "add-circle" as const },
+        { key: "requests", label: t("navTabs.requests"), icon: "mail-unread-outline" as const, iconActive: "mail-open" as const, badge: pendingRequestCount },
+        { key: "menu", label: t("navTabs.menu"), icon: "grid-outline" as const, iconActive: "grid" as const },
       ]
     : [
-        { key: "home", label: "Home", icon: "home-outline" as const, iconActive: "home" as const },
-        { key: "myRequests", label: "My requests", icon: "list-outline" as const, iconActive: "list" as const, badge: myRequestsCount },
-        { key: "bookings", label: "Bookings", icon: "receipt-outline" as const, iconActive: "receipt" as const },
-        { key: "menu", label: "Menu", icon: "grid-outline" as const, iconActive: "grid" as const },
+        { key: "home", label: t("navTabs.home"), icon: "home-outline" as const, iconActive: "home" as const },
+        { key: "myRequests", label: t("navTabs.myRequests"), icon: "list-outline" as const, iconActive: "list" as const, badge: myRequestsCount },
+        { key: "bookings", label: t("navTabs.bookings"), icon: "receipt-outline" as const, iconActive: "receipt" as const },
+        { key: "menu", label: t("navTabs.menu"), icon: "grid-outline" as const, iconActive: "grid" as const },
       ];
 
   function handleTabPress(key: string) {

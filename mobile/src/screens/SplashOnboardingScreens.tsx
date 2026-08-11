@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from "react";
-import { View, Text, StyleSheet, FlatList, Dimensions, Animated, Easing } from "react-native";
+import { View, Text, Image, StyleSheet, FlatList, Dimensions, Animated } from "react-native";
 import { Pressable } from "../components/Pressable";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Notifications from "expo-notifications";
@@ -10,6 +10,7 @@ import { Analytics } from "../lib/analytics";
 import { api } from "../lib/api";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useScreenView } from "../lib/useScreenView";
+import { useTranslation } from "../lib/i18n/I18nContext";
 
 const { width } = Dimensions.get("window");
 
@@ -18,22 +19,20 @@ export function SplashScreen({ navigation }: any) {
   const badgeScale = useRef(new Animated.Value(0.6)).current;
   const badgeOpacity = useRef(new Animated.Value(0)).current;
   const taglineOpacity = useRef(new Animated.Value(0)).current;
-  const carOpacity = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     Analytics.appOpen();
 
     // A brief, deliberate entrance rather than the title/tagline just
-    // appearing — the badge scales up and settles in, the tagline
-    // follows a beat later, then the loading dots fade in last. All
-    // opacity/transform, so useNativeDriver covers the whole sequence.
+    // appearing — the badge scales up and settles in, then the tagline
+    // follows a beat later. All opacity/transform, so useNativeDriver
+    // covers the whole sequence.
     Animated.sequence([
       Animated.parallel([
         Animated.spring(badgeScale, { toValue: 1, friction: 5, tension: 60, useNativeDriver: true }),
         Animated.timing(badgeOpacity, { toValue: 1, duration: 350, useNativeDriver: true }),
       ]),
       Animated.timing(taglineOpacity, { toValue: 1, duration: 300, useNativeDriver: true }),
-      Animated.timing(carOpacity, { toValue: 1, duration: 250, useNativeDriver: true }),
     ]).start();
 
     // Ask for notification + location permission on every app start where
@@ -85,62 +84,28 @@ export function SplashScreen({ navigation }: any) {
   return (
     <View style={styles.splashScreen}>
       <Animated.View style={[styles.splashBadge, { opacity: badgeOpacity, transform: [{ scale: badgeScale }] }]}>
-        <Ionicons name="car-sport" size={30} color="#FFFFFF" />
+        <Image source={require("../../assets/brand-mark.png")} style={styles.splashBadgeImage} resizeMode="contain" />
       </Animated.View>
       <Text style={styles.splashTitle}>NanbaGO</Text>
       <Animated.Text style={[styles.splashTagline, { opacity: taglineOpacity }]}>
         Dosti For Every Journey.
       </Animated.Text>
-      <Animated.View style={{ opacity: carOpacity, marginTop: spacing.xl }}>
-        <LoadingCar />
-      </Animated.View>
     </View>
   );
 }
 
-const CAR_TRACK_WIDTH = 120;
-
-// A small car icon sliding slowly side to side along a fixed track —
-// reads as "loading" while staying on-brand (the same car motif as the
-// badge above it), in place of the earlier generic pulsing dots.
-// Slow (1.6s each direction) and eased in/out so it drifts rather than
-// darts, matching the calm, deliberate pace of the rest of the splash
-// entrance animation.
-function LoadingCar() {
-  const progress = useRef(new Animated.Value(0)).current;
-
-  useEffect(() => {
-    const drive = Animated.loop(
-      Animated.sequence([
-        Animated.timing(progress, { toValue: 1, duration: 1600, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
-        Animated.timing(progress, { toValue: 0, duration: 1600, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
-      ])
-    );
-    drive.start();
-    return () => drive.stop();
-  }, []);
-
-  const translateX = progress.interpolate({ inputRange: [0, 1], outputRange: [0, CAR_TRACK_WIDTH - 22] });
-
-  return (
-    <View style={styles.carTrack}>
-      <Animated.View style={{ transform: [{ translateX }] }}>
-        <Ionicons name="car-sport" size={22} color={colors.marigold} />
-      </Animated.View>
-    </View>
-  );
-}
-
-const SLIDES = [
-  { title: "Find a ride, or offer one", body: "Search rides going your way, or publish your own route and share the cost.", icon: "navigate-outline" },
-  { title: "Ride with people you can trust", body: "Ratings, reviews, and driver verification keep the community safe.", icon: "shield-checkmark-outline" },
-  { title: "Pay only after your trip", body: "No upfront charge — you pay once the trip is done.", icon: "wallet-outline" },
-];
+const SLIDE_KEYS = [
+  { titleKey: "onboarding.slide1Title", bodyKey: "onboarding.slide1Body", icon: "navigate-outline" },
+  { titleKey: "onboarding.slide2Title", bodyKey: "onboarding.slide2Body", icon: "shield-checkmark-outline" },
+  { titleKey: "onboarding.slide3Title", bodyKey: "onboarding.slide3Body", icon: "wallet-outline" },
+] as const;
 
 export function OnboardingScreen({ navigation }: any) {
   useScreenView("OnboardingScreen");
+  const { t } = useTranslation();
   const [index, setIndex] = useState(0);
   const listRef = useRef<FlatList>(null);
+  const SLIDES = SLIDE_KEYS.map((s) => ({ title: t(s.titleKey), body: t(s.bodyKey), icon: s.icon }));
 
   async function finish() {
     await AsyncStorage.setItem("seenOnboarding", "true");
@@ -187,10 +152,10 @@ export function OnboardingScreen({ navigation }: any) {
 
       <View style={styles.footer}>
         <Pressable onPress={finish}>
-          <Text style={styles.skip}>Skip</Text>
+          <Text style={styles.skip}>{t("onboarding.skip")}</Text>
         </Pressable>
         <Pressable style={styles.nextButton} onPress={next}>
-          <Text style={styles.nextButtonText}>{index === SLIDES.length - 1 ? "Get started" : "Next"}</Text>
+          <Text style={styles.nextButtonText}>{index === SLIDES.length - 1 ? t("onboarding.getStarted") : t("onboarding.next")}</Text>
           <Ionicons name="arrow-forward" size={14} color="#FFFFFF" />
         </Pressable>
       </View>
@@ -201,12 +166,16 @@ export function OnboardingScreen({ navigation }: any) {
 const styles = StyleSheet.create({
   splashScreen: { flex: 1, backgroundColor: colors.textPrimary, alignItems: "center", justifyContent: "center" },
   splashBadge: {
-    width: 68, height: 68, borderRadius: 34, backgroundColor: colors.marigold,
+    // White backdrop, not a colored fill — the real mark already carries
+    // its own blue/orange/navy/green, a solid color circle behind it
+    // would fight the actual brand colors instead of framing them.
+    width: 84, height: 84, borderRadius: 20, backgroundColor: "#FFFFFF",
     alignItems: "center", justifyContent: "center", marginBottom: spacing.lg,
+    padding: 10,
   },
+  splashBadgeImage: { width: "100%", height: "100%" },
   splashTitle: { color: "#FFFFFF", fontSize: 28, fontWeight: "700" },
   splashTagline: { color: "#FFFFFF", opacity: 0.7, fontSize: 13, marginTop: spacing.xs },
-  carTrack: { width: CAR_TRACK_WIDTH, alignItems: "flex-start" },
   screen: { flex: 1, backgroundColor: colors.bg },
   slide: { alignItems: "center", justifyContent: "center", padding: spacing.xl },
   slideIcon: { width: 96, height: 96, borderRadius: 48, backgroundColor: colors.accentBg, marginBottom: spacing.xl, alignItems: "center", justifyContent: "center" },

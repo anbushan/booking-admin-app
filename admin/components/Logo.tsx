@@ -1,25 +1,17 @@
-// Same blue-to-orange gradient mark as the generated favicon
-// (app/icon.tsx) — a plain CSS gradient circle rather than an image
-// file, for the same reason: no logo asset exists in this repo to
-// point at yet.
+// The actual NanbaGO mark (cropped from the full logo — see
+// public/logo-mark.png, generated from the brand's real logo file, not
+// a placeholder). Used everywhere a small inline badge sits next to its
+// own "NanbaGO" text label (sidebar, login, legal-page header), so the
+// wordmark isn't baked into the image twice.
 export function Logo({ size = 26 }: { size?: number }) {
   return (
-    <div
-      style={{
-        width: size,
-        height: size,
-        borderRadius: "50%",
-        background: "linear-gradient(135deg, #185FA5 0%, #D97F0A 100%)",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        color: "#fff",
-        fontWeight: 700,
-        fontSize: size * 0.55,
-        flexShrink: 0,
-      }}
-    >
-      N
-    </div>
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src="/logo-mark.png"
+      alt="NanbaGO"
+      width={size}
+      height={size}
+      style={{ borderRadius: "22%", flexShrink: 0, objectFit: "contain" }}
+    />
   );
 }

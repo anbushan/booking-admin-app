@@ -5,6 +5,7 @@ import * as Location from "expo-location";
 import { colors, spacing, radius, typography } from "../theme/theme";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useScreenView } from "../lib/useScreenView";
+import { useTranslation } from "../lib/i18n/I18nContext";
 
 // Shown once, contextually right before the first trip start — not
 // buried in onboarding where it's easy to deny reflexively. Only after
@@ -13,6 +14,7 @@ import { useScreenView } from "../lib/useScreenView";
 // background location justification.
 export default function LocationPermissionPrimingScreen({ navigation, route }: any) {
   useScreenView("LocationPermissionPrimingScreen");
+  const { t } = useTranslation();
   const { onContinue } = route.params || {};
   const [requesting, setRequesting] = useState(false);
 
@@ -46,17 +48,13 @@ export default function LocationPermissionPrimingScreen({ navigation, route }: a
         <View style={styles.iconCircle}>
           <Text style={styles.iconText}>{"\u25CE"}</Text>
         </View>
-        <Text style={styles.title}>Allow location access</Text>
-        <Text style={styles.description}>
-          We use your location during an active trip so the other rider
-          can track progress and to power the SOS button if you ever
-          need help. Location isn't tracked outside of active trips.
-        </Text>
+        <Text style={styles.title}>{t("locationPermission.title")}</Text>
+        <Text style={styles.description}>{t("locationPermission.description")}</Text>
         <Pressable style={styles.allowButton} onPress={handleAllow} disabled={requesting}>
-          <Text style={styles.allowButtonText}>{requesting ? "Requesting..." : "Allow location access"}</Text>
+          <Text style={styles.allowButtonText}>{requesting ? t("locationPermission.requesting") : t("locationPermission.title")}</Text>
         </Pressable>
         <Pressable style={styles.skipButton} onPress={handleSkip}>
-          <Text style={styles.skipButtonText}>Not now</Text>
+          <Text style={styles.skipButtonText}>{t("locationPermission.notNow")}</Text>
         </Pressable>
       </View>
     </SafeAreaView>

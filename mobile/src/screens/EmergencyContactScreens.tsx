@@ -16,11 +16,13 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { AppBottomNav } from "../components/AppBottomNav";
 import { KeyboardAvoider } from "../components/KeyboardAvoider";
 import { useScreenView } from "../lib/useScreenView";
+import { useTranslation } from "../lib/i18n/I18nContext";
 
 type Contact = { id: string; name: string; phone: string; isPrimary: boolean };
 
 export function EmergencyContactsScreen({ navigation }: any) {
   useScreenView("EmergencyContactsScreen");
+  const { t } = useTranslation();
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [profile, setProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -47,23 +49,23 @@ export function EmergencyContactsScreen({ navigation }: any) {
   async function handleDelete(id: string) {
     try {
       await api.deleteEmergencyContact(id);
-      showSuccess("Contact removed");
+      showSuccess(t("emergencyContacts.removed"));
       load();
     } catch (err: any) {
-      showError(err.message || "Couldn't remove contact");
+      showError(err.message || t("emergencyContacts.couldntRemove"));
     }
   }
 
   return (
     <SafeAreaView style={styles.screen} edges={["top"]}>
-      <Text style={{ ...typography.title, padding: spacing.lg, paddingBottom: spacing.sm }}>Emergency contacts</Text>
+      <Text style={{ ...typography.title, padding: spacing.lg, paddingBottom: spacing.sm }}>{t("emergencyContacts.title")}</Text>
 
       {loading ? (
         <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
           <CarLoader size="lg" />
         </View>
       ) : error ? (
-        <ErrorState message="Couldn't load emergency contacts." onRetry={load} />
+        <ErrorState message={t("emergencyContacts.couldntLoad")} onRetry={load} />
       ) : (
       <FlatList
         style={{ flex: 1 }}
@@ -75,27 +77,27 @@ export function EmergencyContactsScreen({ navigation }: any) {
           <View style={styles.row}>
             <View>
               <Text style={styles.name}>
-                {item.name} {item.isPrimary && <Text style={styles.primaryTag}>Primary</Text>}
+                {item.name} {item.isPrimary && <Text style={styles.primaryTag}>{t("emergencyContacts.primary")}</Text>}
               </Text>
               <Text style={styles.phone}>{item.phone}</Text>
             </View>
             <Pressable onPress={() => handleDelete(item.id)}>
-              <Text style={styles.remove}>Remove</Text>
+              <Text style={styles.remove}>{t("emergencyContacts.remove")}</Text>
             </Pressable>
           </View>
         )}
         ListEmptyComponent={
           <EmptyState
             icon="shield-checkmark-outline"
-            title="No emergency contacts yet"
-            subtitle="Add a contact so we can reach someone for you in an emergency."
+            title={t("emergencyContacts.emptyTitle")}
+            subtitle={t("emergencyContacts.emptySubtitle")}
           />
         }
       />
       )}
 
       <Pressable style={styles.addButton} onPress={() => navigation.navigate("AddEmergencyContact")}>
-        <Text style={styles.addButtonText}>Add contact</Text>
+        <Text style={styles.addButtonText}>{t("emergencyContacts.addContact")}</Text>
       </Pressable>
       <AppBottomNav navigation={navigation} profile={profile} active="menu" />
     </SafeAreaView>
@@ -104,6 +106,7 @@ export function EmergencyContactsScreen({ navigation }: any) {
 
 export function AddEmergencyContactScreen({ navigation }: any) {
   useScreenView("AddEmergencyContactScreen");
+  const { t } = useTranslation();
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [relation, setRelation] = useState("");
@@ -113,7 +116,7 @@ export function AddEmergencyContactScreen({ navigation }: any) {
   const { showSuccess } = useToast();
 
   async function handleSave() {
-    const validationErrors = validateEmergencyContact({ name, phone });
+    const validationErrors = validateEmergencyContact({ name, phone }, t);
     setErrors(validationErrors);
     if (Object.keys(validationErrors).length > 0) return;
 
@@ -121,10 +124,10 @@ export function AddEmergencyContactScreen({ navigation }: any) {
     try {
       await api.addEmergencyContact({ name, phone, relation, isPrimary });
       Analytics.emergencyContactAdded();
-      showSuccess("Contact added");
+      showSuccess(t("emergencyContacts.added"));
       navigation.goBack();
     } catch (err: any) {
-      showAlert("Couldn't save contact", err.message || "Please try again.");
+      showAlert(t("emergencyContacts.couldntSave"), err.message || t("payment.pleaseTryAgain"));
     } finally {
       setSubmitting(false);
     }
@@ -132,20 +135,20 @@ export function AddEmergencyContactScreen({ navigation }: any) {
 
   return (
     <SafeAreaView style={styles.screen} edges={["top"]}>
-      <Text style={{ ...typography.title, padding: spacing.lg, paddingBottom: spacing.sm }}>Add emergency contact</Text>
+      <Text style={{ ...typography.title, padding: spacing.lg, paddingBottom: spacing.sm }}>{t("emergencyContacts.addTitle")}</Text>
 
       <KeyboardAvoider>
       <View style={styles.body}>
         <TextInput
           style={[styles.input, errors.name && styles.inputError]}
-          placeholder="Name"
+          placeholder={t("emergencyContacts.namePlaceholder")}
           value={name}
           onChangeText={(v) => { setName(v); if (errors.name) setErrors((e) => ({ ...e, name: "" })); }}
         />
         <FieldError message={errors.name} />
         <TextInput
           style={[styles.input, errors.phone && styles.inputError]}
-          placeholder="10-digit phone number"
+          placeholder={t("emergencyContacts.phonePlaceholder")}
           keyboardType="number-pad"
           maxLength={10}
           value={phone}
@@ -154,16 +157,16 @@ export function AddEmergencyContactScreen({ navigation }: any) {
         <FieldError message={errors.phone} />
         <TextInput
           style={styles.input}
-          placeholder="Relation (optional)"
+          placeholder={t("emergencyContacts.relationPlaceholder")}
           value={relation}
           onChangeText={setRelation}
         />
         <Pressable style={styles.checkboxRow} onPress={() => setIsPrimary(!isPrimary)}>
           <View style={[styles.checkbox, isPrimary && styles.checkboxActive]} />
-          <Text style={styles.checkboxLabel}>Set as primary contact</Text>
+          <Text style={styles.checkboxLabel}>{t("emergencyContacts.setPrimary")}</Text>
         </Pressable>
         <Pressable style={styles.addButton} onPress={handleSave} disabled={submitting}>
-          <Text style={styles.addButtonText}>{submitting ? "Saving..." : "Save contact"}</Text>
+          <Text style={styles.addButtonText}>{submitting ? t("emergencyContacts.saving") : t("emergencyContacts.saveContact")}</Text>
         </Pressable>
       </View>
       </KeyboardAvoider>

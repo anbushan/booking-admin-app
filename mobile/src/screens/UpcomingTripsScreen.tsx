@@ -15,6 +15,7 @@ import { AppBottomNav } from "../components/AppBottomNav";
 import { groupByRide } from "../lib/groupByRide";
 import { appEvents } from "../lib/appEvents";
 import { useScreenView } from "../lib/useScreenView";
+import { useTranslation } from "../lib/i18n/I18nContext";
 
 // The driver-side counterpart to "Booking requests" — once a request is
 // accepted it disappears from that pending list, but nothing anywhere
@@ -35,6 +36,7 @@ type Trip = {
 
 export default function UpcomingTripsScreen({ navigation }: any) {
   useScreenView("UpcomingTripsScreen");
+  const { t } = useTranslation();
   const [trips, setTrips] = useState<Trip[]>([]);
   const [profile, setProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -74,14 +76,14 @@ export default function UpcomingTripsScreen({ navigation }: any) {
 
   return (
     <SafeAreaView style={styles.screen} edges={["top"]}>
-      <Text style={{ ...typography.title, padding: spacing.lg, paddingBottom: spacing.sm }}>Start trip now</Text>
+      <Text style={{ ...typography.title, padding: spacing.lg, paddingBottom: spacing.sm }}>{t("home.startTripNow")}</Text>
 
       {loading ? (
         <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
           <CarLoader size="lg" />
         </View>
       ) : error ? (
-        <ErrorState message="Couldn't load your trips." onRetry={load} />
+        <ErrorState message={t("upcomingTrips.couldntLoad")} onRetry={load} />
       ) : (
         <SectionList
           style={{ flex: 1 }}
@@ -105,9 +107,9 @@ export default function UpcomingTripsScreen({ navigation }: any) {
             // Pressables and still fire independently on their own tap.
             <Pressable style={styles.card} onPress={() => navigation.navigate("BookingDetail", { bookingId: item.id })}>
               <View style={styles.rowBetween}>
-                <Text style={styles.meta}>{item.passenger?.name || "Passenger"} · {item.seatsBooked} seat(s)</Text>
+                <Text style={styles.meta}>{item.passenger?.name || t("register.passenger")} · {t("common.seatsCount", { count: item.seatsBooked })}</Text>
                 <Text style={item.status === "IN_PROGRESS" ? styles.statusActive : item.status === "AWAITING_PAYMENT" ? styles.statusPending : styles.statusConfirmed}>
-                  {item.status === "IN_PROGRESS" ? "In progress" : item.status === "AWAITING_PAYMENT" ? "Awaiting payment" : "Confirmed"}
+                  {item.status === "IN_PROGRESS" ? t("upcomingTrips.inProgress") : item.status === "AWAITING_PAYMENT" ? t("upcomingTrips.awaitingPayment") : t("status.confirmed")}
                 </Text>
               </View>
               {item.status === "AWAITING_PAYMENT" ? (
@@ -116,12 +118,12 @@ export default function UpcomingTripsScreen({ navigation }: any) {
                 // request doesn't mean confirmed; this state makes that
                 // visible instead of the booking just disappearing until
                 // payment (or the pay window expiring) happens silently.
-                <Text style={styles.pendingCaption}>Waiting for the passenger to pay the platform fee.</Text>
+                <Text style={styles.pendingCaption}>{t("upcomingTrips.waitingForFee")}</Text>
               ) : (
                 <View style={styles.actionRow}>
                   <Pressable style={[styles.actionButton, { flex: 1 }]} onPress={() => handleAction(item)}>
                     <Text style={styles.actionButtonText}>
-                      {item.status === "IN_PROGRESS" ? "Continue trip" : "Start trip"}
+                      {item.status === "IN_PROGRESS" ? t("upcomingTrips.continueTrip") : t("upcomingTrips.startTrip")}
                     </Text>
                   </Pressable>
                   {item.status === "CONFIRMED" && (
@@ -129,7 +131,7 @@ export default function UpcomingTripsScreen({ navigation }: any) {
                       style={[styles.actionButton, styles.chatButton, { flexDirection: "row", alignItems: "center" }]}
                       onPress={() => navigation.navigate("ChatDetail", { bookingId: item.id, calleeRole: "PASSENGER" })}
                     >
-                      <Text style={styles.chatButtonText}>Chat</Text>
+                      <Text style={styles.chatButtonText}>{t("history.chat")}</Text>
                       <UnreadBadge count={item.unreadMessageCount} />
                     </Pressable>
                   )}
@@ -140,8 +142,8 @@ export default function UpcomingTripsScreen({ navigation }: any) {
           ListEmptyComponent={
             <EmptyState
               icon="navigate-outline"
-              title="No upcoming trips"
-              subtitle="Accepted booking requests will show up here, ready to start."
+              title={t("upcomingTrips.emptyTitle")}
+              subtitle={t("upcomingTrips.emptySubtitle")}
             />
           }
         />

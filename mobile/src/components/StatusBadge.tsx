@@ -2,6 +2,7 @@ import React from "react";
 import { View, Text, StyleSheet } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { getStatusMeta, radius, spacing, typography, toneColors } from "../theme/theme";
+import { useTranslation } from "../lib/i18n/I18nContext";
 
 // Replaces every bare `<Text style={styles.status}>{item.status}</Text>`
 // pattern across the app — pairs an icon with a plain-language label and
@@ -10,6 +11,7 @@ import { getStatusMeta, radius, spacing, typography, toneColors } from "../theme
 // are all derived from theme.ts's statusMeta so every screen agrees on
 // what e.g. CONFIRMED looks like.
 export function StatusBadge({ status, size = "md" }: { status: string; size?: "sm" | "md" }) {
+  const { t } = useTranslation();
   const meta = getStatusMeta(status);
   const tone = toneColors[meta.tone];
   const small = size === "sm";
@@ -17,7 +19,7 @@ export function StatusBadge({ status, size = "md" }: { status: string; size?: "s
     <View style={[styles.pill, { backgroundColor: tone.bg }, small && styles.pillSmall]}>
       <Ionicons name={meta.icon as any} size={small ? 12 : 14} color={tone.text} />
       <Text style={[small ? typography.small : typography.caption, styles.label, { color: tone.text }]}>
-        {meta.label}
+        {meta.labelKey ? t(meta.labelKey) : (meta as any).label}
       </Text>
     </View>
   );

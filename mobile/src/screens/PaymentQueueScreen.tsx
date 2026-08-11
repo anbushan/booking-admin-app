@@ -14,6 +14,7 @@ import { CompactStepTracker } from "../components/CompactStepTracker";
 import { bookingJourneySteps } from "../components/StepTracker";
 import { groupByRide } from "../lib/groupByRide";
 import { useScreenView } from "../lib/useScreenView";
+import { useTranslation } from "../lib/i18n/I18nContext";
 
 // Bookings a driver has already accepted where the passenger still owes
 // the platform fee — a focused queue separate from "Upcoming trips"
@@ -23,10 +24,12 @@ import { useScreenView } from "../lib/useScreenView";
 // just visibility into who's still pending.
 const QUEUE_STATUSES = ["AWAITING_PAYMENT", "CHARGE_ATTEMPTED", "PAYMENT_PENDING"];
 
-const STATUS_LABELS: Record<string, string> = {
-  AWAITING_PAYMENT: "Awaiting payment",
-  CHARGE_ATTEMPTED: "Payment in progress",
-  PAYMENT_PENDING: "Payment failed — retrying",
+// Reuse the same status labelKeys StatusBadge/getStatusMeta use elsewhere
+// (theme.ts) rather than duplicating translated copy for these statuses.
+const STATUS_LABEL_KEYS: Record<string, string> = {
+  AWAITING_PAYMENT: "status.payToConfirm",
+  CHARGE_ATTEMPTED: "status.paymentInProgress",
+  PAYMENT_PENDING: "status.paymentFailedRetry",
 };
 
 type QueuedBooking = {
@@ -47,6 +50,7 @@ function minutesLeft(expiresAt: string | null) {
 
 export default function PaymentQueueScreen({ navigation }: any) {
   useScreenView("PaymentQueueScreen");
+  const { t } = useTranslation();
   const [bookings, setBookings] = useState<QueuedBooking[]>([]);
   const [profile, setProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -85,14 +89,14 @@ export default function PaymentQueueScreen({ navigation }: any) {
 
   return (
     <SafeAreaView style={styles.screen} edges={["top"]}>
-      <Text style={{ ...typography.title, padding: spacing.lg, paddingBottom: spacing.sm }}>Payment queue</Text>
+      <Text style={{ ...typography.title, padding: spacing.lg, paddingBottom: spacing.sm }}>{t("payment.queueTitle")}</Text>
 
       {loading ? (
         <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
           <CarLoader size="lg" />
         </View>
       ) : error ? (
-        <ErrorState message="Couldn't load the payment queue." onRetry={load} />
+        <ErrorState message={t("payment.couldntLoadQueue")} onRetry={load} />
       ) : (
         <SectionList
           style={{ flex: 1 }}
@@ -106,8 +110,7 @@ export default function PaymentQueueScreen({ navigation }: any) {
               <View style={styles.notice}>
                 <Ionicons name="information-circle-outline" size={16} color={colors.accentText} />
                 <Text style={styles.noticeText}>
-                  Nothing to do here yet — this just tracks who still owes the platform fee. It moves
-                  to "Start trip now" automatically once they pay.
+                  {t("payment.queueNotice", { label: t("home.startTripNow") })}
                 </Text>
               </View>
             ) : null
@@ -131,7 +134,7 @@ export default function PaymentQueueScreen({ navigation }: any) {
               <Pressable style={styles.card} onPress={() => navigation.navigate("BookingDetail", { bookingId: item.id })}>
                 <View style={styles.rowBetween}>
                   <Text style={styles.meta}>
-                    {item.passenger?.name || "Passenger"} · {item.seatsBooked} seat(s)
+                    {item.passenger?.name || t("register.passenger")} · {t("common.seatsCount", { count: item.seatsBooked })}
                   </Text>
                   <Text style={styles.fee}>
                     {item.platformFeeAmount != null ? `Rs ${Number(item.platformFeeAmount)}` : "—"}
@@ -139,16 +142,16 @@ export default function PaymentQueueScreen({ navigation }: any) {
                 </View>
 
                 <View style={styles.trackerBlock}>
-                  <CompactStepTracker steps={bookingJourneySteps(item.status)} />
+                  <CompactStepTracker steps={bookingJourneySteps(item.status, t)} />
                 </View>
 
                 <View style={styles.rowBetween}>
                   <View style={styles.statusRow}>
                     <Ionicons name="time-outline" size={12} color={colors.warning} />
-                    <Text style={styles.status}>{STATUS_LABELS[item.status] || item.status}</Text>
+                    <Text style={styles.status}>{STATUS_LABEL_KEYS[item.status] ? t(STATUS_LABEL_KEYS[item.status]) : item.status}</Text>
                   </View>
                   {mins != null && (
-                    <Text style={styles.countdown}>{mins}m left to pay</Text>
+                    <Text style={styles.countdown}>{t("payment.minutesLeftToPay", { mins })}</Text>
                   )}
                 </View>
               </Pressable>
@@ -157,8 +160,8 @@ export default function PaymentQueueScreen({ navigation }: any) {
           ListEmptyComponent={
             <EmptyState
               icon="wallet-outline"
-              title="Nothing pending"
-              subtitle="Accepted requests waiting on a passenger's platform-fee payment will show up here."
+              title={t("payment.queueEmptyTitle")}
+              subtitle={t("payment.queueEmptySubtitle")}
             />
           }
         />

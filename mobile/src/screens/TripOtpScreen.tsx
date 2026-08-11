@@ -10,14 +10,18 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { BackHeader } from "../components/BackHeader";
 import { dialProxyNumber } from "../lib/callHelper";
 import { useScreenView } from "../lib/useScreenView";
+import Avatar from "../components/Avatar";
+import { useTranslation } from "../lib/i18n/I18nContext";
 
 const OTP_LENGTH = 4;
 
 export default function TripOtpScreen({ route, navigation }: any) {
   useScreenView("TripOtpScreen");
+  const { t } = useTranslation();
   const { bookingId } = route.params;
   const [otp, setOtp] = useState<string | null>(null);
-  const [driverName, setDriverName] = useState("your driver");
+  const [driverName, setDriverName] = useState(t("tripOtp.driverFallback"));
+  const [driverPhoto, setDriverPhoto] = useState<string | null>(null);
   const [driverRating, setDriverRating] = useState<number | null>(null);
   const [routeLabel, setRouteLabel] = useState<string | null>(null);
   const [calling, setCalling] = useState(false);
@@ -33,8 +37,9 @@ export default function TripOtpScreen({ route, navigation }: any) {
       .getBookingDetail(bookingId)
       .then((booking) => {
         if (booking.ride?.driver?.name) setDriverName(booking.ride.driver.name);
+        if (booking.ride?.driver?.photoViewUrl) setDriverPhoto(booking.ride.driver.photoViewUrl);
         if (booking.ride?.driver?.ratingAvg != null) setDriverRating(booking.ride.driver.ratingAvg);
-        if (booking.ride) setRouteLabel(`${booking.ride.sourceAddress} to ${booking.ride.destAddress}`);
+        if (booking.ride) setRouteLabel(t("common.routeTo", { source: booking.ride.sourceAddress, dest: booking.ride.destAddress }));
       })
       .catch(() => {});
   }, [bookingId]);
@@ -67,7 +72,7 @@ export default function TripOtpScreen({ route, navigation }: any) {
       const { proxyNumber } = await api.initiateCall(bookingId, "DRIVER");
       await dialProxyNumber(proxyNumber);
     } catch (err: any) {
-      showError(err.message || "Couldn't start the call");
+      showError(err.message || t("common.couldntStartCall"));
     } finally {
       setCalling(false);
     }
@@ -77,11 +82,11 @@ export default function TripOtpScreen({ route, navigation }: any) {
 
   return (
     <SafeAreaView style={styles.screen} edges={["top", "bottom"]}>
-      <BackHeader title="Your driver has arrived" onBack={() => navigation.goBack()} />
+      <BackHeader title={t("tripOtp.driverHasArrived")} onBack={() => navigation.goBack()} />
 
       <View style={styles.body}>
         <View style={styles.codeCard}>
-          <Text style={styles.instruction}>Share this code with {driverName}</Text>
+          <Text style={styles.instruction}>{t("trip.shareCode", { driverName })}</Text>
           <View style={styles.otpRow}>
             {digits.map((d, i) => (
               <View key={i} style={styles.otpBox}>
@@ -93,11 +98,11 @@ export default function TripOtpScreen({ route, navigation }: any) {
 
         <View style={styles.infoRow}>
           <Ionicons name="shield-checkmark-outline" size={15} color={colors.textMuted} />
-          <Text style={styles.hint}>Confirms it's your ride — only share it once the driver asks</Text>
+          <Text style={styles.hint}>{t("tripOtp.confirmsRide")}</Text>
         </View>
         <View style={styles.infoRow}>
           <Ionicons name="information-circle-outline" size={15} color={colors.textMuted} />
-          <Text style={styles.altHint}>Trouble with the code? Your driver can also start the trip with your Booking ID: {bookingId}</Text>
+          <Text style={styles.altHint}>{t("tripOtp.altHint", { bookingId })}</Text>
         </View>
         {routeLabel && (
           <View style={styles.infoRow}>
@@ -108,9 +113,7 @@ export default function TripOtpScreen({ route, navigation }: any) {
       </View>
 
       <View style={styles.driverBar}>
-        <View style={styles.avatar}>
-          <Text style={styles.avatarText}>{driverName.charAt(0).toUpperCase()}</Text>
-        </View>
+        <Avatar uri={driverPhoto} name={driverName} size={44} />
         <View style={{ flex: 1 }}>
           <Text style={styles.driverName}>{driverName}</Text>
           {driverRating != null && (
@@ -134,7 +137,7 @@ export default function TripOtpScreen({ route, navigation }: any) {
 
       <View style={styles.waitingRow}>
         <Ionicons name="time-outline" size={15} color={colors.textMuted} />
-        <Text style={styles.waitingText}>You'll be taken to live tracking as soon as the trip starts</Text>
+        <Text style={styles.waitingText}>{t("tripOtp.willBeTaken")}</Text>
       </View>
     </SafeAreaView>
   );
@@ -169,8 +172,6 @@ const styles = StyleSheet.create({
   altHint: { ...typography.small, color: colors.textMuted, flex: 1 },
   routeLabel: { ...typography.caption, color: colors.textSecondary, flex: 1 },
   driverBar: { flexDirection: "row", alignItems: "center", gap: spacing.sm, padding: spacing.lg, borderTopWidth: 1, borderTopColor: colors.border, backgroundColor: colors.surface },
-  avatar: { width: 44, height: 44, borderRadius: 22, backgroundColor: colors.accentBg, alignItems: "center", justifyContent: "center" },
-  avatarText: { color: colors.accentText, fontWeight: "700", fontSize: 16 },
   driverName: { ...typography.body, fontWeight: "700" },
   ratingRow: { flexDirection: "row", alignItems: "center", gap: 3, marginTop: 1 },
   driverMeta: { ...typography.small, color: colors.textMuted },

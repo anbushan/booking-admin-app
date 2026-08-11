@@ -13,15 +13,18 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import SearchOptionsModal, { formatSearchDate } from "../components/SearchOptionsModal";
 import { RouteTimeline } from "../components/RouteTimeline";
 import { useScreenView } from "../lib/useScreenView";
+import Avatar from "../components/Avatar";
+import { useTranslation } from "../lib/i18n/I18nContext";
 
 type RideResult = {
   id: string;
-  driver: { name: string; ratingAvg: number };
+  driver: { name: string; ratingAvg: number; photoViewUrl?: string | null };
   vehicle?: { make: string; model: string; seatCapacity: number | null } | null;
   driverVerified?: boolean;
   pricePerSeat: string;
   seatsAvailable: number;
   seatsFull?: boolean;
+  isOwnRide?: boolean;
   travelDate: string;
   sourceAddress: string;
   destAddress: string;
@@ -31,14 +34,15 @@ type RideResult = {
 
 type SortKey = "earliest" | "cheapest" | "rated";
 
-const SORT_OPTIONS: { key: SortKey; label: string }[] = [
-  { key: "earliest", label: "Earliest" },
-  { key: "cheapest", label: "Cheapest" },
-  { key: "rated", label: "Top rated" },
+const SORT_OPTIONS: { key: SortKey; labelKey: string }[] = [
+  { key: "earliest", labelKey: "search.earliest" },
+  { key: "cheapest", labelKey: "search.cheapest" },
+  { key: "rated", labelKey: "search.topRated" },
 ];
 
 export default function SearchResultsScreen({ navigation, route }: any) {
   useScreenView("SearchResultsScreen");
+  const { t } = useTranslation();
   const {
     sourceLat = 12.9352,
     sourceLng = 77.6146,
@@ -81,10 +85,11 @@ export default function SearchResultsScreen({ navigation, route }: any) {
     } else {
       sorted.sort((a, b) => new Date(a.travelDate).getTime() - new Date(b.travelDate).getTime());
     }
-    // Full rides are still shown (the search endpoint no longer hides
-    // them) but sink to the bottom regardless of sort, so an available
-    // ride is never buried under full ones.
-    sorted.sort((a, b) => Number(!!a.seatsFull) - Number(!!b.seatsFull));
+    // Full rides — and a driver's own read-only ride — are still shown
+    // (the search endpoint no longer hides either) but sink to the
+    // bottom regardless of sort, so an actually-bookable ride is never
+    // buried under ones that aren't.
+    sorted.sort((a, b) => Number(!!a.seatsFull || !!a.isOwnRide) - Number(!!b.seatsFull || !!b.isOwnRide));
     return sorted;
   }, [rides, sort]);
 
@@ -95,14 +100,14 @@ export default function SearchResultsScreen({ navigation, route }: any) {
           <Ionicons name="chevron-back" size={22} color={colors.textPrimary} />
         </Pressable>
         <View style={{ flex: 1 }}>
-          <Text style={styles.pageTitle} numberOfLines={1}>{sourceAddress}{destAddress ? ` to ${destAddress}` : ""}</Text>
+          <Text style={styles.pageTitle} numberOfLines={1}>{destAddress ? t("common.routeTo", { source: sourceAddress, dest: destAddress }) : sourceAddress}</Text>
           <Text style={styles.pageSubtitle} numberOfLines={1}>
-            {formatSearchDate(searchDate)}{timeRange.startTime ? ` · ${timeRange.startTime}–${timeRange.endTime}` : ""} · {seats} seat{seats === 1 ? "" : "s"}
+            {formatSearchDate(searchDate, t)}{timeRange.startTime ? ` · ${timeRange.startTime}–${timeRange.endTime}` : ""} · {t("common.seatsCount", { count: seats })}
           </Text>
         </View>
         <Pressable style={styles.filterButton} onPress={() => setOptionsVisible(true)}>
           <Ionicons name="options-outline" size={14} color={colors.textSecondary} />
-          <Text style={styles.filterButtonText}>Filters</Text>
+          <Text style={styles.filterButtonText}>{t("search.filters")}</Text>
         </Pressable>
       </View>
 
@@ -114,7 +119,7 @@ export default function SearchResultsScreen({ navigation, route }: any) {
             onPress={() => setSort(opt.key)}
           >
             <Text style={[styles.sortChipText, sort === opt.key && styles.sortChipTextActive]}>
-              {opt.label}
+              {t(opt.labelKey)}
             </Text>
           </Pressable>
         ))}
@@ -125,7 +130,7 @@ export default function SearchResultsScreen({ navigation, route }: any) {
           <CarLoader size="lg" />
         </View>
       ) : error ? (
-        <ErrorState message="Couldn't load rides." onRetry={load} />
+        <ErrorState message={t("search.couldntLoadRides")} onRetry={load} />
       ) : (
         <FlatList
           data={filteredSorted}
@@ -134,23 +139,21 @@ export default function SearchResultsScreen({ navigation, route }: any) {
           contentContainerStyle={{ padding: spacing.md, gap: spacing.sm, flexGrow: 1 }}
           renderItem={({ item }) => (
             <Pressable
-              style={[styles.card, item.seatsFull && styles.cardFull]}
+              style={[styles.card, (item.seatsFull || item.isOwnRide) && styles.cardFull]}
               onPress={() => {
-                if (item.seatsFull) return;
+                if (item.seatsFull || item.isOwnRide) return;
                 navigation.navigate("BookingConfirm", { rideId: item.id });
               }}
             >
               <View style={styles.cardTop}>
-                <View style={styles.avatar}>
-                  <Text style={styles.avatarText}>{(item.driver?.name || "?").charAt(0).toUpperCase()}</Text>
-                </View>
+                <Avatar uri={item.driver?.photoViewUrl} name={item.driver?.name} size={40} />
                 <View style={{ flex: 1 }}>
                   <View style={styles.nameRow}>
-                    <Text style={styles.driverName}>{item.driver?.name || "Driver"}</Text>
+                    <Text style={styles.driverName}>{item.driver?.name || t("common.driverFallback")}</Text>
                     {item.driverVerified && (
                       <View style={styles.verifiedBadge}>
                         <Ionicons name="checkmark-circle" size={11} color={colors.success} />
-                        <Text style={styles.verifiedBadgeText}>Verified</Text>
+                        <Text style={styles.verifiedBadgeText}>{t("common.verified")}</Text>
                       </View>
                     )}
                   </View>
@@ -161,16 +164,23 @@ export default function SearchResultsScreen({ navigation, route }: any) {
                 </View>
                 <View style={{ alignItems: "flex-end" }}>
                   <Text style={styles.price}>Rs {item.pricePerSeat}</Text>
-                  <View style={[styles.seatsPill, item.seatsFull && styles.seatsPillFull]}>
-                    <Ionicons
-                      name={item.seatsFull ? "close-circle" : "people"}
-                      size={11}
-                      color={item.seatsFull ? colors.danger : colors.success}
-                    />
-                    <Text style={[styles.seatsPillText, { color: item.seatsFull ? colors.danger : colors.success }]}>
-                      {item.seatsFull ? "Full" : `${item.seatsAvailable} left`}
-                    </Text>
-                  </View>
+                  {item.isOwnRide ? (
+                    <View style={[styles.seatsPill, styles.seatsPillFull]}>
+                      <Ionicons name="person-circle-outline" size={11} color={colors.danger} />
+                      <Text style={[styles.seatsPillText, { color: colors.danger }]}>{t("search.yourRide")}</Text>
+                    </View>
+                  ) : (
+                    <View style={[styles.seatsPill, item.seatsFull && styles.seatsPillFull]}>
+                      <Ionicons
+                        name={item.seatsFull ? "close-circle" : "people"}
+                        size={11}
+                        color={item.seatsFull ? colors.danger : colors.success}
+                      />
+                      <Text style={[styles.seatsPillText, { color: item.seatsFull ? colors.danger : colors.success }]}>
+                        {item.seatsFull ? t("search.full") : t("search.seatsLeft", { count: item.seatsAvailable })}
+                      </Text>
+                    </View>
+                  )}
                 </View>
               </View>
               <View style={styles.timelineWrap}>
@@ -185,7 +195,7 @@ export default function SearchResultsScreen({ navigation, route }: any) {
             </Pressable>
           )}
           ListEmptyComponent={
-            <NoRidesFound title="No rides found" subtitle="Try a different date or check back later." />
+            <NoRidesFound title={t("search.noRidesFound")} subtitle={t("search.noRidesSubtitle")} />
           }
         />
       )}
@@ -228,8 +238,6 @@ const styles = StyleSheet.create({
   },
   cardFull: { opacity: 0.55 },
   cardTop: { flexDirection: "row", gap: spacing.sm, alignItems: "flex-start" },
-  avatar: { width: 34, height: 34, borderRadius: 17, backgroundColor: colors.accentBg, alignItems: "center", justifyContent: "center", flex: 0 },
-  avatarText: { ...typography.title, color: colors.accentText, fontSize: 13 },
   timelineWrap: { marginTop: spacing.md, paddingTop: spacing.md, borderTopWidth: 1, borderTopColor: colors.border },
   nameRow: { flexDirection: "row", alignItems: "center", gap: spacing.xs },
   driverName: { ...typography.title, fontSize: 14 },

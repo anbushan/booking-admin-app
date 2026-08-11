@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { View, Text, StyleSheet } from "react-native";
+import { View, Text, Image, StyleSheet } from "react-native";
 import { Pressable } from "../components/Pressable";
 import { Ionicons } from "@expo/vector-icons";
 import { showAlert } from "../lib/alert";
@@ -10,6 +10,7 @@ import { CarLoader } from "../components/CarLoader";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { BackHeader } from "../components/BackHeader";
 import { useScreenView } from "../lib/useScreenView";
+import { useTranslation } from "../lib/i18n/I18nContext";
 
 type Profile = { role: string; isDriver: boolean; isPassenger: boolean };
 
@@ -28,6 +29,7 @@ type Profile = { role: string; isDriver: boolean; isPassenger: boolean };
 //   somewhere to return to.
 export default function SwitchRoleScreen({ navigation, route }: any) {
   useScreenView("SwitchRoleScreen");
+  const { t } = useTranslation();
   const { forced } = route.params || {};
   const [profile, setProfile] = useState<Profile | null>(null);
   const [switching, setSwitching] = useState<string | null>(null);
@@ -58,7 +60,7 @@ export default function SwitchRoleScreen({ navigation, route }: any) {
         routes: [{ name: isFirstTime && role === "DRIVER" ? "DriverOnboarding" : "Home" }],
       });
     } catch (err: any) {
-      showAlert("Couldn't switch", err.message);
+      showAlert(t("switchRole.couldntSwitch"), err.message);
       setSwitching(null);
     }
   }
@@ -73,17 +75,15 @@ export default function SwitchRoleScreen({ navigation, route }: any) {
 
   return (
     <SafeAreaView style={styles.screen} edges={["top", "bottom"]}>
-      {!forced && <BackHeader title="Switch role" onBack={() => navigation.goBack()} />}
+      {!forced && <BackHeader title={t("switchRole.title")} onBack={() => navigation.goBack()} />}
 
       <View style={styles.body}>
         <View style={styles.brandIcon}>
-          <Ionicons name="swap-horizontal" size={26} color={colors.accentText} />
+          <Image source={require("../../assets/brand-mark.png")} style={styles.brandIconImage} resizeMode="contain" />
         </View>
-        <Text style={styles.title}>{forced ? "Continue as..." : "Use this number as"}</Text>
+        <Text style={styles.title}>{forced ? t("switchRole.continueAs") : t("switchRole.useThisNumberAs")}</Text>
         <Text style={styles.subtitle}>
-          {forced
-            ? "Tap your current role to jump straight in, or use this number as the other one instead — you can always switch again from the menu."
-            : "Switch to your other profile, or set one up for the first time. Nothing about your existing bookings or rides changes."}
+          {forced ? t("switchRole.forcedSubtitle") : t("switchRole.manualSubtitle")}
         </Text>
 
         <View style={styles.roleRow}>
@@ -100,7 +100,7 @@ export default function SwitchRoleScreen({ navigation, route }: any) {
               >
                 {active && (
                   <View style={styles.currentBadge}>
-                    <Text style={styles.currentBadgeText}>Current</Text>
+                    <Text style={styles.currentBadgeText}>{t("switchRole.current")}</Text>
                   </View>
                 )}
                 <View style={[styles.roleIconWrap, active && styles.roleIconWrapActive]}>
@@ -111,10 +111,10 @@ export default function SwitchRoleScreen({ navigation, route }: any) {
                   />
                 </View>
                 <Text style={[styles.roleText, active && styles.roleTextActive]}>
-                  {role === "PASSENGER" ? "Passenger" : "Driver"}
+                  {role === "PASSENGER" ? t("register.passenger") : t("register.driver")}
                 </Text>
                 <Text style={styles.roleSub}>
-                  {busy ? "Switching..." : hasProfile ? (active ? "Currently active" : "Tap to switch") : "New — tap to set up"}
+                  {busy ? t("switchRole.switching") : hasProfile ? (active ? t("switchRole.currentlyActive") : t("switchRole.tapToSwitch")) : t("switchRole.newTapToSetUp")}
                 </Text>
               </Pressable>
             );
@@ -129,9 +129,11 @@ const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.bg },
   body: { padding: spacing.lg, flex: 1, justifyContent: "center" },
   brandIcon: {
-    width: 56, height: 56, borderRadius: 28, backgroundColor: colors.accentBg,
+    width: 56, height: 56, borderRadius: 18, backgroundColor: "#FFFFFF", padding: 8,
+    borderWidth: 1, borderColor: colors.border,
     alignItems: "center", justifyContent: "center", alignSelf: "center", marginBottom: spacing.md,
   },
+  brandIconImage: { width: "100%", height: "100%" },
   title: { ...typography.title, fontSize: 18, textAlign: "center" },
   subtitle: { ...typography.small, color: colors.textMuted, textAlign: "center", marginTop: 4, marginBottom: spacing.lg, lineHeight: 18 },
   roleRow: { flexDirection: "row", gap: spacing.sm, marginTop: spacing.sm },

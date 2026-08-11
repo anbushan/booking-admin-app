@@ -10,9 +10,11 @@ import { ErrorState } from "../components/ErrorState";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { AppBottomNav } from "../components/AppBottomNav";
 import { useScreenView } from "../lib/useScreenView";
+import { useTranslation } from "../lib/i18n/I18nContext";
 
 export default function PaymentHistoryScreen({ navigation }: any) {
   useScreenView("PaymentHistoryScreen");
+  const { t } = useTranslation();
   const [payments, setPayments] = useState<any[]>([]);
   const [profile, setProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -34,13 +36,13 @@ export default function PaymentHistoryScreen({ navigation }: any) {
 
   return (
     <SafeAreaView style={styles.screen} edges={["top"]}>
-      <Text style={{ ...typography.title, padding: spacing.lg, paddingBottom: spacing.sm }}>Payment history</Text>
+      <Text style={{ ...typography.title, padding: spacing.lg, paddingBottom: spacing.sm }}>{t("payment.historyTitle")}</Text>
       {loading ? (
         <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
           <CarLoader size="lg" />
         </View>
       ) : error ? (
-        <ErrorState message="Couldn't load payment history." onRetry={load} />
+        <ErrorState message={t("payment.couldntLoadHistory")} onRetry={load} />
       ) : (
       <FlatList
         style={{ flex: 1 }}
@@ -60,12 +62,12 @@ export default function PaymentHistoryScreen({ navigation }: any) {
             <View style={{ alignItems: "flex-end" }}>
               <Text style={styles.amount}>{item.platformFeeAmount != null ? `Rs ${Number(item.platformFeeAmount)}` : "—"}</Text>
               <Text style={[styles.status, item.platformFeePaidAt ? styles.statusPaid : styles.statusPending]}>
-                {item.platformFeePaidAt ? "Paid" : "Pending"}
+                {item.platformFeePaidAt ? t("payment.paid") : t("payment.pendingLabel")}
               </Text>
             </View>
           </Pressable>
         )}
-        ListEmptyComponent={<EmptyState icon="receipt-outline" title="No payments yet" subtitle="Completed trips will show up here." />}
+        ListEmptyComponent={<EmptyState icon="receipt-outline" title={t("payment.noPaymentsYet")} subtitle={t("payment.completedTripsShowHere")} />}
       />
       )}
       <AppBottomNav navigation={navigation} profile={profile} active="menu" />

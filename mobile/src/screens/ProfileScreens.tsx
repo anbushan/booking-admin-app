@@ -12,6 +12,7 @@ import { KeyboardAvoider } from "../components/KeyboardAvoider";
 import { CarLoader } from "../components/CarLoader";
 import { useScreenView } from "../lib/useScreenView";
 import { pickImage, uploadToSignedUrl } from "../lib/imageUpload";
+import { useTranslation } from "../lib/i18n/I18nContext";
 
 function memberSince(createdAt?: string) {
   if (!createdAt) return null;
@@ -20,6 +21,7 @@ function memberSince(createdAt?: string) {
 
 export function ProfileScreen({ navigation }: any) {
   useScreenView("ProfileScreen");
+  const { t } = useTranslation();
   const [profile, setProfile] = useState<any>(null);
 
   useEffect(() => {
@@ -33,7 +35,7 @@ export function ProfileScreen({ navigation }: any) {
     // and then pops in once the fetch resolves.
     return (
       <SafeAreaView style={styles.screen} edges={["top"]}>
-        <Text style={{ ...typography.title, padding: spacing.lg, paddingBottom: spacing.sm }}>Profile</Text>
+        <Text style={{ ...typography.title, padding: spacing.lg, paddingBottom: spacing.sm }}>{t("settings.profile")}</Text>
         <View style={[{ flex: 1 }, { alignItems: "center", justifyContent: "center" }]}>
           <CarLoader />
         </View>
@@ -46,21 +48,21 @@ export function ProfileScreen({ navigation }: any) {
   const since = memberSince(profile.createdAt);
 
   const links: { icon: keyof typeof Ionicons.glyphMap; label: string; onPress: () => void }[] = [
-    { icon: "pencil-outline", label: "Edit profile", onPress: () => navigation.navigate("EditProfile", { profile }) },
-    { icon: "star-outline", label: "Your ratings", onPress: () => navigation.navigate("RatingsReceived") },
-    { icon: "receipt-outline", label: "Payment history", onPress: () => navigation.navigate("PaymentHistory") },
+    { icon: "pencil-outline", label: t("profile.editProfile"), onPress: () => navigation.navigate("EditProfile", { profile }) },
+    { icon: "star-outline", label: t("settings.yourRatings"), onPress: () => navigation.navigate("RatingsReceived") },
+    { icon: "receipt-outline", label: t("settings.paymentHistory"), onPress: () => navigation.navigate("PaymentHistory") },
     ...(isDriver
       ? [
-          { icon: "car-sport-outline" as const, label: "My vehicles", onPress: () => navigation.navigate("VehicleList") },
-          { icon: "wallet-outline" as const, label: "Earnings", onPress: () => navigation.navigate("Earnings") },
+          { icon: "car-sport-outline" as const, label: t("sideMenu.myVehicles"), onPress: () => navigation.navigate("VehicleList") },
+          { icon: "wallet-outline" as const, label: t("home.earnings"), onPress: () => navigation.navigate("Earnings") },
         ]
       : []),
-    { icon: "settings-outline", label: "Settings", onPress: () => navigation.navigate("Settings") },
+    { icon: "settings-outline", label: t("sideMenu.settings"), onPress: () => navigation.navigate("Settings") },
   ];
 
   return (
     <SafeAreaView style={styles.screen} edges={["top"]}>
-      <Text style={{ ...typography.title, padding: spacing.lg, paddingBottom: spacing.sm }}>Profile</Text>
+      <Text style={{ ...typography.title, padding: spacing.lg, paddingBottom: spacing.sm }}>{t("settings.profile")}</Text>
       <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: spacing.xl }}>
         <View style={styles.hero}>
           <Pressable
@@ -87,7 +89,7 @@ export function ProfileScreen({ navigation }: any) {
           <View style={styles.chipRow}>
             <View style={styles.chip}>
               <Ionicons name={isDriver ? "car-sport-outline" : "person-outline"} size={12} color="#FFFFFF" />
-              <Text style={styles.chipText}>{isDriver ? "Driver" : "Passenger"}</Text>
+              <Text style={styles.chipText}>{isDriver ? t("register.driver") : t("register.passenger")}</Text>
             </View>
             {profile.ratingAvg != null && (
               <View style={styles.chip}>
@@ -98,7 +100,7 @@ export function ProfileScreen({ navigation }: any) {
             {since && (
               <View style={styles.chip}>
                 <Ionicons name="calendar-outline" size={12} color="#FFFFFF" />
-                <Text style={styles.chipText}>Since {since}</Text>
+                <Text style={styles.chipText}>{t("profile.since", { date: since })}</Text>
               </View>
             )}
           </View>
@@ -123,6 +125,7 @@ export function ProfileScreen({ navigation }: any) {
 
 export function EditProfileScreen({ route, navigation }: any) {
   useScreenView("EditProfileScreen");
+  const { t } = useTranslation();
   const { profile } = route.params;
   const [name, setName] = useState(profile.name || "");
   const [email, setEmail] = useState(profile.email || "");
@@ -145,7 +148,7 @@ export function EditProfileScreen({ route, navigation }: any) {
       await uploadToSignedUrl(uploadUrl, picked.uri, picked.mimeType);
       setPhotoUri(picked.uri);
     } catch (err: any) {
-      showError(err.message || "Couldn't update your photo");
+      showError(err.message || t("profile.couldntUpdatePhoto"));
     } finally {
       setUploadingPhoto(false);
     }
@@ -155,10 +158,10 @@ export function EditProfileScreen({ route, navigation }: any) {
     setSubmitting(true);
     try {
       await api.updateProfile({ name, email, role: profile.role, whatsappOptIn });
-      showSuccess("Profile updated");
+      showSuccess(t("profile.profileUpdated"));
       navigation.goBack();
     } catch (err: any) {
-      showAlert("Couldn't save", err.message);
+      showAlert(t("profile.couldntSave"), err.message);
     } finally {
       setSubmitting(false);
     }
@@ -166,7 +169,7 @@ export function EditProfileScreen({ route, navigation }: any) {
 
   return (
     <SafeAreaView style={styles.screen} edges={["top"]}>
-      <Text style={{ ...typography.title, padding: spacing.lg, paddingBottom: spacing.sm }}>Edit profile</Text>
+      <Text style={{ ...typography.title, padding: spacing.lg, paddingBottom: spacing.sm }}>{t("profile.editProfile")}</Text>
       <KeyboardAvoider>
       <View style={styles.body}>
         <Pressable style={styles.editAvatarWrap} onPress={handleChangePhoto} disabled={uploadingPhoto}>
@@ -183,21 +186,21 @@ export function EditProfileScreen({ route, navigation }: any) {
             <Ionicons name="camera" size={13} color="#FFFFFF" />
           </View>
         </Pressable>
-        <Text style={styles.changePhotoText}>{photoUri ? "Change photo" : "Add a photo"}</Text>
+        <Text style={styles.changePhotoText}>{photoUri ? t("profile.changePhoto") : t("profile.addPhoto")}</Text>
 
-        <Text style={styles.label}>Name</Text>
+        <Text style={styles.label}>{t("profile.name")}</Text>
         <TextInput style={styles.input} value={name} onChangeText={setName} />
-        <Text style={styles.label}>Email</Text>
+        <Text style={styles.label}>{t("profile.email")}</Text>
         <TextInput style={styles.input} value={email} onChangeText={setEmail} keyboardType="email-address" autoCapitalize="none" />
         <Pressable style={styles.checkboxRow} onPress={() => setWhatsappOptIn((v) => !v)}>
           <View style={[styles.checkbox, whatsappOptIn && styles.checkboxChecked]}>
             {whatsappOptIn && <Ionicons name="checkmark" size={13} color="#FFFFFF" />}
           </View>
-          <Text style={styles.checkboxLabel}>Get WhatsApp updates</Text>
+          <Text style={styles.checkboxLabel}>{t("auth.whatsappOptIn")}</Text>
         </Pressable>
         <Pressable style={styles.editButton} onPress={handleSave} disabled={submitting}>
           <Ionicons name="checkmark-outline" size={16} color="#FFFFFF" />
-          <Text style={styles.editButtonText}>{submitting ? "Saving..." : "Save"}</Text>
+          <Text style={styles.editButtonText}>{submitting ? t("register.saving") : t("profile.save")}</Text>
         </Pressable>
       </View>
       </KeyboardAvoider>
