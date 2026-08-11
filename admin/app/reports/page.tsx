@@ -21,24 +21,29 @@ export default async function ReportsPage() {
   // Platform revenue is the fee, not the full fare — the remaining fare
   // is settled directly between passenger and driver and never reaches
   // the platform.
-  const paidThisMonth = await prisma.booking.findMany({
-    where: { platformFeePaidAt: { gte: startOfMonth } },
-  });
-
-  const revenueThisMonth = paidThisMonth.reduce(
-    (sum, b) => sum + Number(b.platformFeeAmount || 0),
-    0
-  );
-
-  const [totalBookings, cancelledBookings, paymentPending] = await Promise.all([
+  //
+  // PERFORMANCE: this used to fetch every full Booking row paid this
+  // month just to sum one column and count them — aggregate() does both
+  // in the database in one query instead of transferring every row over
+  // the wire to reduce() in JS. Rolled into the same Promise.all as the
+  // three counts below so all four run in parallel rather than one more
+  // sequential round trip.
+  const [paidThisMonth, totalBookings, cancelledBookings, paymentPending] = await Promise.all([
+    prisma.booking.aggregate({
+      where: { platformFeePaidAt: { gte: startOfMonth } },
+      _sum: { platformFeeAmount: true },
+      _count: true,
+    }),
     prisma.booking.count(),
     prisma.booking.count({ where: { status: "CANCELLED" } }),
     prisma.booking.count({ where: { status: "PAYMENT_PENDING" } }),
   ]);
 
+  const revenueThisMonth = Number(paidThisMonth._sum.platformFeeAmount || 0);
+
   const stats = [
     { label: "Revenue this month", value: `Rs ${revenueThisMonth.toLocaleString()}`, icon: Wallet, tone: "success" as const },
-    { label: "Trips paid this month", value: paidThisMonth.length, icon: Route, tone: "accent" as const },
+    { label: "Trips paid this month", value: paidThisMonth._count, icon: Route, tone: "accent" as const },
     { label: "Total bookings (all time)", value: totalBookings, icon: LayoutDashboard, tone: "neutral" as const },
     { label: "Cancelled bookings", value: cancelledBookings, icon: XCircle, tone: "neutral" as const },
     { label: "Payment-pending bookings", value: paymentPending, icon: Clock, tone: "warning" as const },

@@ -3,7 +3,7 @@ import { View, Text, SectionList, StyleSheet, RefreshControl } from "react-nativ
 import { Pressable } from "../components/Pressable";
 import { useFocusEffect } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
-import { colors, spacing, radius, typography } from "../theme/theme";
+import { colors, spacing, radius, typography, FONT } from "../theme/theme";
 import { api } from "../lib/api";
 import { CarLoader } from "../components/CarLoader";
 import { EmptyState } from "../components/EmptyState";
@@ -95,6 +95,9 @@ export default function BookingRequestsScreen({ route, navigation }: any) {
       <SectionList
         style={{ flex: 1 }}
         sections={sections}
+        maxToRenderPerBatch={8}
+        windowSize={7}
+        initialNumToRender={8}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => load(true)} colors={[colors.accent]} tintColor={colors.accent} />}
         keyExtractor={(item) => item.id}
         contentContainerStyle={{ padding: spacing.md, gap: spacing.md, flexGrow: 1 }}
@@ -183,13 +186,13 @@ const styles = StyleSheet.create({
   passengerName: { ...typography.title, fontSize: 14 },
   meta: { ...typography.small, color: colors.textMuted },
   countdown: { flexDirection: "row", alignItems: "center", gap: 3, backgroundColor: colors.warningBg, paddingVertical: 3, paddingHorizontal: 7, borderRadius: 999 },
-  countdownText: { ...typography.small, color: colors.warning, fontWeight: "700" },
+  countdownText: { ...typography.small, color: colors.warning, fontWeight: "700", fontFamily: FONT.bold },
   pickupRow: { flexDirection: "row", alignItems: "center", gap: 4, marginTop: spacing.sm },
   pickup: { ...typography.small, color: colors.textSecondary },
   trackerWrap: { marginTop: spacing.md, paddingTop: spacing.md, borderTopWidth: 1, borderTopColor: colors.border },
   actionRow: { flexDirection: "row", gap: spacing.sm, marginTop: spacing.md },
   acceptButton: { flex: 1, flexDirection: "row", gap: 6, backgroundColor: colors.textPrimary, height: 40, borderRadius: radius.sm, alignItems: "center", justifyContent: "center" },
-  acceptText: { ...typography.caption, color: "#FFFFFF", fontWeight: "700" },
+  acceptText: { ...typography.caption, color: "#FFFFFF", fontWeight: "700", fontFamily: FONT.bold },
   declineButton: { flex: 1, flexDirection: "row", gap: 6, backgroundColor: colors.bg, borderWidth: 1, borderColor: colors.border, height: 40, borderRadius: radius.sm, alignItems: "center", justifyContent: "center" },
-  declineText: { ...typography.caption, color: colors.textSecondary, fontWeight: "700" },
+  declineText: { ...typography.caption, color: colors.textSecondary, fontWeight: "700", fontFamily: FONT.bold },
 });

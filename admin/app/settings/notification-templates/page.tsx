@@ -8,6 +8,7 @@ import { PageHeader } from "../../../components/PageHeader";
 import { Badge } from "../../../components/Badge";
 import { SubmitButton } from "../../../components/SubmitButton";
 import { redirectWithToast } from "../../../lib/toastRedirect";
+import { isRedirectError } from "../../../lib/actionError";
 import { Bell } from "lucide-react";
 export const dynamic = "force-dynamic";
 
@@ -32,14 +33,19 @@ async function saveTemplate(formData: FormData) {
   const title = formData.get("title") as string;
   const body = formData.get("body") as string;
 
-  await prisma.notificationTemplate.upsert({
-    where: { type },
-    update: { title, body },
-    create: { type, title, body },
-  });
+  try {
+    await prisma.notificationTemplate.upsert({
+      where: { type },
+      update: { title, body },
+      create: { type, title, body },
+    });
 
-  revalidatePath("/settings/notification-templates");
-  redirectWithToast("/settings/notification-templates", `Saved "${type}" template.`);
+    revalidatePath("/settings/notification-templates");
+    redirectWithToast("/settings/notification-templates", `Saved "${type}" template.`);
+  } catch (err) {
+    if (isRedirectError(err)) throw err;
+    redirectWithToast("/settings/notification-templates", `Couldn't save "${type}" template. Try again.`, "error");
+  }
 }
 
 export default async function NotificationTemplatesPage() {

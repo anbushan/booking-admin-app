@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { View, Text, Modal, ScrollView, TextInput, Animated, Easing, StyleSheet } from "react-native";
 import { Pressable } from "./Pressable";
-import { colors, spacing, radius, typography } from "../theme/theme";
+import { colors, spacing, radius, typography, FONT } from "../theme/theme";
 import { KeyboardAvoider } from "./KeyboardAvoider";
 import { useTranslation } from "../lib/i18n/I18nContext";
 
@@ -283,7 +283,7 @@ const styles = StyleSheet.create({
   },
   dateChipActive: { backgroundColor: colors.accentBg, borderColor: colors.accent },
   dateChipText: { ...typography.small, color: colors.textSecondary },
-  dateChipTextActive: { color: colors.accentText, fontWeight: "700" },
+  dateChipTextActive: { color: colors.accentText, fontWeight: "700", fontFamily: FONT.bold },
   label: { ...typography.caption, color: colors.textSecondary, marginBottom: spacing.xs },
   timeInput: {
     ...typography.body,

@@ -28,6 +28,19 @@ export async function notify(userId, type, title, body, bookingId = null) {
     } catch (err) {
       // Push failing is not fatal — the in-app row already exists.
       console.error("FCM push failed, in-app notification still recorded:", err.message);
+
+      // A dead token (app uninstalled, token rotated, user cleared app
+      // data) fails the exact same way on *every* future notify() call
+      // for this user, forever, until something clears it — without this,
+      // that's a silent, permanent per-notification Firebase round trip
+      // (and error log line) for a user who will never receive one again.
+      // These two codes are Firebase's own way of saying "this token will
+      // never work again" (as opposed to a transient network/quota
+      // error, which shouldn't clear a token that might still be good).
+      const deadTokenCodes = ["messaging/registration-token-not-registered", "messaging/invalid-registration-token"];
+      if (deadTokenCodes.includes(err.code)) {
+        await prisma.user.update({ where: { id: userId }, data: { fcmToken: null } });
+      }
     }
   }
   // No fcmToken on file (push permission denied or never registered) —

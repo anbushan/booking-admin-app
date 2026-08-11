@@ -3,7 +3,7 @@ import { View, TextInput, FlatList, Text, StyleSheet, ActivityIndicator } from "
 import { Pressable } from "../components/Pressable";
 import { useFocusEffect } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
-import { colors, spacing, radius, typography } from "../theme/theme";
+import { colors, spacing, radius, typography, FONT } from "../theme/theme";
 import { api } from "../lib/api";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useToast } from "../components/Toast";
@@ -219,7 +219,7 @@ const styles = StyleSheet.create({
   input: { flex: 1, ...typography.body, height: 40, color: colors.textPrimary },
   currentLocationRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm, padding: spacing.md, borderBottomWidth: 1, borderBottomColor: colors.border },
   currentLocationIcon: { width: 24, alignItems: "center" },
-  currentLocationText: { ...typography.body, color: colors.accentText, fontWeight: "700" },
+  currentLocationText: { ...typography.body, color: colors.accentText, fontWeight: "700", fontFamily: FONT.bold },
   row: { flexDirection: "row", alignItems: "center", gap: spacing.sm, padding: spacing.md, borderBottomWidth: 1, borderBottomColor: colors.border },
   rowText: { ...typography.body, flex: 1 },
   section: { paddingTop: spacing.sm },

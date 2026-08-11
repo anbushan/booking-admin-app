@@ -3,7 +3,7 @@ import { View, Text, SectionList, StyleSheet, RefreshControl } from "react-nativ
 import { Pressable } from "../components/Pressable";
 import { useFocusEffect } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
-import { colors, spacing, radius, typography } from "../theme/theme";
+import { colors, spacing, radius, typography, FONT } from "../theme/theme";
 import { api } from "../lib/api";
 import { CarLoader } from "../components/CarLoader";
 import { EmptyState } from "../components/EmptyState";
@@ -136,6 +136,9 @@ export default function NotificationsScreen({ navigation }: any) {
       <SectionList
         style={{ flex: 1 }}
         sections={sections}
+        maxToRenderPerBatch={10}
+        windowSize={8}
+        initialNumToRender={10}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => load(true)} colors={[colors.accent]} tintColor={colors.accent} />}
         keyExtractor={(item) => item.id}
         contentContainerStyle={{ padding: spacing.md, gap: spacing.sm, flexGrow: 1 }}
@@ -175,8 +178,8 @@ const styles = StyleSheet.create({
   pageTitle: { ...typography.title },
   pageSubtitle: { ...typography.small, color: colors.textMuted, marginTop: 2 },
   markAllButton: { flexDirection: "row", alignItems: "center", gap: 4, marginTop: 4 },
-  markAllText: { ...typography.small, color: colors.accentText, fontWeight: "700" },
-  sectionHeader: { ...typography.small, color: colors.textMuted, fontWeight: "700", textTransform: "uppercase", letterSpacing: 0.5, marginTop: spacing.sm, marginBottom: spacing.xs },
+  markAllText: { ...typography.small, color: colors.accentText, fontWeight: "700", fontFamily: FONT.bold },
+  sectionHeader: { ...typography.small, color: colors.textMuted, fontWeight: "700", fontFamily: FONT.bold, textTransform: "uppercase", letterSpacing: 0.5, marginTop: spacing.sm, marginBottom: spacing.xs },
   card: {
     flexDirection: "row",
     alignItems: "flex-start",

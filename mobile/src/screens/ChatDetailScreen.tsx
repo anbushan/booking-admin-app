@@ -4,7 +4,7 @@ import { Pressable } from "../components/Pressable";
 import { useFocusEffect } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
 import { showAlert } from "../lib/alert";
-import { colors, spacing, radius, typography } from "../theme/theme";
+import { colors, spacing, radius, typography, FONT } from "../theme/theme";
 import { api } from "../lib/api";
 import { getSocket } from "../lib/socket";
 import { dialProxyNumber } from "../lib/callHelper";
@@ -29,15 +29,30 @@ function formatMessageTime(iso: string) {
 export default function ChatDetailScreen({ route, navigation }: any) {
   useScreenView("ChatDetailScreen");
   const { t } = useTranslation();
-  const { bookingId, currentUserId: paramUserId, calleeRole } = route.params;
+  // otherName/otherPhoto: ChatListScreen already has both in memory (it
+  // needs them to render its own row) and passes them along here so the
+  // header can paint the real name/avatar on the very first frame —
+  // without this every entry point showed a placeholder title and blank
+  // avatar for a beat, then popped to the real ones once
+  // getBookingDetail resolved. Entry points that don't have this data
+  // yet (HistoryScreen, UpcomingTripsScreen, TripOtpScreen's chat icon)
+  // still fall back to the fetch below; only ChatListScreen's own tap
+  // gets the flicker-free path today.
+  const { bookingId, currentUserId: paramUserId, calleeRole, otherName: paramOtherName, otherPhoto: paramOtherPhoto } = route.params;
   const [currentUserId, setCurrentUserId] = useState<string | undefined>(paramUserId);
   const [messages, setMessages] = useState<Message[]>([]);
   const [text, setText] = useState("");
   const [calling, setCalling] = useState(false);
   const [sharingLocation, setSharingLocation] = useState(false);
   const [ended, setEnded] = useState(false);
-  const [otherName, setOtherName] = useState<string | null>(null);
-  const [otherPhoto, setOtherPhoto] = useState<string | null>(null);
+  // Starts false (not "has this loaded yet, ever") rather than tracking
+  // per-focus freshness — the footer only needs to avoid rendering a
+  // guess on the very first paint; every focus after that already has a
+  // real answer to keep showing while the next check runs in the
+  // background.
+  const [detailLoaded, setDetailLoaded] = useState(false);
+  const [otherName, setOtherName] = useState<string | null>(paramOtherName || null);
+  const [otherPhoto, setOtherPhoto] = useState<string | null>(paramOtherPhoto || null);
   const socketRef = useRef<any>(null);
   const { showError } = useToast();
 
@@ -57,9 +72,23 @@ export default function ChatDetailScreen({ route, navigation }: any) {
       api.getBookingDetail(bookingId)
         .then((booking) => {
           setEnded(booking.status !== "CONFIRMED");
+          setDetailLoaded(true);
+          // Name/photo are set once and then left alone on every later
+          // refocus (app foreground, coming back from a shared-location
+          // tap, ...) rather than re-set every time this effect reruns.
+          // Two reasons: the other party's name/photo can't change
+          // mid-conversation, so there's nothing to refresh; and
+          // photoViewUrl is a freshly-presigned URL every single call
+          // (different signature/expiry query string each time even for
+          // the exact same file — see lib/photo.js) — re-setting it on
+          // every focus handed Avatar's <Image> a "new" uri each time,
+          // which made it reload from scratch and visibly flash even
+          // though it was the same photo. Only `ended` needs to be live
+          // every focus — that's the one thing that can actually change
+          // while this screen sits backgrounded.
           const other = calleeRole === "DRIVER" ? booking.ride?.driver : booking.passenger;
-          setOtherName(other?.name || null);
-          setOtherPhoto(other?.photoViewUrl || null);
+          setOtherName((prev) => prev ?? other?.name ?? null);
+          setOtherPhoto((prev) => prev ?? other?.photoViewUrl ?? null);
         })
         .catch(() => {});
       // Opening this conversation is what clears its unread badge
@@ -157,6 +186,13 @@ export default function ChatDetailScreen({ route, navigation }: any) {
         style={styles.chatBg}
         data={messages}
         keyExtractor={(item) => item.id}
+        // A long-running conversation can rack up hundreds of messages —
+        // these keep the off-screen render window small instead of the
+        // default (10 batches, 21-screen window) trying to keep the
+        // whole history warm.
+        maxToRenderPerBatch={12}
+        windowSize={8}
+        initialNumToRender={15}
         contentContainerStyle={{ padding: spacing.md, gap: spacing.sm }}
         renderItem={({ item }) => {
           const isMine = item.senderId === currentUserId;
@@ -183,7 +219,19 @@ export default function ChatDetailScreen({ route, navigation }: any) {
           );
         }}
       />
-      {ended ? (
+      {!detailLoaded ? (
+        // ended defaults to false before the first getBookingDetail
+        // resolves — rendering off that guess showed the composer, then
+        // swapped it for the "conversation ended" banner a beat later on
+        // any booking that wasn't actually CONFIRMED. A same-height
+        // spacer avoids both the wrong-content flash and a layout jump
+        // once the real footer replaces it.
+        // 64 = inputRow's own real height (spacing.md padding top+bottom
+        // + the 40px send/share buttons) — matched exactly so swapping in
+        // the real footer once detailLoaded flips doesn't itself cause a
+        // layout jump.
+        <View style={[styles.inputRow, { minHeight: 64 }]} />
+      ) : ended ? (
         <View style={styles.endedBanner}>
           <Ionicons name="lock-closed-outline" size={14} color={colors.textMuted} />
           <Text style={styles.endedBannerText}>{t("chatDetail.conversationEnded")}</Text>
@@ -225,7 +273,7 @@ const styles = StyleSheet.create({
   timeText: { ...typography.small, color: colors.textMuted, fontSize: 10, marginTop: 2, alignSelf: "flex-end" },
   locationBubble: { minWidth: 160 },
   locationRow: { flexDirection: "row", alignItems: "center", gap: 5 },
-  locationText: { ...typography.caption, color: colors.textPrimary, fontWeight: "700" },
+  locationText: { ...typography.caption, color: colors.textPrimary, fontWeight: "700", fontFamily: FONT.bold },
   locationHint: { ...typography.small, color: colors.textMuted, marginTop: 2 },
   inputRow: { flexDirection: "row", gap: spacing.sm, padding: spacing.md, borderTopWidth: 1, borderTopColor: colors.border, backgroundColor: colors.surface },
   endedBanner: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, padding: spacing.md, borderTopWidth: 1, borderTopColor: colors.border, backgroundColor: colors.surface },

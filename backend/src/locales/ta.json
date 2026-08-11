@@ -477,6 +477,7 @@
   "vehicle.vehicleRemoved": "வாகனம் அகற்றப்பட்டது",
   "vehicle.couldntRemove": "வாகனத்தை அகற்ற முடியவில்லை",
   "vehicle.addYourVehicle": "உங்கள் வாகனத்தைச் சேர்க்கவும்",
+  "vehicle.skipForNow": "இப்போதைக்குத் தவிர்",
   "vehicle.editVehicle": "வாகனத்தைத் திருத்து",
   "vehicle.vehicleType": "வாகன வகை",
   "vehicle.car": "கார்",

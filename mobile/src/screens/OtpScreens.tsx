@@ -3,9 +3,10 @@ import { View, Text, TextInput, Image, StyleSheet } from "react-native";
 import { Pressable } from "../components/Pressable";
 import { Ionicons } from "@expo/vector-icons";
 import { showAlert } from "../lib/alert";
-import { colors, spacing, radius, typography } from "../theme/theme";
+import { colors, spacing, radius, typography, FONT } from "../theme/theme";
 import { api, setAuthToken } from "../lib/api";
 import { setupPushNotifications } from "../lib/pushNotifications";
+import { setErrorTrackingUser } from "../lib/errorTracking";
 import { Analytics } from "../lib/analytics";
 import { appEvents } from "../lib/appEvents";
 import { useToast } from "../components/Toast";
@@ -29,6 +30,7 @@ async function completeLogin(result: any, navigation: any) {
   await setAuthToken(result.token);
   setupPushNotifications().catch(() => {});
   Analytics.login();
+  setErrorTrackingUser(result.user?.id || null);
   // Tells AppSocketBridge to (re)connect right now, rather than waiting
   // for the next app-foreground event — without this, a fresh login
   // partway through a session would sit with no live connection until
@@ -404,7 +406,7 @@ const styles = StyleSheet.create({
   editNumberLink: { ...typography.small, color: colors.textMuted, textDecorationLine: "underline", marginTop: 4, marginBottom: spacing.lg },
   signupLink: { flexDirection: "row", gap: 6, marginTop: spacing.lg, paddingHorizontal: spacing.sm },
   signupLinkText: { ...typography.caption, color: colors.textSecondary, flex: 1, lineHeight: 18 },
-  signupLinkAccent: { color: colors.accentText, fontWeight: "700" },
+  signupLinkAccent: { color: colors.accentText, fontWeight: "700", fontFamily: FONT.bold },
   checkboxRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm, marginBottom: spacing.md, alignSelf: "flex-start" },
   checkbox: {
     width: 20, height: 20, borderRadius: 5, borderWidth: 1.5, borderColor: colors.border,
@@ -413,14 +415,14 @@ const styles = StyleSheet.create({
   checkboxChecked: { backgroundColor: colors.accent, borderColor: colors.accent },
   checkboxLabel: { ...typography.caption, color: colors.textSecondary },
   modeToggle: { flexDirection: "row", alignItems: "center", gap: 5, alignSelf: "center", marginTop: spacing.md, padding: spacing.xs },
-  modeToggleText: { ...typography.small, color: colors.accentText, fontWeight: "700" },
+  modeToggleText: { ...typography.small, color: colors.accentText, fontWeight: "700", fontFamily: FONT.bold },
   inputWrap: {
     flexDirection: "row", alignItems: "center", width: "100%",
     backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border,
     borderRadius: radius.sm, height: 52, marginBottom: spacing.xs, paddingHorizontal: spacing.md,
   },
   inputWrapError: { borderColor: colors.danger },
-  countryCode: { ...typography.body, color: colors.textSecondary, fontWeight: "700" },
+  countryCode: { ...typography.body, color: colors.textSecondary, fontWeight: "700", fontFamily: FONT.bold },
   inputDivider: { width: 1, height: 22, backgroundColor: colors.border, marginHorizontal: spacing.sm },
   plainInput: { flex: 1, ...typography.body, height: 50, fontSize: 16, color: colors.textPrimary },
   fieldErrorRow: { flexDirection: "row", alignItems: "center", gap: 4, alignSelf: "flex-start", marginBottom: spacing.sm },
@@ -433,7 +435,7 @@ const styles = StyleSheet.create({
     alignItems: "center", justifyContent: "center",
   },
   otpBoxActive: { borderColor: colors.accent, borderWidth: 2, backgroundColor: colors.accentBg },
-  otpDigit: { fontSize: 22, fontWeight: "700", color: colors.textPrimary },
+  otpDigit: { fontSize: 22, fontWeight: "700", fontFamily: FONT.bold, color: colors.textPrimary },
   hiddenInput: { position: "absolute", opacity: 0, top: 0, left: 0, right: 0, bottom: 0 },
   button: {
     flexDirection: "row",
@@ -449,5 +451,5 @@ const styles = StyleSheet.create({
   buttonText: { ...typography.title, color: "#FFFFFF" },
   resendRow: { flexDirection: "row", alignItems: "center", gap: 5, marginTop: spacing.lg, padding: spacing.xs },
   resendText: { ...typography.caption, color: colors.textMuted },
-  resendTextActive: { color: colors.accentText, fontWeight: "700" },
+  resendTextActive: { color: colors.accentText, fontWeight: "700", fontFamily: FONT.bold },
 });

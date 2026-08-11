@@ -3,7 +3,7 @@ import { View, Text, FlatList, StyleSheet, RefreshControl } from "react-native";
 import { Pressable } from "../components/Pressable";
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
-import { colors, spacing, radius, typography } from "../theme/theme";
+import { colors, spacing, radius, typography, FONT } from "../theme/theme";
 import { api } from "../lib/api";
 import { CarLoader } from "../components/CarLoader";
 import { EmptyState } from "../components/EmptyState";
@@ -61,6 +61,9 @@ export default function RatingsReceivedScreen({ navigation }: any) {
           <FlatList
             style={{ flex: 1 }}
             data={reviews}
+            maxToRenderPerBatch={10}
+            windowSize={8}
+            initialNumToRender={10}
             refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => load(true)} colors={[colors.accent]} tintColor={colors.accent} />}
             keyExtractor={(item) => item.id}
             contentContainerStyle={{ padding: spacing.md, gap: spacing.sm, flexGrow: 1 }}
@@ -94,7 +97,7 @@ export default function RatingsReceivedScreen({ navigation }: any) {
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.bg },
   summary: { alignItems: "center", padding: spacing.lg },
-  summaryValue: { fontSize: 32, fontWeight: "700", color: colors.warning },
+  summaryValue: { fontSize: 32, fontWeight: "700", fontFamily: FONT.bold, color: colors.warning },
   summaryLabel: { ...typography.caption, color: colors.textMuted, marginTop: 4 },
   card: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: radius.sm, padding: spacing.md },
   stars: { color: colors.warning, fontSize: 14 },

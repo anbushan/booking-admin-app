@@ -59,7 +59,17 @@ export function validate(payload, rules) {
   const errors = [];
   for (const rule of rules) {
     const value = payload[rule.field];
-    if (rule.optional && (value === undefined || value === null)) continue;
+    // An empty string counts as "not provided" for an optional field, same
+    // as undefined/null — a client clearing an optional text input (or, as
+    // in RegisterScreen, never filling it in) sends "" rather than omitting
+    // the key entirely, and without this an optional field would reject the
+    // one value ("nothing") that's supposed to be valid for it. This was a
+    // real bug, not theoretical: PUT /api/users/me's optional `email` field
+    // rejected "" with "Enter a valid email address.", which meant every
+    // registration that left email blank (the common case, since it's
+    // optional in RegisterScreen's own UI) failed with a 400 and the user
+    // never got past that screen.
+    if (rule.optional && (value === undefined || value === null || value === "")) continue;
     if (!rule.check(value)) errors.push(rule.message);
   }
   return errors;

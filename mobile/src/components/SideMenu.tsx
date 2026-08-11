@@ -3,7 +3,7 @@ import { View, Text, Modal, Animated, Easing, Dimensions, StyleSheet } from "rea
 import { Pressable } from "./Pressable";
 import { Ionicons } from "@expo/vector-icons";
 import { showAlert } from "../lib/alert";
-import { colors, spacing, radius, typography } from "../theme/theme";
+import { colors, spacing, radius, typography, FONT } from "../theme/theme";
 import { logout } from "../lib/api";
 import { Analytics } from "../lib/analytics";
 import Avatar from "./Avatar";
@@ -215,7 +215,7 @@ const styles = StyleSheet.create({
   profileBlock: { marginBottom: spacing.lg, paddingBottom: spacing.lg, borderBottomWidth: 1, borderBottomColor: colors.border },
   name: { ...typography.title },
   roleBadge: { flexDirection: "row", alignItems: "center", gap: 4, marginTop: 4 },
-  role: { ...typography.small, color: colors.accentText, fontWeight: "700" },
+  role: { ...typography.small, color: colors.accentText, fontWeight: "700", fontFamily: FONT.bold },
   sectionLabel: {
     ...typography.small,
     color: colors.textMuted,
@@ -236,7 +236,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  rowBadgeText: { color: "#FFFFFF", fontSize: 10, fontWeight: "700" },
+  rowBadgeText: { color: "#FFFFFF", fontSize: 10, fontWeight: "700", fontFamily: FONT.bold },
   logoutRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm, marginTop: spacing.xl, paddingVertical: spacing.sm, borderTopWidth: 1, borderTopColor: colors.border, paddingTop: spacing.md },
-  logoutText: { ...typography.body, color: colors.danger, fontWeight: "700" },
+  logoutText: { ...typography.body, color: colors.danger, fontWeight: "700", fontFamily: FONT.bold },
 });

@@ -12,6 +12,7 @@ import Pagination from "../../../components/Pagination";
 import { SubmitButton } from "../../../components/SubmitButton";
 import { ConfirmButton } from "../../../components/ConfirmButton";
 import { redirectWithToast } from "../../../lib/toastRedirect";
+import { isRedirectError } from "../../../lib/actionError";
 
 export const dynamic = "force-dynamic";
 const PAGE_SIZE = 20;
@@ -19,23 +20,33 @@ const PAGE_SIZE = 20;
 async function approveDocument(formData: FormData) {
   "use server";
   const docId = formData.get("docId") as string;
-  await prisma.document.update({
-    where: { id: docId },
-    data: { status: "APPROVED", reviewedAt: new Date() },
-  });
-  revalidatePath("/drivers/verification-queue");
-  redirectWithToast("/drivers/verification-queue", "Document approved.");
+  try {
+    await prisma.document.update({
+      where: { id: docId },
+      data: { status: "APPROVED", reviewedAt: new Date() },
+    });
+    revalidatePath("/drivers/verification-queue");
+    redirectWithToast("/drivers/verification-queue", "Document approved.");
+  } catch (err) {
+    if (isRedirectError(err)) throw err;
+    redirectWithToast("/drivers/verification-queue", "Couldn't approve document. Try again.", "error");
+  }
 }
 
 async function rejectDocument(formData: FormData) {
   "use server";
   const docId = formData.get("docId") as string;
-  await prisma.document.update({
-    where: { id: docId },
-    data: { status: "REJECTED", reviewedAt: new Date() },
-  });
-  revalidatePath("/drivers/verification-queue");
-  redirectWithToast("/drivers/verification-queue", "Document rejected.");
+  try {
+    await prisma.document.update({
+      where: { id: docId },
+      data: { status: "REJECTED", reviewedAt: new Date() },
+    });
+    revalidatePath("/drivers/verification-queue");
+    redirectWithToast("/drivers/verification-queue", "Document rejected.");
+  } catch (err) {
+    if (isRedirectError(err)) throw err;
+    redirectWithToast("/drivers/verification-queue", "Couldn't reject document. Try again.", "error");
+  }
 }
 
 export default async function VerificationQueuePage({ searchParams }: { searchParams: { page?: string } }) {

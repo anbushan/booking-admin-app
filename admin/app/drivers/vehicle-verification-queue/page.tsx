@@ -13,6 +13,7 @@ import Pagination from "../../../components/Pagination";
 import { SubmitButton } from "../../../components/SubmitButton";
 import { RejectVehicleForm } from "../../../components/RejectVehicleForm";
 import { redirectWithToast } from "../../../lib/toastRedirect";
+import { isRedirectError } from "../../../lib/actionError";
 
 export const dynamic = "force-dynamic";
 const PAGE_SIZE = 20;
@@ -22,20 +23,25 @@ async function approveVehicle(formData: FormData) {
   const vehicleId = formData.get("vehicleId") as string;
   const session = getSession();
 
-  const vehicle = await prisma.vehicle.update({
-    where: { id: vehicleId },
-    data: { status: "APPROVED", reviewedAt: new Date(), reviewedBy: session?.adminId },
-  });
+  try {
+    const vehicle = await prisma.vehicle.update({
+      where: { id: vehicleId },
+      data: { status: "APPROVED", reviewedAt: new Date(), reviewedBy: session?.adminId },
+    });
 
-  await notify(
-    vehicle.driverId,
-    "VEHICLE_APPROVED",
-    "Your vehicle is approved",
-    `${vehicle.make} ${vehicle.model} (${vehicle.regNumber}) passed review — you can publish rides with it now.`
-  );
+    await notify(
+      vehicle.driverId,
+      "VEHICLE_APPROVED",
+      "Your vehicle is approved",
+      `${vehicle.make} ${vehicle.model} (${vehicle.regNumber}) passed review — you can publish rides with it now.`
+    );
 
-  revalidatePath("/drivers/vehicle-verification-queue");
-  redirectWithToast("/drivers/vehicle-verification-queue", "Vehicle approved.");
+    revalidatePath("/drivers/vehicle-verification-queue");
+    redirectWithToast("/drivers/vehicle-verification-queue", "Vehicle approved.");
+  } catch (err) {
+    if (isRedirectError(err)) throw err;
+    redirectWithToast("/drivers/vehicle-verification-queue", "Couldn't approve vehicle. Try again.", "error");
+  }
 }
 
 async function rejectVehicle(formData: FormData) {
@@ -49,20 +55,25 @@ async function rejectVehicle(formData: FormData) {
     return;
   }
 
-  const vehicle = await prisma.vehicle.update({
-    where: { id: vehicleId },
-    data: { status: "REJECTED", rejectionReason: reason, reviewedAt: new Date(), reviewedBy: session?.adminId },
-  });
+  try {
+    const vehicle = await prisma.vehicle.update({
+      where: { id: vehicleId },
+      data: { status: "REJECTED", rejectionReason: reason, reviewedAt: new Date(), reviewedBy: session?.adminId },
+    });
 
-  await notify(
-    vehicle.driverId,
-    "VEHICLE_REJECTED",
-    "Your vehicle needs another look",
-    `${vehicle.make} ${vehicle.model} (${vehicle.regNumber}) wasn't approved: ${reason} — you can fix it and resubmit.`
-  );
+    await notify(
+      vehicle.driverId,
+      "VEHICLE_REJECTED",
+      "Your vehicle needs another look",
+      `${vehicle.make} ${vehicle.model} (${vehicle.regNumber}) wasn't approved: ${reason} — you can fix it and resubmit.`
+    );
 
-  revalidatePath("/drivers/vehicle-verification-queue");
-  redirectWithToast("/drivers/vehicle-verification-queue", "Vehicle rejected.");
+    revalidatePath("/drivers/vehicle-verification-queue");
+    redirectWithToast("/drivers/vehicle-verification-queue", "Vehicle rejected.");
+  } catch (err) {
+    if (isRedirectError(err)) throw err;
+    redirectWithToast("/drivers/vehicle-verification-queue", "Couldn't reject vehicle. Try again.", "error");
+  }
 }
 
 export default async function VehicleVerificationQueuePage({ searchParams }: { searchParams: { page?: string } }) {

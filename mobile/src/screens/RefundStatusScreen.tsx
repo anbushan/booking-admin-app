@@ -1,6 +1,6 @@
 import React from "react";
 import { View, Text, StyleSheet } from "react-native";
-import { colors, spacing, radius, typography } from "../theme/theme";
+import { colors, spacing, radius, typography, FONT } from "../theme/theme";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { BackHeader } from "../components/BackHeader";
 import { useScreenView } from "../lib/useScreenView";
@@ -59,7 +59,7 @@ const styles = StyleSheet.create({
   back: { fontSize: 18 },
   title: typography.title,
   body: { padding: spacing.lg, alignItems: "center" },
-  amount: { fontSize: 28, fontWeight: "700", marginTop: spacing.lg },
+  amount: { fontSize: 28, fontWeight: "700", fontFamily: FONT.bold, marginTop: spacing.lg },
   statusText: { ...typography.caption, color: colors.textSecondary, marginTop: spacing.xs, textAlign: "center" },
   timeline: { alignSelf: "stretch", marginTop: spacing.xl, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: radius.md, padding: spacing.md },
   timelineRow: { flexDirection: "row", justifyContent: "space-between", paddingVertical: spacing.sm, borderBottomWidth: 1, borderBottomColor: colors.border },

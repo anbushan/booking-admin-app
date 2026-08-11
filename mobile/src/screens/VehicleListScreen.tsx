@@ -4,7 +4,7 @@ import { Pressable } from "../components/Pressable";
 import { useFocusEffect } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
 import { showAlert } from "../lib/alert";
-import { colors, spacing, radius, typography } from "../theme/theme";
+import { colors, spacing, radius, typography, FONT } from "../theme/theme";
 import { api } from "../lib/api";
 import { CarLoader } from "../components/CarLoader";
 import { EmptyState } from "../components/EmptyState";
@@ -114,6 +114,9 @@ export default function VehicleListScreen({ navigation }: any) {
       <FlatList
         style={{ flex: 1 }}
         data={vehicles}
+        maxToRenderPerBatch={10}
+        windowSize={8}
+        initialNumToRender={10}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => load(true)} colors={[colors.accent]} tintColor={colors.accent} />}
         keyExtractor={(item) => item.id}
         contentContainerStyle={{ padding: spacing.md, gap: spacing.sm, flexGrow: 1 }}
@@ -158,7 +161,7 @@ const styles = StyleSheet.create({
   name: { ...typography.title, fontSize: 14 },
   meta: { ...typography.small, color: colors.textMuted, marginTop: 2 },
   statusTag: { flexDirection: "row", alignItems: "center", gap: 4, alignSelf: "flex-start", marginTop: 4, paddingVertical: 2, paddingHorizontal: 7, borderRadius: 999 },
-  statusTagText: { ...typography.small, fontWeight: "700" },
+  statusTagText: { ...typography.small, fontWeight: "700", fontFamily: FONT.bold },
   statusPending: { backgroundColor: colors.warningBg },
   statusApproved: { backgroundColor: colors.successBg },
   statusRejected: { backgroundColor: colors.dangerBg },

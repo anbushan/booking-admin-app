@@ -9,7 +9,9 @@ import { AlertTriangle } from "lucide-react";
 import { EmptyState } from "../../components/EmptyState";
 import Pagination from "../../components/Pagination";
 import { SubmitButton } from "../../components/SubmitButton";
+import { ConfirmButton } from "../../components/ConfirmButton";
 import { redirectWithToast } from "../../lib/toastRedirect";
+import { isRedirectError } from "../../lib/actionError";
 
 export const dynamic = "force-dynamic";
 const PAGE_SIZE = 25;
@@ -17,17 +19,27 @@ const PAGE_SIZE = 25;
 async function acknowledgeAlert(formData: FormData) {
   "use server";
   const alertId = formData.get("alertId") as string;
-  await prisma.sosAlert.update({ where: { id: alertId }, data: { status: "ACKNOWLEDGED" } });
-  revalidatePath("/sos-alerts");
-  redirectWithToast("/sos-alerts", "Alert acknowledged.");
+  try {
+    await prisma.sosAlert.update({ where: { id: alertId }, data: { status: "ACKNOWLEDGED" } });
+    revalidatePath("/sos-alerts");
+    redirectWithToast("/sos-alerts", "Alert acknowledged.");
+  } catch (err) {
+    if (isRedirectError(err)) throw err;
+    redirectWithToast("/sos-alerts", "Couldn't acknowledge alert. Try again.", "error");
+  }
 }
 
 async function resolveAlert(formData: FormData) {
   "use server";
   const alertId = formData.get("alertId") as string;
-  await prisma.sosAlert.update({ where: { id: alertId }, data: { status: "RESOLVED" } });
-  revalidatePath("/sos-alerts");
-  redirectWithToast("/sos-alerts", "Alert resolved.");
+  try {
+    await prisma.sosAlert.update({ where: { id: alertId }, data: { status: "RESOLVED" } });
+    revalidatePath("/sos-alerts");
+    redirectWithToast("/sos-alerts", "Alert resolved.");
+  } catch (err) {
+    if (isRedirectError(err)) throw err;
+    redirectWithToast("/sos-alerts", "Couldn't resolve alert. Try again.", "error");
+  }
 }
 
 function sosTone(status: string): "danger" | "warning" | "success" {
@@ -101,10 +113,15 @@ export default async function SosAlertsPage({ searchParams }: { searchParams: { 
                         </SubmitButton>
                       </form>
                     )}
-                    <form action={resolveAlert}>
-                      <input type="hidden" name="alertId" value={alert.id} />
-                      <SubmitButton pendingLabel="Updating...">Mark resolved</SubmitButton>
-                    </form>
+                    <ConfirmButton
+                      action={resolveAlert}
+                      hiddenFields={{ alertId: alert.id }}
+                      label="Mark resolved"
+                      confirmTitle="Mark this SOS alert resolved?"
+                      confirmMessage={`This closes out the alert for booking ${alert.bookingId} — make sure whoever triggered it is actually confirmed safe first, not just that contacts were notified.`}
+                      confirmLabel="Mark resolved"
+                      className="admin-btn admin-btn-primary"
+                    />
                   </div>
                 )}
               </div>

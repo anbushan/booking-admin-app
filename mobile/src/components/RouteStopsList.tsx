@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { View, Text, Animated, Easing, StyleSheet } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { colors, spacing, typography } from "../theme/theme";
+import { colors, spacing, typography, FONT } from "../theme/theme";
 
 type Stop = { placeName: string; distanceKm: number; durationMinutes: number };
 
@@ -88,7 +88,7 @@ const styles = StyleSheet.create({
   dotEnd: { backgroundColor: colors.danger },
   line: { width: 1, flex: 1, minHeight: 24, backgroundColor: colors.border, marginVertical: 2 },
   point: { flex: 1, paddingBottom: spacing.sm },
-  placeName: { ...typography.caption, fontWeight: "700", color: colors.textPrimary },
+  placeName: { ...typography.caption, fontWeight: "700", fontFamily: FONT.bold, color: colors.textPrimary },
   meta: { ...typography.small, color: colors.textMuted, marginTop: 1 },
   carBadge: {
     position: "absolute", left: -5, top: 0, width: 18, height: 18, borderRadius: 9,

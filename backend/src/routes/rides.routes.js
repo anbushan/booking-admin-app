@@ -566,18 +566,24 @@ router.delete("/:id", requireAuth, requireRole("DRIVER"), async (req, res) => {
   // CONFIRMED — so nobody being cancelled here has actually paid yet:
   // no refund needed (refundIfPaid stays a safe no-op regardless), no
   // grace-window/strike logic applies, same as a plain withdrawn request.
-  for (const booking of ride.bookings) {
-    await prisma.booking.update({
-      where: { id: booking.id },
-      data: { status: "CANCELLED", cancelledBy: "DRIVER", cancelReason: "DRIVER_WITHDRAWN", cancelledAt: now },
-    });
-    await clearChatForBooking(booking.id);
-    await refundIfPaid(booking.id).catch((err) =>
-      console.error(`Refund check failed for booking ${booking.id}:`, err.message)
-    );
-    await notify(booking.passengerId, "RIDE_CANCELLED", "Ride cancelled",
-      "The driver cancelled this ride. Please search for another one.", booking.id);
-  }
+  // One affected booking's cancel work is independent of every other's,
+  // so they run in parallel instead of one at a time — the previous
+  // sequential loop meant a ride with N pending requests took N times as
+  // long to cancel as one with a single request.
+  await Promise.all(
+    ride.bookings.map(async (booking) => {
+      await prisma.booking.update({
+        where: { id: booking.id },
+        data: { status: "CANCELLED", cancelledBy: "DRIVER", cancelReason: "DRIVER_WITHDRAWN", cancelledAt: now },
+      });
+      await clearChatForBooking(booking.id);
+      await refundIfPaid(booking.id).catch((err) =>
+        console.error(`Refund check failed for booking ${booking.id}:`, err.message)
+      );
+      await notify(booking.passengerId, "RIDE_CANCELLED", "Ride cancelled",
+        "The driver cancelled this ride. Please search for another one.", booking.id);
+    })
+  );
 
   res.json({ success: true, affectedBookings: ride.bookings.length });
 });

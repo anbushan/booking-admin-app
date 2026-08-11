@@ -3,7 +3,7 @@ import { View, Text, StyleSheet } from "react-native";
 import { Pressable } from "../components/Pressable";
 import { useFocusEffect } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
-import { colors, spacing, radius, typography } from "../theme/theme";
+import { colors, spacing, radius, typography, FONT } from "../theme/theme";
 import { api } from "../lib/api";
 import { CarLoader } from "../components/CarLoader";
 import { StatusBadge } from "../components/StatusBadge";
@@ -162,7 +162,7 @@ const styles = StyleSheet.create({
   actionButtonText: { ...typography.body, color: colors.accentText },
   notFound: { ...typography.body, color: colors.textMuted },
   reviewCard: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: radius.md, padding: spacing.md, marginTop: spacing.md },
-  reviewTitle: { ...typography.caption, color: colors.textSecondary, fontWeight: "700" },
+  reviewTitle: { ...typography.caption, color: colors.textSecondary, fontWeight: "700", fontFamily: FONT.bold },
   reviewStars: { color: colors.warning, fontSize: 16, marginTop: spacing.xs },
   reviewComment: { ...typography.body, marginTop: spacing.xs },
   reviewFrom: { ...typography.small, color: colors.textMuted, marginTop: spacing.xs },

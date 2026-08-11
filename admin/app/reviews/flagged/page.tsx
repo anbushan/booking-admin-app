@@ -10,6 +10,7 @@ import Pagination from "../../../components/Pagination";
 import { SubmitButton } from "../../../components/SubmitButton";
 import { ConfirmButton } from "../../../components/ConfirmButton";
 import { redirectWithToast } from "../../../lib/toastRedirect";
+import { isRedirectError } from "../../../lib/actionError";
 
 export const dynamic = "force-dynamic";
 const PAGE_SIZE = 25;
@@ -17,17 +18,27 @@ const PAGE_SIZE = 25;
 async function unflag(formData: FormData) {
   "use server";
   const id = formData.get("reviewId") as string;
-  await prisma.review.update({ where: { id }, data: { flagged: false } });
-  revalidatePath("/reviews/flagged");
-  redirectWithToast("/reviews/flagged", "Review kept — unflagged.");
+  try {
+    await prisma.review.update({ where: { id }, data: { flagged: false } });
+    revalidatePath("/reviews/flagged");
+    redirectWithToast("/reviews/flagged", "Review kept — unflagged.");
+  } catch (err) {
+    if (isRedirectError(err)) throw err;
+    redirectWithToast("/reviews/flagged", "Couldn't unflag review. Try again.", "error");
+  }
 }
 
 async function removeReview(formData: FormData) {
   "use server";
   const id = formData.get("reviewId") as string;
-  await prisma.review.delete({ where: { id } });
-  revalidatePath("/reviews/flagged");
-  redirectWithToast("/reviews/flagged", "Review removed.");
+  try {
+    await prisma.review.delete({ where: { id } });
+    revalidatePath("/reviews/flagged");
+    redirectWithToast("/reviews/flagged", "Review removed.");
+  } catch (err) {
+    if (isRedirectError(err)) throw err;
+    redirectWithToast("/reviews/flagged", "Couldn't remove review. Try again.", "error");
+  }
 }
 
 export default async function FlaggedReviewsPage({ searchParams }: { searchParams: { page?: string } }) {

@@ -1,7 +1,7 @@
 import React from "react";
 import { View, Text, StyleSheet } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { getStatusMeta, radius, spacing, typography, toneColors } from "../theme/theme";
+import { getStatusMeta, radius, spacing, typography, toneColors, FONT } from "../theme/theme";
 import { useTranslation } from "../lib/i18n/I18nContext";
 
 // Replaces every bare `<Text style={styles.status}>{item.status}</Text>`
@@ -36,5 +36,5 @@ const styles = StyleSheet.create({
     borderRadius: radius.lg,
   },
   pillSmall: { paddingVertical: 3, paddingHorizontal: 7, gap: 4 },
-  label: { fontWeight: "700" },
+  label: { fontWeight: "700", fontFamily: FONT.bold },
 });

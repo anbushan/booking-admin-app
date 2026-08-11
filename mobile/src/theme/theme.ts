@@ -40,6 +40,32 @@ export const radius = {
   lg: 20,
 };
 
+// Font family — Poppins, loaded via @expo-google-fonts/poppins (see
+// App.tsx's useFonts gate, which holds the app on a blank screen for the
+// ~one-time load rather than flashing system-font text that then swaps).
+// Picked to match the rounded, confident, geometric-grotesque feel of
+// Zomato's own app type — their actual typeface (Okra) is commercially
+// licensed exclusively to them, not something that can legally be
+// downloaded and bundled here. Poppins is the closest widely-used open
+// alternative with the same rounded terminals and weight range, which is
+// exactly why it's already the de facto "Zomato/Swiggy-adjacent" choice
+// across Indian consumer apps.
+//
+// RN doesn't reliably synthesize bold/medium weights for a custom font —
+// `fontWeight` alone silently does nothing on Android once a custom
+// `fontFamily` is set (a well-known RN limitation, not a bug introduced
+// here). Each weight needs its own named font family instead; every
+// `fontWeight: "700"` override elsewhere in the app is now paired with
+// `fontFamily: FONT.bold` for exactly this reason — fontWeight is kept
+// alongside it as harmless, informative metadata, not as what actually
+// selects the bold glyphs.
+export const FONT = {
+  regular: "Poppins_400Regular",
+  medium: "Poppins_500Medium",
+  semiBold: "Poppins_600SemiBold",
+  bold: "Poppins_700Bold",
+};
+
 // Every entry carries its own default `color` now, not just size/weight.
 // Previously it didn't, so any style that did `{ ...typography.title }`
 // without also adding its own `color` fell back to Android's platform
@@ -52,10 +78,13 @@ export const radius = {
 // the built APK" bug — an explicit color here means there's nothing
 // ambiguous left for either the OS or a missed style to guess at.
 export const typography = {
-  title: { fontSize: 16, fontWeight: "700" as const, color: colors.textPrimary },
-  body: { fontSize: 14, fontWeight: "400" as const, color: colors.textPrimary },
-  caption: { fontSize: 12, fontWeight: "400" as const, color: colors.textPrimary },
-  small: { fontSize: 11, fontWeight: "400" as const, color: colors.textMuted },
+  // 16->17: Zomato's own hierarchy leans on one confidently-sized bold
+  // header rather than a wide size range — this is the one tier used
+  // for nearly every screen/card title across the app.
+  title: { fontSize: 17, fontFamily: FONT.bold, fontWeight: "700" as const, color: colors.textPrimary },
+  body: { fontSize: 14, fontFamily: FONT.regular, fontWeight: "400" as const, color: colors.textPrimary },
+  caption: { fontSize: 12, fontFamily: FONT.regular, fontWeight: "400" as const, color: colors.textPrimary },
+  small: { fontSize: 11, fontFamily: FONT.regular, fontWeight: "400" as const, color: colors.textMuted },
 };
 
 // One entry per ride/booking status string this app actually uses

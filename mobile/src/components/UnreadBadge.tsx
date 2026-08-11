@@ -1,6 +1,6 @@
 import React from "react";
 import { View, Text, StyleSheet } from "react-native";
-import { colors } from "../theme/theme";
+import { colors, FONT } from "../theme/theme";
 
 // A small unread-count pill for the Chat action on a booking card
 // (HistoryScreen for passengers, UpcomingTripsScreen for drivers).
@@ -25,5 +25,5 @@ const styles = StyleSheet.create({
     paddingHorizontal: 4,
     marginLeft: 4,
   },
-  text: { color: "#FFFFFF", fontSize: 10, fontWeight: "700" },
+  text: { color: "#FFFFFF", fontSize: 10, fontWeight: "700", fontFamily: FONT.bold },
 });

@@ -5,7 +5,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Notifications from "expo-notifications";
 import * as Location from "expo-location";
 import { Ionicons } from "@expo/vector-icons";
-import { colors, spacing, radius, typography } from "../theme/theme";
+import { colors, spacing, radius, typography, FONT } from "../theme/theme";
 import { Analytics } from "../lib/analytics";
 import { api } from "../lib/api";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -174,7 +174,7 @@ const styles = StyleSheet.create({
     padding: 10,
   },
   splashBadgeImage: { width: "100%", height: "100%" },
-  splashTitle: { color: "#FFFFFF", fontSize: 28, fontWeight: "700" },
+  splashTitle: { color: "#FFFFFF", fontSize: 28, fontWeight: "700", fontFamily: FONT.bold },
   splashTagline: { color: "#FFFFFF", opacity: 0.7, fontSize: 13, marginTop: spacing.xs },
   screen: { flex: 1, backgroundColor: colors.bg },
   slide: { alignItems: "center", justifyContent: "center", padding: spacing.xl },
@@ -187,5 +187,5 @@ const styles = StyleSheet.create({
   footer: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", padding: spacing.lg },
   skip: { ...typography.caption, color: colors.textMuted },
   nextButton: { flexDirection: "row", alignItems: "center", gap: 6, backgroundColor: colors.accent, paddingVertical: spacing.sm, paddingHorizontal: spacing.lg, borderRadius: radius.sm },
-  nextButtonText: { ...typography.caption, color: "#FFFFFF", fontWeight: "700" },
+  nextButtonText: { ...typography.caption, color: "#FFFFFF", fontWeight: "700", fontFamily: FONT.bold },
 });

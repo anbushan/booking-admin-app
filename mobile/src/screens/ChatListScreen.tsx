@@ -116,6 +116,9 @@ export default function ChatListScreen({ navigation, route }: any) {
       ) : (
       <FlatList
         data={conversations}
+        maxToRenderPerBatch={10}
+        windowSize={8}
+        initialNumToRender={10}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => load(true)} colors={[colors.accent]} tintColor={colors.accent} />}
         keyExtractor={(item) => item.bookingId}
         contentContainerStyle={{ padding: spacing.md, gap: spacing.sm, flexGrow: 1 }}
@@ -127,6 +130,12 @@ export default function ChatListScreen({ navigation, route }: any) {
                 bookingId: item.bookingId,
                 currentUserId,
                 calleeRole: role === "DRIVER" ? "PASSENGER" : "DRIVER",
+                // Already in memory (this list needs it too, to render
+                // its own row) — passing it along lets ChatDetailScreen's
+                // header paint the real name/avatar on the first frame
+                // instead of a placeholder that pops in a beat later.
+                otherName: item.otherPartyName,
+                otherPhoto: item.otherPartyPhoto,
               })
             }
           >

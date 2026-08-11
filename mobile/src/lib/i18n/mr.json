@@ -477,6 +477,7 @@
   "vehicle.vehicleRemoved": "वाहन काढले",
   "vehicle.couldntRemove": "वाहन काढता आले नाही",
   "vehicle.addYourVehicle": "तुमचे वाहन जोडा",
+  "vehicle.skipForNow": "आत्तासाठी वगळा",
   "vehicle.editVehicle": "वाहन संपादित करा",
   "vehicle.vehicleType": "वाहन प्रकार",
   "vehicle.car": "कार",

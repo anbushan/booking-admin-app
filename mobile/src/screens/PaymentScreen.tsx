@@ -4,7 +4,7 @@ import { Pressable } from "../components/Pressable";
 import { Ionicons } from "@expo/vector-icons";
 import { showAlert } from "../lib/alert";
 import RazorpayCheckout from "react-native-razorpay";
-import { colors, spacing, radius, typography } from "../theme/theme";
+import { colors, spacing, radius, typography, FONT } from "../theme/theme";
 import { api } from "../lib/api";
 import { Analytics } from "../lib/analytics";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -191,5 +191,5 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     marginTop: spacing.lg,
   },
-  mockButtonText: { ...typography.caption, color: colors.warning, fontWeight: "700" },
+  mockButtonText: { ...typography.caption, color: colors.warning, fontWeight: "700", fontFamily: FONT.bold },
 });

@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { View, Text, Image, FlatList, StyleSheet } from "react-native";
 import { Pressable } from "../components/Pressable";
 import { Ionicons } from "@expo/vector-icons";
-import { colors, spacing, radius, typography } from "../theme/theme";
+import { colors, spacing, radius, typography, FONT } from "../theme/theme";
 import { api } from "../lib/api";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { BackHeader } from "../components/BackHeader";
@@ -55,6 +55,9 @@ export default function PublicProfileScreen({ route, navigation }: any) {
       <FlatList
         data={reviews}
         keyExtractor={(item) => item.id}
+        maxToRenderPerBatch={10}
+        windowSize={8}
+        initialNumToRender={10}
         contentContainerStyle={{ paddingHorizontal: spacing.lg, gap: spacing.sm, flexGrow: 1 }}
         renderItem={({ item }) => {
           // Don't bother linking a review back to the profile you're
@@ -90,7 +93,7 @@ const styles = StyleSheet.create({
   profileCard: { alignItems: "center", padding: spacing.lg },
   avatar: { width: 64, height: 64, borderRadius: 32, backgroundColor: colors.accentBg, alignItems: "center", justifyContent: "center", overflow: "hidden" },
   avatarImage: { width: "100%", height: "100%", borderRadius: 32 },
-  avatarText: { fontSize: 22, fontWeight: "700", color: colors.accentText },
+  avatarText: { fontSize: 22, fontWeight: "700", fontFamily: FONT.bold, color: colors.accentText },
   name: { ...typography.title, fontSize: 16, marginTop: spacing.sm },
   meta: { ...typography.caption, color: colors.textMuted, marginTop: 2 },
   rating: { ...typography.caption, color: colors.warning, marginTop: 4 },

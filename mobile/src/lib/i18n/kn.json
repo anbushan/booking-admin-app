@@ -477,6 +477,7 @@
   "vehicle.vehicleRemoved": "ವಾಹನ ತೆಗೆದುಹಾಕಲಾಗಿದೆ",
   "vehicle.couldntRemove": "ವಾಹನವನ್ನು ತೆಗೆದುಹಾಕಲು ಸಾಧ್ಯವಾಗಲಿಲ್ಲ",
   "vehicle.addYourVehicle": "ನಿಮ್ಮ ವಾಹನವನ್ನು ಸೇರಿಸಿ",
+  "vehicle.skipForNow": "ಸದ್ಯಕ್ಕೆ ಬಿಟ್ಟುಬಿಡಿ",
   "vehicle.editVehicle": "ವಾಹನವನ್ನು ಸಂಪಾದಿಸಿ",
   "vehicle.vehicleType": "ವಾಹನ ಪ್ರಕಾರ",
   "vehicle.car": "ಕಾರು",

@@ -9,7 +9,7 @@ import { showAlert } from "../lib/alert";
 // simple "write one string, hand it to the share sheet" use case.
 import * as FileSystem from "expo-file-system/legacy";
 import * as Sharing from "expo-sharing";
-import { colors, spacing, radius, typography } from "../theme/theme";
+import { colors, spacing, radius, typography, FONT } from "../theme/theme";
 import { api } from "../lib/api";
 import { useToast } from "../components/Toast";
 import { CarLoader } from "../components/CarLoader";
@@ -171,5 +171,5 @@ const styles = StyleSheet.create({
   buttonText: { ...typography.title, color: "#FFFFFF" },
   hint: { ...typography.small, color: colors.textMuted, textAlign: "center", marginTop: spacing.sm },
   revokeButton: { alignItems: "center", justifyContent: "center", marginTop: spacing.lg, padding: spacing.sm },
-  revokeText: { ...typography.caption, color: colors.danger, fontWeight: "700" },
+  revokeText: { ...typography.caption, color: colors.danger, fontWeight: "700", fontFamily: FONT.bold },
 });

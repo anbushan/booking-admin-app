@@ -3,7 +3,7 @@ import { View, Text, StyleSheet } from "react-native";
 import { Pressable } from "../components/Pressable";
 import { Ionicons } from "@expo/vector-icons";
 import { showAlert } from "../lib/alert";
-import { colors, spacing, radius, typography } from "../theme/theme";
+import { colors, spacing, radius, typography, FONT } from "../theme/theme";
 import { api } from "../lib/api";
 import { StepTracker, bookingJourneySteps } from "../components/StepTracker";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -104,5 +104,5 @@ const styles = StyleSheet.create({
   acceptButton: { flexDirection: "row", gap: spacing.xs, backgroundColor: colors.textPrimary, height: 46, borderRadius: radius.sm, alignItems: "center", justifyContent: "center", marginTop: spacing.xl },
   acceptButtonText: { ...typography.title, color: "#FFFFFF" },
   declineButton: { flexDirection: "row", gap: 6, alignItems: "center", justifyContent: "center", marginTop: spacing.md, paddingVertical: spacing.xs },
-  declineButtonText: { ...typography.caption, color: colors.danger, fontWeight: "700" },
+  declineButtonText: { ...typography.caption, color: colors.danger, fontWeight: "700", fontFamily: FONT.bold },
 });

@@ -2,22 +2,30 @@ import bcrypt from "bcryptjs";
 import { redirect } from "next/navigation";
 import { prisma } from "../../lib/prisma";
 import { getSession, issueSessionCookie } from "../../lib/session";
+import { isRedirectError } from "../../lib/actionError";
 import { Logo } from "../../components/Logo";
+import { PasswordInput } from "../../components/PasswordInput";
+import { SubmitButton } from "../../components/SubmitButton";
 
 async function login(formData: FormData) {
   "use server";
   const email = formData.get("email") as string;
   const password = formData.get("password") as string;
 
-  const admin = await prisma.adminUser.findUnique({ where: { email } });
-  if (!admin) redirect("/login?error=1");
+  try {
+    const admin = await prisma.adminUser.findUnique({ where: { email } });
+    if (!admin) redirect("/login?error=1");
 
-  const valid = await bcrypt.compare(password, admin.passwordHash);
-  if (!valid) redirect("/login?error=1");
+    const valid = await bcrypt.compare(password, admin.passwordHash);
+    if (!valid) redirect("/login?error=1");
 
-  const roleRecord = await prisma.adminRole.findFirst({ where: { adminId: admin.id } });
-  issueSessionCookie({ adminId: admin.id, role: roleRecord?.role || "support" });
-  redirect("/dashboard");
+    const roleRecord = await prisma.adminRole.findFirst({ where: { adminId: admin.id } });
+    issueSessionCookie({ adminId: admin.id, role: roleRecord?.role || "support" });
+    redirect("/dashboard");
+  } catch (err) {
+    if (isRedirectError(err)) throw err;
+    redirect("/login?error=server");
+  }
 }
 
 export default function LoginPage({ searchParams }: { searchParams: { error?: string } }) {
@@ -51,14 +59,14 @@ export default function LoginPage({ searchParams }: { searchParams: { error?: st
         </div>
         {searchParams.error && (
           <p style={{ color: "#A32D2D", fontSize: 13, background: "#FCEBEB", borderRadius: 6, padding: "8px 10px", margin: 0 }}>
-            Invalid email or password.
+            {searchParams.error === "server" ? "Something went wrong. Please try again." : "Invalid email or password."}
           </p>
         )}
         <input name="email" type="email" placeholder="you@company.com" required className="admin-input" style={{ height: 40 }} />
-        <input name="password" type="password" placeholder="Password" required className="admin-input" style={{ height: 40 }} />
-        <button type="submit" className="admin-btn admin-btn-primary" style={{ height: 42, width: "100%" }}>
+        <PasswordInput name="password" placeholder="Password" required autoComplete="current-password" />
+        <SubmitButton className="admin-btn admin-btn-primary" pendingLabel="Signing in..." style={{ height: 42, width: "100%" }}>
           Sign in
-        </button>
+        </SubmitButton>
         <a href="/forgot-password" style={{ fontSize: 13, color: "#5F5E5A", textAlign: "center" }}>
           Forgot password?
         </a>

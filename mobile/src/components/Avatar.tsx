@@ -1,6 +1,6 @@
 import React from "react";
 import { View, Text, Image, StyleSheet, ViewStyle, TextStyle } from "react-native";
-import { colors, typography } from "../theme/theme";
+import { colors, typography, FONT } from "../theme/theme";
 
 // Every screen that shows a person (driver/passenger) drew its own
 // initial-in-a-circle placeholder and never had anywhere to show a real
@@ -42,5 +42,5 @@ export default function Avatar({
 const styles = StyleSheet.create({
   image: { backgroundColor: colors.accentBg },
   fallback: { backgroundColor: colors.accentBg, alignItems: "center", justifyContent: "center" },
-  fallbackText: { ...typography.title, fontWeight: "700", color: colors.accentText },
+  fallbackText: { ...typography.title, fontWeight: "700", fontFamily: FONT.bold, color: colors.accentText },
 });

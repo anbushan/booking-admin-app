@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { View, Text, FlatList, StyleSheet } from "react-native";
 import { Pressable } from "../components/Pressable";
 import { showAlert } from "../lib/alert";
-import { colors, spacing, radius, typography } from "../theme/theme";
+import { colors, spacing, radius, typography, FONT } from "../theme/theme";
 import { api } from "../lib/api";
 import { Analytics } from "../lib/analytics";
 import { ErrorState } from "../components/ErrorState";
@@ -119,5 +119,5 @@ const styles = StyleSheet.create({
   summary: { ...typography.title, fontSize: 14 },
   meta: { ...typography.small, color: colors.textMuted },
   button: { backgroundColor: colors.textPrimary, height: 44, borderRadius: radius.sm, alignItems: "center", justifyContent: "center", marginTop: spacing.xs },
-  buttonText: { ...typography.body, color: "#FFFFFF", fontWeight: "700" },
+  buttonText: { ...typography.body, color: "#FFFFFF", fontWeight: "700", fontFamily: FONT.bold },
 });

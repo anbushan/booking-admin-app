@@ -4,7 +4,7 @@ import { Pressable } from "../components/Pressable";
 import { useFocusEffect } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
 import { showAlert } from "../lib/alert";
-import { colors, spacing, radius, typography } from "../theme/theme";
+import { colors, spacing, radius, typography, FONT } from "../theme/theme";
 import { api, logout } from "../lib/api";
 import { CarLoader } from "../components/CarLoader";
 import { Analytics } from "../lib/analytics";
@@ -134,7 +134,7 @@ const styles = StyleSheet.create({
   blockerRow: { flexDirection: "row", gap: spacing.sm, paddingVertical: spacing.xs },
   blockerText: { ...typography.caption, color: colors.textSecondary, flex: 1, lineHeight: 19 },
   recheckButton: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, marginTop: spacing.lg, padding: spacing.sm },
-  recheckButtonText: { ...typography.caption, color: colors.accentText, fontWeight: "700" },
+  recheckButtonText: { ...typography.caption, color: colors.accentText, fontWeight: "700", fontFamily: FONT.bold },
   warnIconWrap: {
     width: 56, height: 56, borderRadius: 28, backgroundColor: colors.dangerBg,
     alignItems: "center", justifyContent: "center", alignSelf: "center", marginBottom: spacing.md,

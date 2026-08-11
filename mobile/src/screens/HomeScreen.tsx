@@ -4,7 +4,7 @@ import { Pressable } from "../components/Pressable";
 import { useFocusEffect } from "@react-navigation/native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
-import { colors, spacing, radius, typography } from "../theme/theme";
+import { colors, spacing, radius, typography, FONT } from "../theme/theme";
 import SearchOptionsModal, { formatSearchDate } from "../components/SearchOptionsModal";
 import { CarLoader } from "../components/CarLoader";
 import { AppBottomNav } from "../components/AppBottomNav";
@@ -427,7 +427,7 @@ const styles = StyleSheet.create({
     alignItems: "center", justifyContent: "center",
   },
   greeting: { color: "#FFFFFF", opacity: 0.8, fontSize: 13 },
-  name: { color: "#FFFFFF", fontSize: 18, fontWeight: "700", marginTop: 2 },
+  name: { color: "#FFFFFF", fontSize: 18, fontWeight: "700", fontFamily: FONT.bold, marginTop: 2 },
   searchCard: {
     backgroundColor: colors.surface,
     marginHorizontal: spacing.lg,
@@ -507,7 +507,7 @@ const styles = StyleSheet.create({
     minWidth: 18, height: 18, borderRadius: 9, paddingHorizontal: 5,
     backgroundColor: colors.danger, alignItems: "center", justifyContent: "center",
   },
-  badgeText: { color: "#FFFFFF", fontSize: 10, fontWeight: "700" },
+  badgeText: { color: "#FFFFFF", fontSize: 10, fontWeight: "700", fontFamily: FONT.bold },
   driverHint: { ...typography.small, color: colors.textMuted, marginTop: spacing.lg, lineHeight: 18 },
   howItWorksCard: {
     flexDirection: "row",
@@ -518,14 +518,14 @@ const styles = StyleSheet.create({
   howItWorksAccentBar: { width: 4, backgroundColor: colors.accent },
   howItWorksBody: { flex: 1, padding: spacing.md },
   howItWorksHeaderRow: { flexDirection: "row", alignItems: "center", gap: spacing.xs },
-  howItWorksTitle: { ...typography.caption, fontWeight: "700", color: colors.textPrimary, flex: 1 },
+  howItWorksTitle: { ...typography.caption, fontWeight: "700", fontFamily: FONT.bold, color: colors.textPrimary, flex: 1 },
   howItWorksPreviewRow: { flexDirection: "row", alignItems: "center", marginTop: spacing.sm },
   howItWorksIconWrap: { width: 26, height: 26, borderRadius: 8, backgroundColor: colors.accentBg, alignItems: "center", justifyContent: "center" },
   howItWorksConnector: { flex: 1, height: 1, backgroundColor: colors.border, marginHorizontal: 2 },
   howItWorksLinkRow: { flexDirection: "row", alignItems: "center", gap: 4, marginTop: spacing.sm },
-  howItWorksLinkLabel: { ...typography.small, color: colors.accentText, fontWeight: "700", textDecorationLine: "underline" },
+  howItWorksLinkLabel: { ...typography.small, color: colors.accentText, fontWeight: "700", fontFamily: FONT.bold, textDecorationLine: "underline" },
   howItWorksLink: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 4, marginTop: spacing.sm },
-  howItWorksLinkText: { ...typography.small, color: colors.accentText, fontWeight: "700" },
+  howItWorksLinkText: { ...typography.small, color: colors.accentText, fontWeight: "700", fontFamily: FONT.bold },
   sectionLabel: {
     ...typography.title,
     marginHorizontal: spacing.lg,

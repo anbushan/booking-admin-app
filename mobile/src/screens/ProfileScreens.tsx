@@ -3,7 +3,7 @@ import { View, Text, TextInput, ScrollView, Image, StyleSheet } from "react-nati
 import { Pressable } from "../components/Pressable";
 import { Ionicons } from "@expo/vector-icons";
 import { showAlert } from "../lib/alert";
-import { colors, spacing, radius, typography } from "../theme/theme";
+import { colors, spacing, radius, typography, FONT } from "../theme/theme";
 import { api } from "../lib/api";
 import { useToast } from "../components/Toast";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -240,7 +240,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  avatarText: { fontSize: 26, fontWeight: "700", color: "#FFFFFF" },
+  avatarText: { fontSize: 26, fontWeight: "700", fontFamily: FONT.bold, color: "#FFFFFF" },
   avatarImage: { width: "100%", height: "100%", borderRadius: 999 },
   editAvatarWrap: { width: 76, height: 76, marginBottom: spacing.xs },
   editAvatar: {
@@ -252,13 +252,13 @@ const styles = StyleSheet.create({
     backgroundColor: colors.textPrimary, borderWidth: 2, borderColor: colors.bg,
     alignItems: "center", justifyContent: "center",
   },
-  changePhotoText: { ...typography.small, color: colors.accentText, fontWeight: "700", marginBottom: spacing.sm },
+  changePhotoText: { ...typography.small, color: colors.accentText, fontWeight: "700", fontFamily: FONT.bold, marginBottom: spacing.sm },
   name: { ...typography.title, fontSize: 18, color: "#FFFFFF", marginTop: spacing.sm },
   metaRow: { flexDirection: "row", alignItems: "center", gap: 4, marginTop: 2 },
   meta: { ...typography.caption, color: "rgba(255,255,255,0.75)" },
   chipRow: { flexDirection: "row", flexWrap: "wrap", gap: spacing.xs, marginTop: spacing.md, justifyContent: "center" },
   chip: { flexDirection: "row", alignItems: "center", gap: 4, backgroundColor: "rgba(255,255,255,0.16)", borderRadius: radius.sm, paddingVertical: 4, paddingHorizontal: spacing.sm },
-  chipText: { ...typography.small, color: "#FFFFFF", fontWeight: "700" },
+  chipText: { ...typography.small, color: "#FFFFFF", fontWeight: "700", fontFamily: FONT.bold },
   list: { padding: spacing.md, gap: spacing.sm, marginTop: spacing.xs },
   row: { flexDirection: "row", alignItems: "center", gap: spacing.sm, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: radius.md, padding: spacing.md },
   rowIconWrap: { width: 32, height: 32, borderRadius: 10, backgroundColor: colors.accentBg, alignItems: "center", justifyContent: "center" },

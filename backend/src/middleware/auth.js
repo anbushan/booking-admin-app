@@ -1,5 +1,6 @@
 import jwt from "jsonwebtoken";
 import { prisma } from "../lib/prisma.js";
+import { getCachedUser, setCachedUser } from "../lib/userCache.js";
 
 export async function requireAuth(req, res, next) {
   const header = req.headers.authorization || "";
@@ -8,7 +9,15 @@ export async function requireAuth(req, res, next) {
 
   try {
     const payload = jwt.verify(token, process.env.JWT_SECRET);
-    const user = await prisma.user.findUnique({ where: { id: payload.userId } });
+    // Runs on nearly every request — a short-TTL cache (see userCache.js
+    // for the invalidation story) turns the mobile app's frequent
+    // polling of the same user's endpoints into one DB round trip every
+    // few seconds instead of one per request.
+    let user = getCachedUser(payload.userId);
+    if (!user) {
+      user = await prisma.user.findUnique({ where: { id: payload.userId } });
+      if (user) setCachedUser(user);
+    }
     if (!user || user.disabled) {
       return res.status(403).json({ error: "Account unavailable." });
     }

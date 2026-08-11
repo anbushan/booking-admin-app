@@ -3,7 +3,7 @@ import { View, Text, Image, StyleSheet } from "react-native";
 import { Pressable } from "../components/Pressable";
 import { Ionicons } from "@expo/vector-icons";
 import { showAlert } from "../lib/alert";
-import { colors, spacing, radius, typography } from "../theme/theme";
+import { colors, spacing, radius, typography, FONT } from "../theme/theme";
 import { api } from "../lib/api";
 import { Analytics } from "../lib/analytics";
 import { CarLoader } from "../components/CarLoader";
@@ -151,7 +151,7 @@ const styles = StyleSheet.create({
     position: "absolute", top: spacing.sm, right: spacing.sm,
     backgroundColor: colors.accent, borderRadius: 999, paddingVertical: 2, paddingHorizontal: 7,
   },
-  currentBadgeText: { color: "#FFFFFF", fontSize: 10, fontWeight: "700" },
+  currentBadgeText: { color: "#FFFFFF", fontSize: 10, fontWeight: "700", fontFamily: FONT.bold },
   roleIconWrap: {
     width: 48, height: 48, borderRadius: 24, backgroundColor: colors.bg,
     alignItems: "center", justifyContent: "center", marginBottom: spacing.sm,

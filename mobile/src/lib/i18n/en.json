@@ -477,6 +477,7 @@
   "vehicle.vehicleRemoved": "Vehicle removed",
   "vehicle.couldntRemove": "Couldn't remove vehicle",
   "vehicle.addYourVehicle": "Add your vehicle",
+  "vehicle.skipForNow": "Skip for now",
   "vehicle.editVehicle": "Edit vehicle",
   "vehicle.vehicleType": "Vehicle type",
   "vehicle.car": "Car",

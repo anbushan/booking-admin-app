@@ -8,7 +8,10 @@ import AdminShell from "../../../components/AdminShell";
 import { PageHeader } from "../../../components/PageHeader";
 import { Badge } from "../../../components/Badge";
 import { SubmitButton } from "../../../components/SubmitButton";
+import { ChangeRoleForm } from "../../../components/ChangeRoleForm";
 import { redirectWithToast } from "../../../lib/toastRedirect";
+import { isRedirectError } from "../../../lib/actionError";
+import { PasswordInput } from "../../../components/PasswordInput";
 import { UserCog } from "lucide-react";
 export const dynamic = "force-dynamic";
 
@@ -20,12 +23,20 @@ async function createAdmin(formData: FormData) {
   const password = formData.get("password") as string;
   const role = formData.get("role") as string;
 
-  const passwordHash = await bcrypt.hash(password, 10);
-  const admin = await prisma.adminUser.create({ data: { email, passwordHash } });
-  await prisma.adminRole.create({ data: { adminId: admin.id, role } });
+  try {
+    const passwordHash = await bcrypt.hash(password, 10);
+    const admin = await prisma.adminUser.create({ data: { email, passwordHash } });
+    await prisma.adminRole.create({ data: { adminId: admin.id, role } });
 
-  revalidatePath("/settings/roles");
-  redirectWithToast("/settings/roles", `Admin account created for ${email}.`);
+    revalidatePath("/settings/roles");
+    redirectWithToast("/settings/roles", `Admin account created for ${email}.`);
+  } catch (err: any) {
+    if (isRedirectError(err)) throw err;
+    // P2002 is Prisma's unique-constraint code — the email column is
+    // unique, so this is almost always "that email's already an admin".
+    const message = err?.code === "P2002" ? `${email} is already an admin.` : "Couldn't create admin account. Try again.";
+    redirectWithToast("/settings/roles", message, "error");
+  }
 }
 
 async function changeRole(formData: FormData) {
@@ -33,14 +44,19 @@ async function changeRole(formData: FormData) {
   const adminId = formData.get("adminId") as string;
   const role = formData.get("role") as string;
 
-  const existing = await prisma.adminRole.findFirst({ where: { adminId } });
-  if (existing) {
-    await prisma.adminRole.update({ where: { id: existing.id }, data: { role } });
-  } else {
-    await prisma.adminRole.create({ data: { adminId, role } });
+  try {
+    const existing = await prisma.adminRole.findFirst({ where: { adminId } });
+    if (existing) {
+      await prisma.adminRole.update({ where: { id: existing.id }, data: { role } });
+    } else {
+      await prisma.adminRole.create({ data: { adminId, role } });
+    }
+    revalidatePath("/settings/roles");
+    redirectWithToast("/settings/roles", "Role updated.");
+  } catch (err) {
+    if (isRedirectError(err)) throw err;
+    redirectWithToast("/settings/roles", "Couldn't update role. Try again.", "error");
   }
-  revalidatePath("/settings/roles");
-  redirectWithToast("/settings/roles", "Role updated.");
 }
 
 export default async function RolesPage() {
@@ -79,17 +95,13 @@ export default async function RolesPage() {
                 <td style={{ padding: "8px 4px" }}>{a.email}</td>
                 <td style={{ padding: "8px 4px" }}><Badge tone={roleByAdminId[a.id] ? "info" : "neutral"}>{roleByAdminId[a.id] || "none"}</Badge></td>
                 <td style={{ padding: "8px 4px" }}>
-                  <form action={changeRole} style={{ display: "flex", gap: 6 }}>
-                    <input type="hidden" name="adminId" value={a.id} />
-                    <select name="role" defaultValue={roleByAdminId[a.id] || "support"} className="admin-select" style={{ height: 30, fontSize: 12 }}>
-                      {ROLES.map((r) => (
-                        <option key={r} value={r}>{r}</option>
-                      ))}
-                    </select>
-                    <SubmitButton className="admin-btn admin-btn-secondary admin-btn-sm" pendingLabel="Updating...">
-                      Update
-                    </SubmitButton>
-                  </form>
+                  <ChangeRoleForm
+                    action={changeRole}
+                    adminId={a.id}
+                    adminEmail={a.email}
+                    roles={ROLES}
+                    currentRole={roleByAdminId[a.id] || "support"}
+                  />
                 </td>
               </tr>
             ))}
@@ -99,7 +111,7 @@ export default async function RolesPage() {
         <h2 style={{ fontSize: 15, fontWeight: 500, marginTop: 24 }}>Add admin</h2>
         <form action={createAdmin} style={{ display: "flex", gap: 8, marginTop: 8, alignItems: "center", flexWrap: "wrap" }}>
           <input name="email" type="email" placeholder="email" required className="admin-input" />
-          <input name="password" type="password" placeholder="password" required className="admin-input" />
+          <PasswordInput name="password" placeholder="password" required autoComplete="new-password" height={36} style={{ minWidth: 160 }} />
           <select name="role" defaultValue="support" className="admin-select">
             {ROLES.map((r) => (
               <option key={r} value={r}>{r}</option>

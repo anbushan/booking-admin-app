@@ -2,6 +2,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Location from "expo-location";
 import { reportNetworkError } from "./networkStatus";
 import { appEvents } from "./appEvents";
+import { setErrorTrackingUser } from "./errorTracking";
 
 // Production backend on Railway (see backend/README or the deploy notes for
 // how this got provisioned — Neon Postgres + Railway-hosted Redis, both
@@ -38,7 +39,14 @@ async function request(path: string, options: RequestInit = {}) {
   }
 
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data.error || `Request failed: ${res.status}`);
+  // Two different error shapes come back from the backend: a single
+  // `error` string (most routes) or an `errors` array (anything going
+  // through lib/validate.js's field-rule validator — see e.g. PUT
+  // /api/users/me). Only handling `data.error` meant every validation
+  // failure fell through to the generic "Request failed: 400" fallback
+  // instead of the actual field message, which is what made the
+  // RegisterScreen email bug so hard to diagnose from the UI alone.
+  if (!res.ok) throw new Error(data.error || data.errors?.[0] || `Request failed: ${res.status}`);
   return data;
 }
 
@@ -331,6 +339,12 @@ export async function logout() {
   } catch {
     // Ignore — logging out should never get blocked by a network call.
   }
+  // Both call sites (SettingsScreens, SideMenu) already call
+  // Analytics.logout() right after this — clearing the error-tracking
+  // user here, once, means neither has to remember to also do it, and a
+  // crash after logout (e.g. on the PhoneEntry screen it lands back on)
+  // doesn't get misattributed to whoever was just signed out.
+  setErrorTrackingUser(null);
   await AsyncStorage.removeItem("authToken");
   // Tells AppSocketBridge to drop the live connection — without this a
   // stale, still-authenticated socket could sit open after sign-out

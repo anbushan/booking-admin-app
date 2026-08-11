@@ -1,6 +1,6 @@
 import React from "react";
 import { View, Text, StyleSheet } from "react-native";
-import { colors, spacing, typography } from "../theme/theme";
+import { colors, spacing, typography, FONT } from "../theme/theme";
 
 function formatTime(iso: string) {
   const d = new Date(iso);
@@ -61,7 +61,7 @@ const styles = StyleSheet.create({
   line: { width: 1, flex: 1, minHeight: 20, backgroundColor: colors.border, marginVertical: 4 },
   points: { flex: 1, gap: spacing.xs },
   point: {},
-  time: { ...typography.caption, fontWeight: "700", color: colors.textPrimary },
+  time: { ...typography.caption, fontWeight: "700", fontFamily: FONT.bold, color: colors.textPrimary },
   address: { ...typography.small, color: colors.textMuted, marginTop: 1 },
   duration: { ...typography.small, color: colors.textMuted, marginVertical: 2 },
 });

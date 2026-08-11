@@ -5,6 +5,7 @@ import { getAppConfig } from "../lib/appConfig.js";
 import { issueDriverStrike } from "../lib/strikes.js";
 import { clearChatForBooking } from "../lib/chat.js";
 import { closeRideIfNoActiveBookings } from "../lib/rideLifecycle.js";
+import { mapLimit } from "../lib/concurrency.js";
 
 // Runs on an interval from index.js. A driver no-show is a per-RIDE
 // event — if the driver never shows up, every passenger booked on that
@@ -30,26 +31,33 @@ export async function checkNoShows() {
     byRide.get(booking.rideId).push(booking);
   }
 
-  for (const [rideId, bookings] of byRide) {
+  // Different rides' no-show handling is fully independent, so rides are
+  // worked off in parallel (bounded — see lib/concurrency.js — since a
+  // sweep after downtime could touch many rides at once). Within a single
+  // ride, the affected bookings are naturally few (seat count), so a
+  // plain Promise.all is fine there without its own bound.
+  await mapLimit([...byRide.entries()], 5, async ([rideId, bookings]) => {
     const now = new Date();
-    for (const booking of bookings) {
-      await prisma.$transaction([
-        prisma.booking.update({
-          where: { id: booking.id },
-          data: { status: "CANCELLED", cancelledBy: "SYSTEM", cancelReason: "NO_SHOW_DRIVER", cancelledAt: now },
-        }),
-        prisma.ride.update({
-          where: { id: booking.rideId },
-          data: { seatsAvailable: { increment: booking.seatsBooked } },
-        }),
-      ]);
-      await clearChatForBooking(booking.id);
-      await refundIfPaid(booking.id).catch((err) =>
-        console.error(`Refund check failed for booking ${booking.id}:`, err.message)
-      );
-      await notify(booking.passengerId, "NO_SHOW_CANCELLED", "Driver didn't show up",
-        "Your driver didn't arrive. Your booking was cancelled and any platform fee refunded.", booking.id);
-    }
+    await Promise.all(
+      bookings.map(async (booking) => {
+        await prisma.$transaction([
+          prisma.booking.update({
+            where: { id: booking.id },
+            data: { status: "CANCELLED", cancelledBy: "SYSTEM", cancelReason: "NO_SHOW_DRIVER", cancelledAt: now },
+          }),
+          prisma.ride.update({
+            where: { id: booking.rideId },
+            data: { seatsAvailable: { increment: booking.seatsBooked } },
+          }),
+        ]);
+        await clearChatForBooking(booking.id);
+        await refundIfPaid(booking.id).catch((err) =>
+          console.error(`Refund check failed for booking ${booking.id}:`, err.message)
+        );
+        await notify(booking.passengerId, "NO_SHOW_CANCELLED", "Driver didn't show up",
+          "Your driver didn't arrive. Your booking was cancelled and any platform fee refunded.", booking.id);
+      })
+    );
 
     // Without this, the ride stayed "PUBLISHED" forever after a
     // no-show — still editable/cancellable via the normal driver flow,
@@ -62,7 +70,7 @@ export async function checkNoShows() {
     await issueDriverStrike(driverId, { rideId, reason: "NO_SHOW" });
     await notify(driverId, "NO_SHOW_CANCELLED", "Ride auto-cancelled — no-show",
       "Your ride was auto-cancelled because it wasn't started within the no-show grace period after departure time.", bookings[0].id);
-  }
+  });
 
   console.log(`Auto-cancelled ${overdue.length} no-show booking(s) across ${byRide.size} ride(s).`);
 }

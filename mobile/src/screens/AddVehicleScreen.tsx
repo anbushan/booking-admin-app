@@ -3,7 +3,7 @@ import { View, Text, TextInput, ScrollView, Image, Modal, StyleSheet } from "rea
 import { Pressable } from "../components/Pressable";
 import { Ionicons } from "@expo/vector-icons";
 import { showAlert } from "../lib/alert";
-import { colors, spacing, radius, typography } from "../theme/theme";
+import { colors, spacing, radius, typography, FONT } from "../theme/theme";
 import { api } from "../lib/api";
 import { Analytics } from "../lib/analytics";
 import { validateVehicle } from "../lib/validators";
@@ -107,9 +107,53 @@ export default function AddVehicleScreen({ navigation }: any) {
     }
   }
 
+  // This screen is reached two structurally different ways: pushed
+  // normally on top of existing history (VehicleList's "+", OfferRide's
+  // "add a vehicle to publish") — goBack() is correct there — or landed
+  // on via a navigation.reset() with this as the ONLY entry (a brand-new
+  // driver registration, see RegisterScreen; and SwitchRoleScreen's own
+  // reset does the same the first time an existing account switches to
+  // driver). A reset means there's nothing behind this screen to pop to
+  // at all, so goBack() silently did nothing — the back arrow looked
+  // like a dead button. canGoBack() is exactly the signal for which
+  // case this is; when there's no history, SwitchRole is where this
+  // step conceptually follows from either way (fresh registration or an
+  // existing account setting up driver mode for the first time), so
+  // that's the fallback destination instead of a no-op.
+  const canGoBack = navigation.canGoBack();
+
+  function handleBack() {
+    if (canGoBack) {
+      navigation.goBack();
+    } else {
+      navigation.reset({ index: 0, routes: [{ name: "SwitchRole" }] });
+    }
+  }
+
+  function handleSkip() {
+    navigation.reset({ index: 0, routes: [{ name: "Home" }] });
+  }
+
   return (
     <SafeAreaView style={styles.screen} edges={["top", "bottom"]}>
-      <BackHeader title={t("vehicle.addYourVehicle")} onBack={() => navigation.goBack()} />
+      <BackHeader
+        title={t("vehicle.addYourVehicle")}
+        onBack={handleBack}
+        // Skip only makes sense in the no-history (onboarding) case —
+        // when this was pushed from VehicleList/OfferRide, the driver's
+        // already past onboarding and mid-way through deliberately
+        // adding a vehicle; a "skip to dashboard" affordance there would
+        // yank them out of what they were just doing instead of letting
+        // the back arrow (which already works correctly in that case)
+        // do its normal job.
+        right={
+          !canGoBack ? (
+            <Pressable onPress={handleSkip} hitSlop={8}>
+              <Text style={styles.skipText}>{t("vehicle.skipForNow")}</Text>
+            </Pressable>
+          ) : undefined
+        }
+      />
 
       <KeyboardAvoider>
       <ScrollView contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
@@ -238,6 +282,7 @@ export default function AddVehicleScreen({ navigation }: any) {
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.bg },
+  skipText: { ...typography.caption, color: colors.accentText, fontWeight: "700", fontFamily: FONT.bold },
   body: { padding: spacing.lg },
   label: { ...typography.caption, color: colors.textSecondary, marginBottom: spacing.xs, marginTop: spacing.md },
   docsHint: { ...typography.small, color: colors.textMuted, marginBottom: spacing.sm, lineHeight: 16 },
@@ -266,7 +311,7 @@ const styles = StyleSheet.create({
   typeChipActive: { backgroundColor: colors.successBg, borderColor: colors.success },
   typeChipDisabled: { opacity: 0.5 },
   typeChipText: { ...typography.caption, color: colors.textSecondary },
-  typeChipTextActive: { color: colors.success, fontWeight: "700" },
+  typeChipTextActive: { color: colors.success, fontWeight: "700", fontFamily: FONT.bold },
   comingSoonBadge: { ...typography.small, color: colors.textMuted, marginTop: 2, fontSize: 10 },
   seatChip: {
     backgroundColor: colors.surface,
@@ -296,11 +341,11 @@ const styles = StyleSheet.create({
     borderWidth: 2, borderColor: colors.surface,
   },
   docLabelRow: { flexDirection: "row", alignItems: "center", gap: 6 },
-  docLabel: { ...typography.body, fontWeight: "700" },
+  docLabel: { ...typography.body, fontWeight: "700", fontFamily: FONT.bold },
   requiredTag: { ...typography.small, color: colors.danger },
   optionalTag: { ...typography.small, color: colors.textMuted },
-  docActionText: { ...typography.small, color: colors.accentText, fontWeight: "700", marginTop: 2 },
-  docViewText: { ...typography.small, color: colors.textMuted, fontWeight: "700", marginTop: 2 },
+  docActionText: { ...typography.small, color: colors.accentText, fontWeight: "700", fontFamily: FONT.bold, marginTop: 2 },
+  docViewText: { ...typography.small, color: colors.textMuted, fontWeight: "700", fontFamily: FONT.bold, marginTop: 2 },
   button: {
     backgroundColor: colors.textPrimary,
     height: 46,

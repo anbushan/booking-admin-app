@@ -32,26 +32,33 @@ export default async function DailyReportPage({
 
   // Platform revenue is the fee captured, not the full fare — the
   // remaining fare is settled directly between passenger and driver.
-  const bookings = await prisma.booking.findMany({
-    where: {
-      platformFeePaidAt: { gte: startOfDay(from), lte: to },
-    },
-    orderBy: { platformFeePaidAt: "asc" },
-  });
-
-  const buckets = new Map<string, { revenue: number; trips: number }>();
-  for (const b of bookings) {
-    if (!b.platformFeePaidAt) continue;
-    const key =
-      groupBy === "month"
-        ? `${b.platformFeePaidAt.getFullYear()}-${String(b.platformFeePaidAt.getMonth() + 1).padStart(2, "0")}`
-        : b.platformFeePaidAt.toISOString().slice(0, 10);
-    const existing = buckets.get(key) || { revenue: 0, trips: 0 };
-    existing.revenue += Number(b.platformFeeAmount || 0);
-    existing.trips += 1;
-    buckets.set(key, existing);
-  }
-  const rows = Array.from(buckets.entries()).sort((a, b) => (a[0] < b[0] ? 1 : -1));
+  //
+  // PERFORMANCE: this used to fetch every full Booking row in range
+  // (every column, unbounded — a widened date range had no cap) just to
+  // sum one column and count rows in JS. That's a textbook case for
+  // letting the database do it: date_trunc + GROUP BY does the same
+  // aggregation server-side, over an index (see the new
+  // Booking_platformFeePaidAt_idx migration) instead of a full scan, and
+  // transfers back one row per day/month instead of one row per booking.
+  // `groupBy` is coerced to a fixed "day"|"month" literal above, so it's
+  // safe to interpolate — Prisma's tagged template still parameterizes
+  // it as a bound value, not string-concatenated SQL.
+  const truncUnit = groupBy === "month" ? "month" : "day";
+  const buckets = await prisma.$queryRaw<{ bucket: Date; trips: bigint; revenue: unknown }[]>`
+    SELECT date_trunc(${truncUnit}, "platformFeePaidAt") AS bucket,
+           COUNT(*)::int AS trips,
+           COALESCE(SUM("platformFeeAmount"), 0) AS revenue
+    FROM "Booking"
+    WHERE "platformFeePaidAt" >= ${startOfDay(from)} AND "platformFeePaidAt" <= ${to}
+    GROUP BY bucket
+    ORDER BY bucket ASC
+  `;
+  const rows = buckets
+    .map((b): [string, { revenue: number; trips: number }] => [
+      groupBy === "month" ? b.bucket.toISOString().slice(0, 7) : b.bucket.toISOString().slice(0, 10),
+      { revenue: Number(b.revenue), trips: Number(b.trips) },
+    ])
+    .sort((a, b) => (a[0] < b[0] ? 1 : -1));
   // Chart reads left-to-right chronologically (oldest first) — the
   // table below stays newest-first since that's what you scan first
   // when checking "how did we do recently", but a trend line/bar chart

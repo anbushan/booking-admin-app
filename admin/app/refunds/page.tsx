@@ -9,7 +9,9 @@ import { RotateCcw } from "lucide-react";
 import { EmptyState } from "../../components/EmptyState";
 import Pagination from "../../components/Pagination";
 import { SubmitButton } from "../../components/SubmitButton";
+import { ConfirmButton } from "../../components/ConfirmButton";
 import { redirectWithToast } from "../../lib/toastRedirect";
+import { isRedirectError } from "../../lib/actionError";
 
 export const dynamic = "force-dynamic";
 const PAGE_SIZE = 25;
@@ -17,20 +19,30 @@ const PAGE_SIZE = 25;
 async function markProcessing(formData: FormData) {
   "use server";
   const id = formData.get("refundId") as string;
-  await prisma.refund.update({ where: { id }, data: { status: "PROCESSING" } });
-  revalidatePath("/refunds");
-  redirectWithToast("/refunds", "Marked as processing.");
+  try {
+    await prisma.refund.update({ where: { id }, data: { status: "PROCESSING" } });
+    revalidatePath("/refunds");
+    redirectWithToast("/refunds", "Marked as processing.");
+  } catch (err) {
+    if (isRedirectError(err)) throw err;
+    redirectWithToast("/refunds", "Couldn't update refund. Try again.", "error");
+  }
 }
 
 async function markCompleted(formData: FormData) {
   "use server";
   const id = formData.get("refundId") as string;
-  await prisma.refund.update({
-    where: { id },
-    data: { status: "COMPLETED", completedAt: new Date() },
-  });
-  revalidatePath("/refunds");
-  redirectWithToast("/refunds", "Refund marked completed.");
+  try {
+    await prisma.refund.update({
+      where: { id },
+      data: { status: "COMPLETED", completedAt: new Date() },
+    });
+    revalidatePath("/refunds");
+    redirectWithToast("/refunds", "Refund marked completed.");
+  } catch (err) {
+    if (isRedirectError(err)) throw err;
+    redirectWithToast("/refunds", "Couldn't update refund. Try again.", "error");
+  }
 }
 
 function refundTone(status: string): "success" | "info" | "danger" | "warning" {
@@ -109,10 +121,15 @@ export default async function RefundsPage({ searchParams }: { searchParams: { pa
                       </SubmitButton>
                     </form>
                   )}
-                  <form action={markCompleted}>
-                    <input type="hidden" name="refundId" value={refund.id} />
-                    <SubmitButton pendingLabel="Updating...">Mark completed</SubmitButton>
-                  </form>
+                  <ConfirmButton
+                    action={markCompleted}
+                    hiddenFields={{ refundId: refund.id }}
+                    label="Mark completed"
+                    confirmTitle="Mark this refund completed?"
+                    confirmMessage={`This records Rs ${Number(refund.amount)} as returned to ${refund.booking.passenger.name || refund.booking.passenger.phone} — only confirm once the money has actually gone through on Razorpay's side, not just that it was initiated.`}
+                    confirmLabel="Mark completed"
+                    className="admin-btn admin-btn-primary"
+                  />
                 </div>
               </div>
             );

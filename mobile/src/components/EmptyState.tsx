@@ -1,15 +1,17 @@
 import React from "react";
-import { View, Text, StyleSheet } from "react-native";
+import { View, Text, Image, StyleSheet } from "react-native";
 import { colors, spacing, typography } from "../theme/theme";
-import { EmptyGauge } from "./EmptyGauge";
 
 // One consistent "no data" illustration for every empty state in the
-// app (notifications, vehicles, payment history, ratings...) — an
-// empty fuel gauge, needle on E, in place of the assortment of
-// per-screen icons this used to show. `icon` is accepted for backward
-// compatibility with existing call sites but no longer drives what's
-// drawn — every empty state now reads as the same "nothing here yet"
-// moment instead of a different icon per screen.
+// app (notifications, vehicles, payment history, ratings...) — the
+// same empty-fuel-gauge animation, needle on E, in place of the
+// assortment of per-screen icons this used to show. Used to be a
+// hand-drawn static version built from plain Views (no shipped asset);
+// swapped for the real animated GIF once one was actually provided —
+// see docs/brand/nodata-source.gif for the untouched original (cropped
+// to drop its watermark, background chroma-keyed to transparent). `icon`
+// is accepted for backward compatibility with existing call sites but
+// no longer drives what's drawn.
 export function EmptyState({
   title,
   subtitle,
@@ -21,7 +23,7 @@ export function EmptyState({
 }) {
   return (
     <View style={styles.container}>
-      <EmptyGauge />
+      <Image source={require("../../assets/nodata.gif")} style={styles.image} resizeMode="contain" />
       <Text style={styles.title}>{title}</Text>
       {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
     </View>
@@ -34,6 +36,7 @@ const styles = StyleSheet.create({
   // just a marginTop nudge, which only pushed it partway down from the
   // top of whatever space the (possibly short) list content left.
   container: { flex: 1, alignItems: "center", justifyContent: "center", padding: spacing.xl },
+  image: { width: 160, height: 109 },
   title: { ...typography.body, color: colors.textSecondary, textAlign: "center", marginTop: spacing.sm },
   subtitle: { ...typography.small, color: colors.textMuted, textAlign: "center", marginTop: spacing.xs },
 });

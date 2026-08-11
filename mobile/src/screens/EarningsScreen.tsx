@@ -3,7 +3,7 @@ import { View, Text, FlatList, StyleSheet, RefreshControl } from "react-native";
 import { Pressable } from "../components/Pressable";
 import { useFocusEffect } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
-import { colors, spacing, radius, typography } from "../theme/theme";
+import { colors, spacing, radius, typography, FONT } from "../theme/theme";
 import { api } from "../lib/api";
 import { CarLoader } from "../components/CarLoader";
 import { EmptyState } from "../components/EmptyState";
@@ -133,6 +133,9 @@ export default function EarningsScreen({ navigation }: any) {
           <FlatList
             style={{ flex: 1 }}
             data={data?.recentTrips || []}
+            maxToRenderPerBatch={10}
+            windowSize={8}
+            initialNumToRender={10}
             keyExtractor={(item) => item.id}
             refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => load(true)} colors={[colors.accent]} tintColor={colors.accent} />}
             contentContainerStyle={{ paddingHorizontal: spacing.lg, flexGrow: 1 }}
@@ -198,13 +201,13 @@ const styles = StyleSheet.create({
   summaryTopRow: { flexDirection: "row", alignItems: "center", gap: spacing.md },
   summaryIconWrap: { width: 48, height: 48, borderRadius: 24, backgroundColor: "rgba(255,255,255,0.16)", alignItems: "center", justifyContent: "center" },
   summaryLabel: { ...typography.small, color: "rgba(255,255,255,0.7)" },
-  summaryValue: { fontSize: 26, fontWeight: "700", color: "#FFFFFF", marginTop: 2 },
+  summaryValue: { fontSize: 26, fontWeight: "700", fontFamily: FONT.bold, color: "#FFFFFF", marginTop: 2 },
   summaryStatsRow: { flexDirection: "row", gap: spacing.lg, paddingTop: spacing.sm, borderTopWidth: 1, borderTopColor: "rgba(255,255,255,0.14)" },
   summaryStat: { flexDirection: "row", alignItems: "center", gap: 5 },
   summaryStatText: { ...typography.small, color: "rgba(255,255,255,0.85)" },
   pendingBanner: { flexDirection: "row", gap: spacing.sm, alignItems: "center", backgroundColor: colors.warningBg, borderRadius: radius.sm, padding: spacing.md, marginHorizontal: spacing.lg, marginBottom: spacing.sm },
   pendingIconWrap: { width: 34, height: 34, borderRadius: 17, backgroundColor: colors.surface, alignItems: "center", justifyContent: "center" },
-  pendingTitle: { ...typography.caption, fontWeight: "700", color: colors.warning },
+  pendingTitle: { ...typography.caption, fontWeight: "700", fontFamily: FONT.bold, color: colors.warning },
   pendingSub: { ...typography.small, color: colors.textMuted, marginTop: 1 },
   notice: { flexDirection: "row", gap: spacing.sm, alignItems: "flex-start", backgroundColor: colors.accentBg, borderRadius: radius.sm, padding: spacing.md, marginHorizontal: spacing.lg },
   noticeText: { ...typography.small, color: colors.accentText, flex: 1, lineHeight: 17 },
@@ -213,12 +216,12 @@ const styles = StyleSheet.create({
   tripTopRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: spacing.xs },
   tripBottomRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: spacing.xs, marginTop: 4 },
   tripIconWrap: { width: 30, height: 30, borderRadius: 10, backgroundColor: colors.bg, alignItems: "center", justifyContent: "center", marginTop: 2 },
-  tripRoute: { ...typography.caption, fontWeight: "700", flex: 1 },
+  tripRoute: { ...typography.caption, fontWeight: "700", fontFamily: FONT.bold, flex: 1 },
   tripDate: { ...typography.small, color: colors.textMuted },
   tripPassenger: { ...typography.small, color: colors.textMuted, marginTop: 1 },
   collectedChip: { flexDirection: "row", alignItems: "center", gap: 4, backgroundColor: colors.successBg, paddingVertical: 3, paddingHorizontal: 8, borderRadius: 999 },
-  collectedText: { ...typography.small, color: colors.success, fontWeight: "700" },
+  collectedText: { ...typography.small, color: colors.success, fontWeight: "700", fontFamily: FONT.bold },
   collectChip: { flexDirection: "row", alignItems: "center", gap: 4, backgroundColor: colors.warningBg, paddingVertical: 3, paddingHorizontal: 8, borderRadius: 999 },
-  collectChipText: { ...typography.small, color: colors.warning, fontWeight: "700" },
-  rateLink: { ...typography.small, color: colors.accentText, fontWeight: "700" },
+  collectChipText: { ...typography.small, color: colors.warning, fontWeight: "700", fontFamily: FONT.bold },
+  rateLink: { ...typography.small, color: colors.accentText, fontWeight: "700", fontFamily: FONT.bold },
 });

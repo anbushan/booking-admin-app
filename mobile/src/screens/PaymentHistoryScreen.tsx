@@ -47,6 +47,9 @@ export default function PaymentHistoryScreen({ navigation }: any) {
       <FlatList
         style={{ flex: 1 }}
         data={payments}
+        maxToRenderPerBatch={10}
+        windowSize={8}
+        initialNumToRender={10}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => load(true)} colors={[colors.accent]} tintColor={colors.accent} />}
         keyExtractor={(item) => item.id}
         contentContainerStyle={{ padding: spacing.md, gap: spacing.sm, flexGrow: 1 }}

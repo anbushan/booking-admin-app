@@ -116,6 +116,9 @@ model Vehicle {
   rejectionReason String?
 
   rides         Ride[]
+
+  @@index([driverId])
+  @@index([status])
 }
 
 model Ride {
@@ -152,6 +155,13 @@ model Ride {
   createdAt       DateTime @default(now())
 
   bookings        Booking[]
+
+  @@index([driverId])
+  // Matches the actual search query shape (rides.routes.js GET /search):
+  // status: "PUBLISHED" + a travelDate range, ordered by travelDate — a
+  // composite index lets Postgres satisfy the filter and the sort from
+  // the same index scan instead of a filter-then-sort.
+  @@index([status, travelDate])
 }
 
 model Booking {
@@ -222,6 +232,20 @@ model Booking {
   refund            Refund?
   callLogs          CallLog[]
   sosAlerts         SosAlert[]
+
+  // Every hot path filters by one of these two FKs plus status (ride's
+  // own booking list, a driver's active bookings, a passenger's active
+  // bookings/history) — composite indexes cover both the FK lookup and
+  // the status filter in one scan instead of two.
+  @@index([rideId, status])
+  @@index([passengerId, status])
+  @@index([expiresAt])
+  // admin's daily/monthly revenue report (app/reports/daily/page.tsx)
+  // filters and sorts by this column with no other filter — was doing a
+  // full table scan on every load, worse as Booking grows, since nothing
+  // else in the original 20-index pass touched it (that pass covered
+  // backend's own hot paths, not admin's report queries).
+  @@index([platformFeePaidAt])
 }
 
 model Refund {
@@ -234,6 +258,8 @@ model Refund {
   estimatedCompletionAt DateTime
   completedAt           DateTime?
   razorpayRefundId      String?
+
+  @@index([status])
 }
 
 model CallLog {
@@ -246,6 +272,8 @@ model CallLog {
   durationSec  Int?
   status       String   @default("INITIATED")
   createdAt    DateTime @default(now())
+
+  @@index([bookingId])
 }
 
 // One row per strike-worthy driver incident (late cancel past the grace
@@ -261,6 +289,11 @@ model DriverStrike {
   rideId    String?
   reason    String   // DRIVER_LATE_CANCEL, NO_SHOW
   createdAt DateTime @default(now())
+
+  // issueDriverStrike's rolling-window count query (lib/strikes.js) is
+  // exactly this: count() where driverId = ? and createdAt >= (now -
+  // N days) — a composite index covers it in one scan.
+  @@index([driverId, createdAt])
 }
 
 model EmergencyContact {
@@ -272,6 +305,8 @@ model EmergencyContact {
   relation  String?
   isPrimary Boolean  @default(false)
   createdAt DateTime @default(now())
+
+  @@index([userId])
 }
 
 model SosAlert {
@@ -284,6 +319,9 @@ model SosAlert {
   contactedIds  String[]
   status        String   @default("OPEN") // OPEN, ACKNOWLEDGED, RESOLVED
   createdAt     DateTime @default(now())
+
+  @@index([bookingId])
+  @@index([status])
 }
 
 model Document {
@@ -296,6 +334,9 @@ model Document {
   uploadedAt   DateTime @default(now())
   reviewedAt   DateTime?
   reviewedBy   String?
+
+  @@index([userId])
+  @@index([status])
 }
 
 model Notification {
@@ -315,6 +356,10 @@ model Notification {
   // terminal, showing only what's still relevant right now.
   bookingId   String?
   createdAt   DateTime @default(now())
+
+  // Every list fetch is "this user's notifications, newest first" —
+  // covers both the FK filter and the sort in one scan.
+  @@index([userId, createdAt])
 }
 
 model AdminRole {
@@ -322,6 +367,8 @@ model AdminRole {
   adminId   String
   role      String   // super_admin, finance, verification, support
   createdAt DateTime @default(now())
+
+  @@index([adminId])
 }
 
 model AppConfig {
@@ -383,6 +430,12 @@ model ChatMessage {
   // rather than a new lat/lng column pair.
   type       String   @default("TEXT")
   createdAt  DateTime @default(now())
+
+  // Every read is scoped to one booking's conversation (history fetch,
+  // unread-count batching across a list of bookingIds) — this is the
+  // single most-queried FK in the schema by request volume (chat
+  // polling + socket join checks).
+  @@index([bookingId])
 }
 
 model Review {
@@ -396,6 +449,12 @@ model Review {
   comment      String?
   flagged      Boolean  @default(false)
   createdAt    DateTime @default(now())
+
+  // bookingId: the "did the other party already review this booking"
+  // lookup (bookings.routes.js GET /:id's reviewForMe). toUserId: "all
+  // reviews received" listings (admin, RatingsReceivedScreen).
+  @@index([bookingId])
+  @@index([toUserId])
 }
 
 model AdminUser {

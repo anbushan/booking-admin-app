@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { View, Text, FlatList, StyleSheet } from "react-native";
 import { Pressable } from "../components/Pressable";
-import { colors, spacing, radius, typography } from "../theme/theme";
+import { colors, spacing, radius, typography, FONT } from "../theme/theme";
 import { Analytics } from "../lib/analytics";
 import { API_BASE_URL } from "../lib/api";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -115,7 +115,7 @@ const styles = StyleSheet.create({
   row: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: radius.md, padding: spacing.md },
   rowActive: { borderColor: colors.accent, backgroundColor: colors.accentBg },
   rowText: typography.body,
-  checkmark: { color: colors.accentText, fontWeight: "700" },
+  checkmark: { color: colors.accentText, fontWeight: "700", fontFamily: FONT.bold },
   footer: { padding: spacing.lg, borderTopWidth: 1, borderTopColor: colors.border, backgroundColor: colors.surface },
   confirmButton: { backgroundColor: colors.textPrimary, height: 46, borderRadius: radius.sm, alignItems: "center", justifyContent: "center" },
   confirmButtonText: { ...typography.title, color: "#FFFFFF" },

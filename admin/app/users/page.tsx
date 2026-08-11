@@ -12,6 +12,7 @@ import { SortableTh } from "../../components/SortableTh";
 import { SubmitButton } from "../../components/SubmitButton";
 import { ConfirmButton } from "../../components/ConfirmButton";
 import { redirectWithToast } from "../../lib/toastRedirect";
+import { isRedirectError } from "../../lib/actionError";
 import { Users as UsersIcon } from "lucide-react";
 
 export const dynamic = "force-dynamic";
@@ -27,12 +28,17 @@ async function toggleSuspend(formData: FormData) {
   "use server";
   const userId = formData.get("userId") as string;
   const currentlyDisabled = formData.get("currentlyDisabled") === "true";
-  await prisma.user.update({
-    where: { id: userId },
-    data: { disabled: !currentlyDisabled },
-  });
-  revalidatePath("/users");
-  redirectWithToast("/users", currentlyDisabled ? "Account reinstated." : "Account suspended.");
+  try {
+    await prisma.user.update({
+      where: { id: userId },
+      data: { disabled: !currentlyDisabled },
+    });
+    revalidatePath("/users");
+    redirectWithToast("/users", currentlyDisabled ? "Account reinstated." : "Account suspended.");
+  } catch (err) {
+    if (isRedirectError(err)) throw err;
+    redirectWithToast("/users", "Couldn't update account. Try again.", "error");
+  }
 }
 
 export default async function UsersPage({

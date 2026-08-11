@@ -1,10 +1,11 @@
 import { Router } from "express";
 import crypto from "crypto";
 import { prisma } from "../lib/prisma.js";
-import { requireAuth } from "../middleware/auth.js";
+import { requireAuth, requireRole } from "../middleware/auth.js";
 import { notify } from "../lib/notify.js";
 import { razorpay } from "../lib/razorpay.js";
 import { getAppConfig } from "../lib/appConfig.js";
+import { isPositiveNumber } from "../lib/validate.js";
 
 const router = Router();
 
@@ -140,13 +141,31 @@ router.post("/webhook/razorpay", async (req, res) => {
 // Razorpay payment, not just a database-only record. Only meaningful once
 // the platform fee has been captured (there's a real razorpayPaymentId
 // to refund).
-router.post("/refunds/:bookingId/initiate", requireAuth, async (req, res) => {
+//
+// SECURITY: previously `requireAuth` only — no role check, no ownership
+// check, and `amount` came straight from the request body with no
+// validation at all. Any logged-in passenger or driver could POST any
+// bookingId (theirs or not) with an arbitrary amount and this would
+// actually call Razorpay to refund it. Nothing in the app ever called
+// this route — admin's own refunds page (app/refunds/page.tsx) only
+// updates the status of a Refund row that already exists; every real
+// refund is created by refundIfPaid() (lib/refunds.js), triggered
+// server-side by cancellation/no-show logic, never over HTTP — so this
+// was a live, unused, exploitable door with real money behind it.
+// Restricted to ADMIN, and amount is now clamped to what was actually
+// captured rather than trusted verbatim from the request body.
+router.post("/refunds/:bookingId/initiate", requireAuth, requireRole("ADMIN"), async (req, res) => {
   const { amount } = req.body;
   const now = new Date();
   const { refundWorkingDays } = await getAppConfig();
 
   const booking = await prisma.booking.findUnique({ where: { id: req.params.bookingId } });
   if (!booking) return res.status(404).json({ error: "Booking not found." });
+
+  const maxRefundable = Number(booking.platformFeeAmount || 0);
+  if (!isPositiveNumber(amount) || amount > maxRefundable) {
+    return res.status(400).json({ error: `Amount must be between 0 and Rs ${maxRefundable} (the amount actually charged).` });
+  }
 
   let razorpayRefundId = null;
   if (booking.razorpayPaymentId) {
@@ -178,8 +197,14 @@ router.post("/refunds/:bookingId/initiate", requireAuth, async (req, res) => {
 
 // GET /api/payments/:bookingId/status
 router.get("/:bookingId/status", requireAuth, async (req, res) => {
-  const booking = await prisma.booking.findUnique({ where: { id: req.params.bookingId } });
+  const booking = await prisma.booking.findUnique({
+    where: { id: req.params.bookingId },
+    include: { ride: { select: { driverId: true } } },
+  });
   if (!booking) return res.status(404).json({ error: "Booking not found." });
+  if (booking.passengerId !== req.user.id && booking.ride.driverId !== req.user.id) {
+    return res.status(403).json({ error: "Not permitted." });
+  }
   res.json({ status: booking.status });
 });
 
@@ -226,9 +251,16 @@ router.post("/:bookingId/retry", requireAuth, async (req, res) => {
 
 // GET /api/refunds/:id/status
 router.get("/refunds/:id/status", requireAuth, async (req, res) => {
-  const refund = await prisma.refund.findUnique({ where: { id: req.params.id } });
+  const refund = await prisma.refund.findUnique({
+    where: { id: req.params.id },
+    include: { booking: { select: { passengerId: true, ride: { select: { driverId: true } } } } },
+  });
   if (!refund) return res.status(404).json({ error: "Refund not found." });
-  res.json(refund);
+  if (refund.booking.passengerId !== req.user.id && refund.booking.ride.driverId !== req.user.id) {
+    return res.status(403).json({ error: "Not permitted." });
+  }
+  const { booking, ...refundOnly } = refund;
+  res.json(refundOnly);
 });
 
 export default router;

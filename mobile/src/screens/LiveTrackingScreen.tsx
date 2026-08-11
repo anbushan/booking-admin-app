@@ -5,7 +5,7 @@ import * as Location from "expo-location";
 import { Ionicons } from "@expo/vector-icons";
 import { showAlert } from "../lib/alert";
 import MapView, { Marker, MarkerAnimated, AnimatedRegion, Polyline, PROVIDER_GOOGLE } from "react-native-maps";
-import { colors, spacing, radius, typography } from "../theme/theme";
+import { colors, spacing, radius, typography, FONT } from "../theme/theme";
 import { api } from "../lib/api";
 import { Analytics } from "../lib/analytics";
 import { useToast } from "../components/Toast";
@@ -437,7 +437,7 @@ const styles = StyleSheet.create({
     borderRadius: radius.lg,
     shadowColor: "#000", shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.15, shadowRadius: 4, elevation: 3,
   },
-  etaText: { ...typography.caption, color: colors.accentText, fontWeight: "700" },
+  etaText: { ...typography.caption, color: colors.accentText, fontWeight: "700", fontFamily: FONT.bold },
   sheet: {
     flex: 1,
     backgroundColor: colors.surface,
@@ -454,7 +454,7 @@ const styles = StyleSheet.create({
   phaseDot: { width: 20, height: 20, borderRadius: 10, backgroundColor: colors.border, alignItems: "center", justifyContent: "center" },
   phaseDotActive: { backgroundColor: colors.accent },
   phaseLabel: { ...typography.small, color: colors.textMuted, marginTop: 4, textAlign: "center" },
-  phaseLabelActive: { color: colors.accentText, fontWeight: "700" },
+  phaseLabelActive: { color: colors.accentText, fontWeight: "700", fontFamily: FONT.bold },
   phaseConnector: { flex: 1, height: 2, backgroundColor: colors.border, marginTop: 9 },
   phaseConnectorActive: { backgroundColor: colors.accent },
   driverRow: {

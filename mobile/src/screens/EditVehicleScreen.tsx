@@ -3,7 +3,7 @@ import { View, Text, TextInput, ScrollView, Image, Modal, StyleSheet } from "rea
 import { Pressable } from "../components/Pressable";
 import { Ionicons } from "@expo/vector-icons";
 import { showAlert } from "../lib/alert";
-import { colors, spacing, radius, typography } from "../theme/theme";
+import { colors, spacing, radius, typography, FONT } from "../theme/theme";
 import { api } from "../lib/api";
 import { validateVehicle } from "../lib/validators";
 import { FieldError } from "../components/FieldError";
@@ -271,15 +271,15 @@ const styles = StyleSheet.create({
   seatChip: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: radius.sm, paddingVertical: spacing.xs, paddingHorizontal: spacing.md },
   seatChipActive: { backgroundColor: colors.successBg, borderColor: colors.success },
   seatChipText: { ...typography.caption, color: colors.textSecondary },
-  seatChipTextActive: { color: colors.success, fontWeight: "700" },
+  seatChipTextActive: { color: colors.success, fontWeight: "700", fontFamily: FONT.bold },
   button: { backgroundColor: colors.textPrimary, height: 46, borderRadius: radius.sm, alignItems: "center", justifyContent: "center", paddingHorizontal: spacing.lg, marginTop: spacing.xl },
   buttonText: { ...typography.title, color: "#FFFFFF" },
   pendingBanner: { flexDirection: "row", alignItems: "center", gap: spacing.sm, backgroundColor: colors.warningBg, borderRadius: radius.sm, padding: spacing.md, marginBottom: spacing.sm },
-  pendingText: { ...typography.caption, color: colors.warning, fontWeight: "700", flex: 1 },
+  pendingText: { ...typography.caption, color: colors.warning, fontWeight: "700", fontFamily: FONT.bold, flex: 1 },
   approvedBanner: { flexDirection: "row", alignItems: "center", gap: spacing.sm, backgroundColor: colors.successBg, borderRadius: radius.sm, padding: spacing.md, marginBottom: spacing.sm },
-  approvedText: { ...typography.caption, color: colors.success, fontWeight: "700" },
+  approvedText: { ...typography.caption, color: colors.success, fontWeight: "700", fontFamily: FONT.bold },
   rejectedBanner: { flexDirection: "row", alignItems: "flex-start", gap: spacing.sm, backgroundColor: colors.dangerBg, borderRadius: radius.sm, padding: spacing.md, marginBottom: spacing.sm },
-  rejectedTitle: { ...typography.caption, color: colors.danger, fontWeight: "700" },
+  rejectedTitle: { ...typography.caption, color: colors.danger, fontWeight: "700", fontFamily: FONT.bold },
   rejectedReason: { ...typography.small, color: colors.danger, marginTop: 2, lineHeight: 16 },
   rejectedHint: { ...typography.small, color: colors.textMuted, marginTop: 4 },
   docCard: {
@@ -302,11 +302,11 @@ const styles = StyleSheet.create({
     borderWidth: 2, borderColor: colors.surface,
   },
   docLabelRow: { flexDirection: "row", alignItems: "center", gap: 6 },
-  docLabel: { ...typography.body, fontWeight: "700" },
+  docLabel: { ...typography.body, fontWeight: "700", fontFamily: FONT.bold },
   requiredTag: { ...typography.small, color: colors.danger },
   optionalTag: { ...typography.small, color: colors.textMuted },
-  docActionText: { ...typography.small, color: colors.accentText, fontWeight: "700", marginTop: 2 },
-  docViewText: { ...typography.small, color: colors.textMuted, fontWeight: "700", marginTop: 2 },
+  docActionText: { ...typography.small, color: colors.accentText, fontWeight: "700", fontFamily: FONT.bold, marginTop: 2 },
+  docViewText: { ...typography.small, color: colors.textMuted, fontWeight: "700", fontFamily: FONT.bold, marginTop: 2 },
   previewBackdrop: { flex: 1, backgroundColor: "rgba(0,0,0,0.9)", alignItems: "center", justifyContent: "center" },
   previewImage: { width: "92%", height: "80%" },
   previewCloseButton: {

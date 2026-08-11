@@ -3,7 +3,7 @@ import { View, Text, TextInput, StyleSheet } from "react-native";
 import { Pressable } from "../components/Pressable";
 import { Ionicons } from "@expo/vector-icons";
 import { showAlert } from "../lib/alert";
-import { colors, spacing, radius, typography } from "../theme/theme";
+import { colors, spacing, radius, typography, FONT } from "../theme/theme";
 import { api } from "../lib/api";
 import { primeLocationIfNeeded } from "../lib/locationPriming";
 import { Analytics } from "../lib/analytics";
@@ -200,7 +200,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border,
     borderRadius: radius.md, padding: spacing.md, marginBottom: spacing.lg,
   },
-  passengerName: { ...typography.body, fontWeight: "700" },
+  passengerName: { ...typography.body, fontWeight: "700", fontFamily: FONT.bold },
   ratingRow: { flexDirection: "row", alignItems: "center", gap: 3, marginTop: 1 },
   passengerMeta: { ...typography.small, color: colors.textMuted },
   callButton: { width: 34, height: 34, borderRadius: 17, backgroundColor: colors.accentBg, alignItems: "center", justifyContent: "center" },

@@ -1,8 +1,33 @@
 import React from "react";
+import { View } from "react-native";
 import { NavigationContainer } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { StatusBar } from "expo-status-bar";
 import { SafeAreaProvider } from "react-native-safe-area-context";
+// Subpath imports, deliberately not the package's root barrel
+// (`@expo-google-fonts/poppins`) — that barrel's index.js does a
+// top-level `require()` for all 18 weight/style files (100–900, regular
+// + italic) in one module. Metro bundles every `require()` it sees
+// statically regardless of which named export actually gets used
+// (there's no dead-code elimination for RN asset requires), so
+// importing from the barrel would have silently pulled ~1.4MB of unused
+// font files into the app — after the earlier bundle-size pass this
+// session, that's exactly the kind of regression worth avoiding. Each
+// subpath below is its own small module with only that one weight's
+// `require()` in it.
+import { useFonts } from "@expo-google-fonts/poppins/useFonts";
+import { Poppins_400Regular } from "@expo-google-fonts/poppins/400Regular";
+import { Poppins_500Medium } from "@expo-google-fonts/poppins/500Medium";
+import { Poppins_600SemiBold } from "@expo-google-fonts/poppins/600SemiBold";
+import { Poppins_700Bold } from "@expo-google-fonts/poppins/700Bold";
+import { initErrorTracking, wrapRootComponent, Sentry } from "./src/lib/errorTracking";
+import { CrashFallback } from "./src/components/CrashFallback";
+import { colors } from "./src/theme/theme";
+
+// Runs once at module load, before anything else in this file — the
+// whole point is catching errors as early in the app's life as
+// possible, so this can't wait until inside the App() component body.
+initErrorTracking();
 
 import { SplashScreen, OnboardingScreen } from "./src/screens/SplashOnboardingScreens";
 import { AppSocketBridge } from "./src/components/AppSocketBridge";
@@ -63,8 +88,36 @@ import AlertModalHost from "./src/components/AlertModalHost";
 
 const Stack = createNativeStackNavigator();
 
-export default function App() {
+// Not the default export directly — Sentry.wrap() below adds automatic
+// touch-event breadcrumbs and its own top-level crash handling around
+// this. The ErrorBoundary here is what actually renders something in
+// place of a render-time crash (Sentry.wrap alone still reports it, but
+// without this the user's left staring at a blank/white screen instead
+// of a recoverable one) — placed outside every provider, deliberately,
+// so a crash inside I18nProvider/SafeAreaProvider/ToastProvider
+// themselves still gets caught rather than taking the boundary down
+// with it.
+function App() {
+  // Gates the whole tree on Poppins being loaded (see theme.ts's FONT/
+  // typography) rather than letting the app render once in the system
+  // font and then visibly swap to Poppins a beat later — a blank screen
+  // for the ~one-time load is less jarring than every piece of text on
+  // the first screen re-flowing under it. `fontsError` falls through to
+  // rendering anyway rather than getting stuck here forever — Text
+  // components fall back to the system font if a named fontFamily never
+  // loaded, which is a degraded look, not a broken app.
+  const [fontsLoaded, fontsError] = useFonts({
+    Poppins_400Regular,
+    Poppins_500Medium,
+    Poppins_600SemiBold,
+    Poppins_700Bold,
+  });
+  if (!fontsLoaded && !fontsError) {
+    return <View style={{ flex: 1, backgroundColor: colors.bg }} />;
+  }
+
   return (
+    <Sentry.ErrorBoundary fallback={({ resetError }) => <CrashFallback resetError={resetError} />}>
     <I18nProvider>
     <SafeAreaProvider>
     <ToastProvider>
@@ -161,5 +214,8 @@ export default function App() {
     </ToastProvider>
     </SafeAreaProvider>
     </I18nProvider>
+    </Sentry.ErrorBoundary>
   );
 }
+
+export default wrapRootComponent(App);

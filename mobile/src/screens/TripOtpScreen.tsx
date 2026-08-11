@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { View, Text, StyleSheet } from "react-native";
 import { Pressable } from "../components/Pressable";
 import { Ionicons } from "@expo/vector-icons";
-import { colors, spacing, radius, typography } from "../theme/theme";
+import { colors, spacing, radius, typography, FONT } from "../theme/theme";
 import { api } from "../lib/api";
 import { primeLocationIfNeeded } from "../lib/locationPriming";
 import { useToast } from "../components/Toast";
@@ -166,13 +166,13 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  otpDigit: { fontSize: 28, fontWeight: "700", color: colors.accentText },
+  otpDigit: { fontSize: 28, fontWeight: "700", fontFamily: FONT.bold, color: colors.accentText },
   infoRow: { flexDirection: "row", alignItems: "flex-start", gap: 6, marginTop: spacing.md, maxWidth: 300 },
   hint: { ...typography.small, color: colors.textMuted, flex: 1 },
   altHint: { ...typography.small, color: colors.textMuted, flex: 1 },
   routeLabel: { ...typography.caption, color: colors.textSecondary, flex: 1 },
   driverBar: { flexDirection: "row", alignItems: "center", gap: spacing.sm, padding: spacing.lg, borderTopWidth: 1, borderTopColor: colors.border, backgroundColor: colors.surface },
-  driverName: { ...typography.body, fontWeight: "700" },
+  driverName: { ...typography.body, fontWeight: "700", fontFamily: FONT.bold },
   ratingRow: { flexDirection: "row", alignItems: "center", gap: 3, marginTop: 1 },
   driverMeta: { ...typography.small, color: colors.textMuted },
   iconButton: { width: 36, height: 36, borderRadius: 18, backgroundColor: colors.accentBg, alignItems: "center", justifyContent: "center" },

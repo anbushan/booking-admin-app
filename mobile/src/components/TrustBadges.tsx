@@ -1,7 +1,7 @@
 import React from "react";
 import { View, Text, StyleSheet } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { colors, spacing, radius, typography } from "../theme/theme";
+import { colors, spacing, radius, typography, FONT } from "../theme/theme";
 import { useTranslation } from "../lib/i18n/I18nContext";
 
 type Badge = { icon: keyof typeof Ionicons.glyphMap; labelKey: string };
@@ -67,7 +67,7 @@ const styles = StyleSheet.create({
     marginTop: spacing.md,
   },
   headerRow: { flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 2 },
-  title: { ...typography.caption, fontWeight: "700", color: colors.textPrimary },
+  title: { ...typography.caption, fontWeight: "700", fontFamily: FONT.bold, color: colors.textPrimary },
   row: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
   icon: { width: 18 },
   label: { ...typography.small, color: colors.textSecondary, flex: 1, lineHeight: 16 },

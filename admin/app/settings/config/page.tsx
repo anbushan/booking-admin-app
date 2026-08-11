@@ -6,7 +6,9 @@ import AdminShell from "../../../components/AdminShell";
 
 import { PageHeader } from "../../../components/PageHeader";
 import { SubmitButton } from "../../../components/SubmitButton";
+import { ConfirmFormSubmit } from "../../../components/ConfirmFormSubmit";
 import { redirectWithToast } from "../../../lib/toastRedirect";
+import { isRedirectError } from "../../../lib/actionError";
 import { Settings as SettingsIcon } from "lucide-react";
 export const dynamic = "force-dynamic";
 
@@ -31,25 +33,30 @@ const NUMERIC_KEYS = [
 
 async function saveConfig(formData: FormData) {
   "use server";
-  const existing = await prisma.appConfig.findFirst();
+  try {
+    const existing = await prisma.appConfig.findFirst();
 
-  const data: Record<string, unknown> = Object.fromEntries(
-    NUMERIC_KEYS.map((key) => [key, Number(formData.get(key))])
-  );
-  // Checkboxes only appear in FormData at all when checked — an absent
-  // key means "off", not "leave unchanged", since this is the only form
-  // that ever sets this field.
-  data.maintenanceMode = formData.get("maintenanceMode") === "on";
-  data.maintenanceMessage = String(formData.get("maintenanceMessage") || "").trim() || null;
+    const data: Record<string, unknown> = Object.fromEntries(
+      NUMERIC_KEYS.map((key) => [key, Number(formData.get(key))])
+    );
+    // Checkboxes only appear in FormData at all when checked — an absent
+    // key means "off", not "leave unchanged", since this is the only form
+    // that ever sets this field.
+    data.maintenanceMode = formData.get("maintenanceMode") === "on";
+    data.maintenanceMessage = String(formData.get("maintenanceMessage") || "").trim() || null;
 
-  if (existing) {
-    await prisma.appConfig.update({ where: { id: existing.id }, data });
-  } else {
-    await prisma.appConfig.create({ data });
+    if (existing) {
+      await prisma.appConfig.update({ where: { id: existing.id }, data });
+    } else {
+      await prisma.appConfig.create({ data });
+    }
+
+    revalidatePath("/settings/config");
+    redirectWithToast("/settings/config", "Configuration saved.");
+  } catch (err) {
+    if (isRedirectError(err)) throw err;
+    redirectWithToast("/settings/config", "Couldn't save configuration. Try again.", "error");
   }
-
-  revalidatePath("/settings/config");
-  redirectWithToast("/settings/config", "Configuration saved.");
 }
 
 export default async function AppConfigPage() {
@@ -117,7 +124,13 @@ export default async function AppConfigPage() {
           redeploy needed).
         </p>
 
-        <form action={saveConfig} style={{ marginTop: 16, display: "flex", flexDirection: "column", gap: 28, maxWidth: 520 }}>
+        <ConfirmFormSubmit
+          action={saveConfig}
+          formStyle={{ marginTop: 16, display: "flex", flexDirection: "column", gap: 28, maxWidth: 520 }}
+          confirmTitle="Save these config changes?"
+          confirmMessage="These take effect for every user within ~15 seconds (the backend's cache TTL) — no redeploy, no way to stage or preview first. Double-check the numbers before confirming."
+          confirmLabel="Save configuration"
+        >
           <div style={{ border: "1px solid #FAEEDA", background: "#FFFCF5", borderRadius: 10, padding: 16 }}>
             <h2 style={{ fontSize: 14, fontWeight: 600, marginBottom: 4 }}>Maintenance mode</h2>
             <p style={{ fontSize: 12, color: "#854F0B", marginBottom: 12 }}>
@@ -161,7 +174,7 @@ export default async function AppConfigPage() {
             </div>
           ))}
           <SubmitButton pendingLabel="Saving...">Save configuration</SubmitButton>
-        </form>
+        </ConfirmFormSubmit>
       </div>
     </AdminShell>
   );

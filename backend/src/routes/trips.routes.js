@@ -48,14 +48,26 @@ router.post("/:bookingId/start", requireAuth, requireRole("DRIVER"), async (req,
   res.json({ bookingId: updated.id }); // OTP itself goes to the passenger's own screen, not this response
 });
 
-// POST /api/trips/:bookingId/verify-otp — driver enters EITHER what the
-// passenger read aloud (the 4-digit OTP) OR the passenger's Booking ID —
-// either one is enough to start the trip. Accepts `otp` (legacy field
-// name, kept for backward compat) or `code` (either kind of value).
+// POST /api/trips/:bookingId/verify-otp — driver enters the 4-digit code
+// the passenger read aloud. Accepts `otp` (legacy field name, kept for
+// backward compat) or `code`.
+//
+// SECURITY: this used to also accept the booking's own ID as a stand-in
+// for the OTP ("matchesBookingId"). That was a real bypass, not a
+// theoretical one — `req.params.bookingId` IS `booking.id` by
+// construction (it's how the row above got fetched), so the calling
+// driver already has the one value that would satisfy that check before
+// they even send the request. Any driver could start any of their own
+// confirmed trips instantly, with zero passenger interaction, by just
+// echoing the URL's own bookingId back as "code" — which defeated the
+// entire point of the OTP (proving the passenger is physically present
+// at pickup). The mobile app never exposed this path either (StartTrip-
+// Screen only ever collects the 4-digit OTP), so removing it changes no
+// legitimate behavior.
 router.post("/:bookingId/verify-otp", requireAuth, requireRole("DRIVER"), async (req, res) => {
   const code = String(req.body.code ?? req.body.otp ?? "").trim();
   if (!code) {
-    return res.status(400).json({ error: "Enter the passenger's OTP or Booking ID." });
+    return res.status(400).json({ error: "Enter the passenger's OTP." });
   }
   const booking = await prisma.booking.findUnique({
     where: { id: req.params.bookingId },
@@ -68,9 +80,7 @@ router.post("/:bookingId/verify-otp", requireAuth, requireRole("DRIVER"), async 
     return res.status(400).json({ error: "Booking must be confirmed before starting the trip." });
   }
 
-  const matchesOtp = booking.tripOtp && code === booking.tripOtp;
-  const matchesBookingId = code.toLowerCase() === booking.id.toLowerCase();
-  if (!matchesOtp && !matchesBookingId) {
+  if (!booking.tripOtp || code !== booking.tripOtp) {
     return res.status(400).json({ error: "Incorrect code." });
   }
 
@@ -96,10 +106,23 @@ router.post("/:bookingId/verify-otp", requireAuth, requireRole("DRIVER"), async 
 });
 
 // PUT /api/trips/:bookingId/location — periodic GPS ping from the driver app
+//
+// SECURITY: previously updated whichever bookingId was in the URL with no
+// check that the caller was actually that ride's driver — any
+// authenticated driver could overwrite any booking's GPS trail (their
+// own or a stranger's). Scoped the same way every other driver-only
+// mutation in this file already is.
 router.put("/:bookingId/location", requireAuth, requireRole("DRIVER"), async (req, res) => {
   const { lat, lng } = req.body;
   if (!isLat(lat) || !isLng(lng)) {
     return res.status(400).json({ error: "Invalid coordinates." });
+  }
+  const booking = await prisma.booking.findUnique({
+    where: { id: req.params.bookingId },
+    include: { ride: { select: { driverId: true } } },
+  });
+  if (!booking || booking.ride.driverId !== req.user.id) {
+    return res.status(404).json({ error: "Booking not found." });
   }
   const updated = await prisma.booking.update({
     where: { id: req.params.bookingId },
@@ -110,12 +133,23 @@ router.put("/:bookingId/location", requireAuth, requireRole("DRIVER"), async (re
 
 // GET /api/trips/:bookingId/track — passenger polls this; client computes
 // "reconnecting" state itself if lastLocationAt is more than ~90s old.
+//
+// SECURITY: previously returned live GPS coordinates, driver identity,
+// and the amount owed for any bookingId the caller could supply, with no
+// check they were actually the passenger or driver on it. Scoped to
+// participants only, same pattern chat.routes.js's resolveParticipant
+// already uses.
 router.get("/:bookingId/track", requireAuth, async (req, res) => {
   const booking = await prisma.booking.findUnique({
     where: { id: req.params.bookingId },
     include: { ride: { include: { driver: { select: { id: true, name: true } } } } },
   });
   if (!booking) return res.status(404).json({ error: "Booking not found." });
+  const isPassenger = booking.passengerId === req.user.id;
+  const isDriver = booking.ride.driverId === req.user.id;
+  if (!isPassenger && !isDriver) {
+    return res.status(403).json({ error: "Not permitted." });
+  }
 
   res.json({
     lat: booking.lastLat,
@@ -232,11 +266,30 @@ router.put("/:bookingId/collect-cash", requireAuth, requireRole("DRIVER"), async
 });
 
 // POST /api/trips/:bookingId/sos
+//
+// SECURITY: previously created the SosAlert against whatever bookingId
+// was in the URL with no check the caller was actually on that booking —
+// the SMS itself still only ever went to the caller's own emergency
+// contacts (scoped by req.user.id, unaffected by this), but the alert
+// record ended up spoof-attached to a trip the caller had nothing to do
+// with, polluting SOS records tied to a real passenger/driver who never
+// triggered anything.
 router.post("/:bookingId/sos", requireAuth, async (req, res) => {
   const { lat, lng } = req.body;
   if (!isLat(lat) || !isLng(lng)) {
     return res.status(400).json({ error: "Invalid coordinates." });
   }
+  const booking = await prisma.booking.findUnique({
+    where: { id: req.params.bookingId },
+    include: { ride: { select: { driverId: true } } },
+  });
+  if (!booking) return res.status(404).json({ error: "Booking not found." });
+  const isPassenger = booking.passengerId === req.user.id;
+  const isDriver = booking.ride.driverId === req.user.id;
+  if (!isPassenger && !isDriver) {
+    return res.status(403).json({ error: "Not permitted." });
+  }
+
   const contacts = await prisma.emergencyContact.findMany({ where: { userId: req.user.id } });
 
   const alert = await prisma.sosAlert.create({

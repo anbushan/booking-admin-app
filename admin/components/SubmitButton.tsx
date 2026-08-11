@@ -14,14 +14,16 @@ export function SubmitButton({
   children,
   className = "admin-btn admin-btn-primary",
   pendingLabel,
+  style,
 }: {
   children: React.ReactNode;
   className?: string;
   pendingLabel?: string;
+  style?: React.CSSProperties;
 }) {
   const { pending } = useFormStatus();
   return (
-    <button type="submit" className={className} disabled={pending}>
+    <button type="submit" className={className} disabled={pending} style={style}>
       {pending && <Loader2 size={14} className="admin-spin" />}
       {pending && pendingLabel ? pendingLabel : children}
     </button>

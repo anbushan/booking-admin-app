@@ -27,6 +27,7 @@ import {
 } from "lucide-react";
 import { Logo } from "./Logo";
 import { ToastHost } from "./ToastHost";
+import { SignOutButton } from "./SignOutButton";
 
 // Grouped the way YouTube Studio groups its own sidebar (Content /
 // Analytics / Audience, one icon per row, section labels breaking up
@@ -151,12 +152,10 @@ export default function AdminShell({
           })}
         </div>
       ))}
-      <form action="/api/admin-logout" method="post" className="admin-signout-form">
-        <button type="submit" className="admin-signout" title={collapsed ? "Sign out" : undefined}>
-          <LogOut size={16} strokeWidth={2} style={{ flexShrink: 0 }} />
-          {!collapsed && <span>Sign out</span>}
-        </button>
-      </form>
+      <SignOutButton className="admin-signout" formClassName="admin-signout-form" title={collapsed ? "Sign out" : undefined}>
+        <LogOut size={16} strokeWidth={2} style={{ flexShrink: 0 }} />
+        {!collapsed && <span>Sign out</span>}
+      </SignOutButton>
     </nav>
   );
 
@@ -206,12 +205,10 @@ export default function AdminShell({
               <div className="admin-avatar-menu">
                 <div className="admin-avatar-menu-email">{identity.email || "—"}</div>
                 <div className="admin-avatar-menu-role">{identity.role?.replaceAll("_", " ") || ""}</div>
-                <form action="/api/admin-logout" method="post">
-                  <button type="submit" className="admin-avatar-menu-signout">
-                    <LogOut size={14} strokeWidth={2} />
-                    <span>Sign out</span>
-                  </button>
-                </form>
+                <SignOutButton className="admin-avatar-menu-signout">
+                  <LogOut size={14} strokeWidth={2} />
+                  <span>Sign out</span>
+                </SignOutButton>
               </div>
             </>
           )}

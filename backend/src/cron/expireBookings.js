@@ -1,6 +1,7 @@
 import { prisma } from "../lib/prisma.js";
 import { notify } from "../lib/notify.js";
 import { clearChatForBooking } from "../lib/chat.js";
+import { mapLimit } from "../lib/concurrency.js";
 
 // Runs on an interval from index.js. Redis TTL is the fast path for
 // expiring an unanswered booking request or a lapsed payment window;
@@ -16,7 +17,11 @@ export async function expireStaleBookings() {
     where: { status: { in: ["BOOKED", "AWAITING_PAYMENT"] }, expiresAt: { lt: new Date() } },
   });
 
-  for (const booking of stale) {
+  // Each stale booking is independent of every other, so they're worked
+  // off in parallel rather than one at a time — bounded (see
+  // lib/concurrency.js) since this is a fallback sweep and the stale set
+  // can spike after a real outage, not just its usual trickle.
+  await mapLimit(stale, 8, async (booking) => {
     const expiryReason = booking.status === "AWAITING_PAYMENT" ? "PAYMENT_WINDOW" : "NO_DRIVER_RESPONSE";
 
     await prisma.$transaction([
@@ -35,7 +40,7 @@ export async function expireStaleBookings() {
       await notify(booking.passengerId, "BOOKING_EXPIRED", "Driver didn't respond",
         "Your booking request expired. Search again for another ride.", booking.id);
     }
-  }
+  });
 
   if (stale.length) console.log(`Expired ${stale.length} stale booking(s).`);
 }

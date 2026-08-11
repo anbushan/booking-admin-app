@@ -1,9 +1,9 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { View, Text, SectionList, StyleSheet, RefreshControl } from "react-native";
 import { Pressable } from "../components/Pressable";
 import { useFocusEffect } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
-import { colors, spacing, radius, typography } from "../theme/theme";
+import { colors, spacing, radius, typography, FONT } from "../theme/theme";
 import { api } from "../lib/api";
 import { CarLoader } from "../components/CarLoader";
 import { EmptyState } from "../components/EmptyState";
@@ -64,7 +64,24 @@ export default function UpcomingTripsScreen({ navigation }: any) {
   // badge current without needing to leave and come back to this screen.
   useEffect(() => appEvents.on("chat:new", () => load()), []);
 
+  // A double-tap here used to push StartTripScreen twice — the button had
+  // no debounce, and `navigation.navigate()` doesn't fully de-duplicate
+  // two calls that land in the same tick before the first push's
+  // transition has actually started. Each mounted instance independently
+  // calls api.startTrip() (see StartTripScreen), which re-generates the
+  // pickup OTP and re-notifies the passenger — so this wasn't just a
+  // visual flicker from two screens transitioning back-to-back, it was a
+  // second, silently-invalidating OTP generated behind the driver's back.
+  // A plain ref (not state) is enough: it only needs to block a second
+  // call within the same tap-to-navigation window, not trigger a
+  // re-render, and resets once the screen refocuses (the user's back on
+  // this list, so a fresh tap should work again).
+  const navigatingRef = useRef(false);
+  useFocusEffect(React.useCallback(() => { navigatingRef.current = false; }, []));
+
   function handleAction(trip: Trip) {
+    if (navigatingRef.current) return;
+    navigatingRef.current = true;
     if (trip.status === "CONFIRMED") {
       navigation.navigate("StartTrip", { bookingId: trip.id });
     } else {
@@ -88,6 +105,9 @@ export default function UpcomingTripsScreen({ navigation }: any) {
         <SectionList
           style={{ flex: 1 }}
           sections={sections}
+          maxToRenderPerBatch={8}
+          windowSize={7}
+          initialNumToRender={8}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => load(true)} colors={[colors.accent]} tintColor={colors.accent} />}
           keyExtractor={(item) => item.id}
           contentContainerStyle={{ padding: spacing.md, gap: spacing.sm, flexGrow: 1 }}
@@ -167,7 +187,7 @@ const styles = StyleSheet.create({
   pendingCaption: { ...typography.small, color: colors.textMuted, marginTop: spacing.sm },
   actionRow: { flexDirection: "row", gap: spacing.sm, marginTop: spacing.sm },
   actionButton: { backgroundColor: colors.textPrimary, height: 40, borderRadius: radius.sm, alignItems: "center", justifyContent: "center" },
-  actionButtonText: { ...typography.caption, color: "#FFFFFF", fontWeight: "700" },
+  actionButtonText: { ...typography.caption, color: "#FFFFFF", fontWeight: "700", fontFamily: FONT.bold },
   chatButton: { flex: 0, paddingHorizontal: spacing.md, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
-  chatButtonText: { ...typography.caption, color: colors.accentText, fontWeight: "700" },
+  chatButtonText: { ...typography.caption, color: colors.accentText, fontWeight: "700", fontFamily: FONT.bold },
 });

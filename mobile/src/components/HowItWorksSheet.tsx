@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { View, Text, Modal, ScrollView, Animated, Easing, StyleSheet } from "react-native";
 import { Pressable } from "./Pressable";
 import { Ionicons } from "@expo/vector-icons";
-import { colors, spacing, radius, typography } from "../theme/theme";
+import { colors, spacing, radius, typography, FONT } from "../theme/theme";
 import { useTranslation } from "../lib/i18n/I18nContext";
 
 type Step = { icon: keyof typeof Ionicons.glyphMap; titleKey: string; descKey: string };
@@ -136,7 +136,7 @@ const styles = StyleSheet.create({
   iconWrap: { width: 32, height: 32, borderRadius: 10, backgroundColor: colors.accentBg, alignItems: "center", justifyContent: "center" },
   line: { width: 2, flex: 1, minHeight: 20, backgroundColor: colors.border, marginVertical: 2 },
   stepBody: { flex: 1, paddingBottom: spacing.md },
-  stepTitle: { ...typography.body, fontWeight: "700" },
+  stepTitle: { ...typography.body, fontWeight: "700", fontFamily: FONT.bold },
   stepDescription: { ...typography.small, color: colors.textMuted, marginTop: 2, lineHeight: 17 },
   gotItButton: { backgroundColor: colors.textPrimary, height: 46, borderRadius: radius.sm, alignItems: "center", justifyContent: "center", marginTop: spacing.md },
   gotItText: { ...typography.title, color: "#FFFFFF" },

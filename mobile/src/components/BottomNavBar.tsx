@@ -3,7 +3,7 @@ import { View, Text, StyleSheet } from "react-native";
 import { Pressable } from "./Pressable";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
-import { colors, spacing, typography } from "../theme/theme";
+import { colors, spacing, typography, FONT } from "../theme/theme";
 
 // Zomato-style persistent quick-nav — replaces the hamburger-only path
 // into the app on Home. Tabs are supplied by the caller (Home builds a
@@ -70,7 +70,7 @@ const styles = StyleSheet.create({
   },
   tab: { flex: 1, alignItems: "center", justifyContent: "center", gap: 2, paddingHorizontal: 2 },
   label: { ...typography.small, fontSize: 10.5, color: colors.textMuted },
-  labelActive: { color: colors.accentText, fontWeight: "700" },
+  labelActive: { color: colors.accentText, fontWeight: "700", fontFamily: FONT.bold },
   badge: {
     position: "absolute",
     top: -4,
@@ -83,5 +83,5 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  badgeText: { color: "#FFFFFF", fontSize: 9, fontWeight: "700" },
+  badgeText: { color: "#FFFFFF", fontSize: 9, fontWeight: "700", fontFamily: FONT.bold },
 });

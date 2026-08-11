@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from "react";
 import { View, Text, FlatList, StyleSheet, RefreshControl } from "react-native";
 import { Pressable } from "../components/Pressable";
 import { useFocusEffect } from "@react-navigation/native";
-import { colors, spacing, radius, typography } from "../theme/theme";
+import { colors, spacing, radius, typography, FONT } from "../theme/theme";
 import { api } from "../lib/api";
 import { CarLoader } from "../components/CarLoader";
 import { EmptyState } from "../components/EmptyState";
@@ -89,6 +89,9 @@ export default function MyRequestsScreen({ navigation }: any) {
         <FlatList
           style={{ flex: 1 }}
           data={requests}
+          maxToRenderPerBatch={8}
+          windowSize={7}
+          initialNumToRender={8}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => load(true)} colors={[colors.accent]} tintColor={colors.accent} />}
           keyExtractor={(item) => item.id}
           contentContainerStyle={{ padding: spacing.md, gap: spacing.sm, flexGrow: 1 }}
@@ -162,5 +165,5 @@ const styles = StyleSheet.create({
   countdown: { ...typography.small, color: colors.textMuted },
   status: { ...typography.small, color: colors.warning, backgroundColor: colors.warningBg, alignSelf: "flex-start", paddingVertical: 2, paddingHorizontal: 6, borderRadius: 6 },
   payButton: { backgroundColor: colors.textPrimary, height: 38, borderRadius: radius.sm, alignItems: "center", justifyContent: "center", marginTop: spacing.xs },
-  payButtonText: { ...typography.caption, color: "#FFFFFF", fontWeight: "700" },
+  payButtonText: { ...typography.caption, color: "#FFFFFF", fontWeight: "700", fontFamily: FONT.bold },
 });

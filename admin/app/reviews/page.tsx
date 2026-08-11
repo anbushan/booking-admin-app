@@ -11,6 +11,7 @@ import { SearchFilterBar } from "../../components/SearchFilterBar";
 import Pagination from "../../components/Pagination";
 import { SubmitButton } from "../../components/SubmitButton";
 import { redirectWithToast } from "../../lib/toastRedirect";
+import { isRedirectError } from "../../lib/actionError";
 
 export const dynamic = "force-dynamic";
 const PAGE_SIZE = 25;
@@ -24,9 +25,14 @@ const SORTS: Record<string, any> = {
 async function flagReview(formData: FormData) {
   "use server";
   const id = formData.get("reviewId") as string;
-  await prisma.review.update({ where: { id }, data: { flagged: true } });
-  revalidatePath("/reviews");
-  redirectWithToast("/reviews", "Review flagged.");
+  try {
+    await prisma.review.update({ where: { id }, data: { flagged: true } });
+    revalidatePath("/reviews");
+    redirectWithToast("/reviews", "Review flagged.");
+  } catch (err) {
+    if (isRedirectError(err)) throw err;
+    redirectWithToast("/reviews", "Couldn't flag review. Try again.", "error");
+  }
 }
 
 export default async function ReviewsPage({

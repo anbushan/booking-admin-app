@@ -1,7 +1,6 @@
 import React from "react";
-import { View, Text, StyleSheet } from "react-native";
-import { colors, spacing, typography } from "../theme/theme";
-import { EmptyGauge } from "./EmptyGauge";
+import { View, Text, Image, StyleSheet } from "react-native";
+import { colors, spacing, typography, FONT } from "../theme/theme";
 
 // Same empty-fuel-gauge illustration as EmptyState, just sized up —
 // this is the single highest-traffic empty state (search results), so
@@ -10,7 +9,7 @@ import { EmptyGauge } from "./EmptyGauge";
 export function NoRidesFound({ title, subtitle }: { title: string; subtitle?: string }) {
   return (
     <View style={styles.container}>
-      <EmptyGauge size={140} />
+      <Image source={require("../../assets/nodata.gif")} style={styles.image} resizeMode="contain" />
       <Text style={styles.title}>{title}</Text>
       {!!subtitle && <Text style={styles.subtitle}>{subtitle}</Text>}
     </View>
@@ -19,6 +18,7 @@ export function NoRidesFound({ title, subtitle }: { title: string; subtitle?: st
 
 const styles = StyleSheet.create({
   container: { flex: 1, alignItems: "center", justifyContent: "center", padding: spacing.xl },
-  title: { ...typography.body, color: colors.textSecondary, textAlign: "center", fontWeight: "700", marginTop: spacing.md },
+  image: { width: 224, height: 153 },
+  title: { ...typography.body, color: colors.textSecondary, textAlign: "center", fontWeight: "700", fontFamily: FONT.bold, marginTop: spacing.md },
   subtitle: { ...typography.small, color: colors.textMuted, textAlign: "center", marginTop: spacing.xs },
 });

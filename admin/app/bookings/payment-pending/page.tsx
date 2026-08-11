@@ -10,6 +10,7 @@ import { EmptyState } from "../../../components/EmptyState";
 import Pagination from "../../../components/Pagination";
 import { SubmitButton } from "../../../components/SubmitButton";
 import { redirectWithToast } from "../../../lib/toastRedirect";
+import { isRedirectError } from "../../../lib/actionError";
 
 export const dynamic = "force-dynamic";
 const PAGE_SIZE = 25;
@@ -25,17 +26,22 @@ async function sendRetryReminder(formData: FormData) {
   const passengerId = formData.get("passengerId") as string;
   const amount = formData.get("amount") as string;
 
-  await prisma.notification.create({
-    data: {
-      userId: passengerId,
-      type: "PAYMENT_FAILED",
-      title: "Payment reminder",
-      body: `Your platform fee payment of Rs ${amount} didn't go through — please retry from your booking before the pay window closes.`,
-    },
-  });
+  try {
+    await prisma.notification.create({
+      data: {
+        userId: passengerId,
+        type: "PAYMENT_FAILED",
+        title: "Payment reminder",
+        body: `Your platform fee payment of Rs ${amount} didn't go through — please retry from your booking before the pay window closes.`,
+      },
+    });
 
-  revalidatePath("/bookings/payment-pending");
-  redirectWithToast("/bookings/payment-pending", "Reminder sent.");
+    revalidatePath("/bookings/payment-pending");
+    redirectWithToast("/bookings/payment-pending", "Reminder sent.");
+  } catch (err) {
+    if (isRedirectError(err)) throw err;
+    redirectWithToast("/bookings/payment-pending", "Couldn't send reminder. Try again.", "error");
+  }
 }
 
 export default async function PaymentPendingPage({ searchParams }: { searchParams: { page?: string } }) {

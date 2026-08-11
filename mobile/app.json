@@ -16,6 +16,7 @@
     },
     "android": {
       "package": "com.carpool.app",
+      "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
         "backgroundColor": "#F1EFE8",
         "foregroundImage": "./assets/adaptive-icon.png"
@@ -60,7 +61,9 @@
         }
       ],
       "expo-font",
-      "./plugins/withDisableForceDark"
+      "expo-notifications",
+      "./plugins/withDisableForceDark",
+      "@sentry/react-native"
     ],
     "extra": {
       "eas": {

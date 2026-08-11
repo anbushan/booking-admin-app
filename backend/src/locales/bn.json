@@ -477,6 +477,7 @@
   "vehicle.vehicleRemoved": "যানবাহন সরানো হয়েছে",
   "vehicle.couldntRemove": "যানবাহন সরানো যায়নি",
   "vehicle.addYourVehicle": "আপনার যানবাহন যোগ করুন",
+  "vehicle.skipForNow": "আপাতত এড়িয়ে যান",
   "vehicle.editVehicle": "যানবাহন সম্পাদনা করুন",
   "vehicle.vehicleType": "যানবাহনের ধরন",
   "vehicle.car": "গাড়ি",

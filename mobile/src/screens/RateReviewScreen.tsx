@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { View, Text, TextInput, StyleSheet } from "react-native";
 import { Pressable } from "../components/Pressable";
 import { showAlert } from "../lib/alert";
-import { colors, spacing, radius, typography } from "../theme/theme";
+import { colors, spacing, radius, typography, FONT } from "../theme/theme";
 import { api } from "../lib/api";
 import { useToast } from "../components/Toast";
 import { Analytics } from "../lib/analytics";
@@ -86,7 +86,7 @@ export default function RateReviewScreen({ route, navigation }: any) {
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.bg },
   centerContent: { padding: spacing.lg, justifyContent: "center" },
-  skipText: { ...typography.caption, color: colors.accentText, fontWeight: "700" },
+  skipText: { ...typography.caption, color: colors.accentText, fontWeight: "700", fontFamily: FONT.bold },
   title: { ...typography.title, textAlign: "center", marginBottom: spacing.lg },
   stars: { flexDirection: "row", justifyContent: "center", gap: spacing.sm, marginBottom: spacing.lg },
   star: { fontSize: 32, color: colors.border },

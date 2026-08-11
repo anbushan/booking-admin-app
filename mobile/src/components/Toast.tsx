@@ -2,7 +2,7 @@ import React, { createContext, useContext, useRef, useState } from "react";
 import { Animated, Text, StyleSheet, View, Modal } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
-import { colors, spacing, radius, typography } from "../theme/theme";
+import { colors, spacing, radius, typography, FONT } from "../theme/theme";
 
 type ToastType = "success" | "error";
 type ToastState = { message: string; type: ToastType } | null;
@@ -117,5 +117,5 @@ const styles = StyleSheet.create({
   iconWrap: { width: 22, height: 22, borderRadius: 11, alignItems: "center", justifyContent: "center", flex: 0 },
   iconWrapSuccess: { backgroundColor: colors.success },
   iconWrapError: { backgroundColor: colors.danger },
-  text: { ...typography.caption, color: "#FFFFFF", fontWeight: "700", flex: 1 },
+  text: { ...typography.caption, color: "#FFFFFF", fontWeight: "700", fontFamily: FONT.bold, flex: 1 },
 });

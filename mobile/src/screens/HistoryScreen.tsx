@@ -4,7 +4,7 @@ import { Pressable } from "../components/Pressable";
 import { useFocusEffect } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
 import { showAlert } from "../lib/alert";
-import { colors, spacing, radius, typography } from "../theme/theme";
+import { colors, spacing, radius, typography, FONT } from "../theme/theme";
 import { api } from "../lib/api";
 import { CarLoader } from "../components/CarLoader";
 import { EmptyState } from "../components/EmptyState";
@@ -172,6 +172,13 @@ export default function HistoryScreen({ navigation, route }: any) {
       <FlatList
         style={{ flex: 1 }}
         data={items}
+        // Each card can carry an animated StepTracker — a small render
+        // window keeps that animation work limited to what's actually
+        // near the viewport instead of every row in the (unpaginated,
+        // for the passenger side) full history.
+        maxToRenderPerBatch={6}
+        windowSize={7}
+        initialNumToRender={6}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => load(true)} colors={[colors.accent]} tintColor={colors.accent} />}
         keyExtractor={(item) => item.id}
         contentContainerStyle={{ padding: spacing.md, gap: spacing.md, flexGrow: 1 }}
@@ -353,7 +360,7 @@ const styles = StyleSheet.create({
   },
   chipPrimary: { backgroundColor: colors.marigold },
   chipDanger: { backgroundColor: colors.dangerBg },
-  chipText: { ...typography.small, color: colors.accentText, fontWeight: "700" },
+  chipText: { ...typography.small, color: colors.accentText, fontWeight: "700", fontFamily: FONT.bold },
   chipTextPrimary: { color: "#FFFFFF" },
   chipTextDanger: { color: colors.danger },
   infoIconButton: { width: 30, height: 30, borderRadius: 15, alignItems: "center", justifyContent: "center" },

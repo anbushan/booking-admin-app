@@ -8,6 +8,7 @@ import { PageHeader } from "../../../components/PageHeader";
 import { Badge } from "../../../components/Badge";
 import { ConfirmButton } from "../../../components/ConfirmButton";
 import { redirectWithToast } from "../../../lib/toastRedirect";
+import { isRedirectError } from "../../../lib/actionError";
 import { Car, ArrowLeft } from "lucide-react";
 
 export const dynamic = "force-dynamic";
@@ -15,15 +16,20 @@ export const dynamic = "force-dynamic";
 async function cancelRide(formData: FormData) {
   "use server";
   const rideId = formData.get("rideId") as string;
-  await prisma.$transaction([
-    prisma.ride.update({ where: { id: rideId }, data: { status: "CANCELLED" } }),
-    prisma.booking.updateMany({
-      where: { rideId, status: { in: ["BOOKED", "AWAITING_PAYMENT", "CONFIRMED"] } },
-      data: { status: "CANCELLED", cancelledBy: "DRIVER", cancelledAt: new Date() },
-    }),
-  ]);
-  revalidatePath(`/rides/${rideId}`);
-  redirectWithToast(`/rides/${rideId}`, "Ride cancelled.");
+  try {
+    await prisma.$transaction([
+      prisma.ride.update({ where: { id: rideId }, data: { status: "CANCELLED" } }),
+      prisma.booking.updateMany({
+        where: { rideId, status: { in: ["BOOKED", "AWAITING_PAYMENT", "CONFIRMED"] } },
+        data: { status: "CANCELLED", cancelledBy: "DRIVER", cancelledAt: new Date() },
+      }),
+    ]);
+    revalidatePath(`/rides/${rideId}`);
+    redirectWithToast(`/rides/${rideId}`, "Ride cancelled.");
+  } catch (err) {
+    if (isRedirectError(err)) throw err;
+    redirectWithToast(`/rides/${rideId}`, "Couldn't cancel ride. Try again.", "error");
+  }
 }
 
 export default async function RideDetailPage({ params }: { params: { id: string } }) {

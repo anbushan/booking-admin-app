@@ -3,7 +3,7 @@ import { View, Text, TextInput, ScrollView, RefreshControl, Animated, Easing, St
 import { Pressable } from "../components/Pressable";
 import { Ionicons } from "@expo/vector-icons";
 import { showAlert } from "../lib/alert";
-import { colors, spacing, radius, typography } from "../theme/theme";
+import { colors, spacing, radius, typography, FONT } from "../theme/theme";
 import { api } from "../lib/api";
 import { validateRidePricing } from "../lib/validators";
 import { computeFareCap } from "../lib/fareCap";
@@ -249,7 +249,12 @@ export default function OfferRideScreen({ navigation }: any) {
         >
           <Text style={styles.noVehicleTitle}>{t("offerRide.addVehicleToPublish")}</Text>
           <Text style={styles.noVehicleSubtitle}>{t("offerRide.addVehicleSubtitle")}</Text>
-          <Pressable style={styles.button} onPress={() => navigation.navigate("AddVehicle")}>
+          {/* Was navigating to "AddVehicle" — not a registered route name
+              (App.tsx only registers AddVehicleScreen under
+              "DriverOnboarding"), so this button silently did nothing
+              (React Navigation logs a warning and no-ops on an unknown
+              route rather than throwing). */}
+          <Pressable style={styles.button} onPress={() => navigation.navigate("DriverOnboarding")}>
             <Text style={styles.buttonText}>{t("vehicle.addVehicle")}</Text>
           </Pressable>
           <VehicleApprovalFlow currentStep={1} />
@@ -446,14 +451,14 @@ const styles = StyleSheet.create({
     marginTop: spacing.lg,
     width: "100%",
   },
-  flowTitle: { ...typography.caption, fontWeight: "700", color: colors.textPrimary, marginBottom: spacing.md, textAlign: "center" },
+  flowTitle: { ...typography.caption, fontWeight: "700", fontFamily: FONT.bold, color: colors.textPrimary, marginBottom: spacing.md, textAlign: "center" },
   flowRow: { flexDirection: "row", alignItems: "flex-start" },
   flowStep: { alignItems: "center", gap: 5, width: 64 },
   flowStepIconWrap: { width: 24, height: 24, borderRadius: 12, backgroundColor: colors.surface, borderWidth: 2, borderColor: colors.border, alignItems: "center", justifyContent: "center" },
   flowStepIconWrapDone: { backgroundColor: colors.successBg, borderColor: colors.success },
   flowStepIconWrapActive: { backgroundColor: colors.accentBg, borderColor: colors.accent },
   flowStepLabel: { ...typography.small, color: colors.textMuted, textAlign: "center", fontSize: 10, lineHeight: 12 },
-  flowStepLabelActive: { color: colors.accentText, fontWeight: "700" },
+  flowStepLabelActive: { color: colors.accentText, fontWeight: "700", fontFamily: FONT.bold },
   flowConnector: { flex: 1, height: 2, backgroundColor: colors.border, marginHorizontal: -2, marginTop: 11 },
   flowConnectorDone: { backgroundColor: colors.success },
   // Same visual convention as StepTracker's own carBadge — marigold

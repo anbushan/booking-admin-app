@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { Modal, View, Text, StyleSheet } from "react-native";
 import { Pressable } from "./Pressable";
 import { Ionicons } from "@expo/vector-icons";
-import { colors, spacing, radius, typography } from "../theme/theme";
+import { colors, spacing, radius, typography, FONT } from "../theme/theme";
 import { registerAlertListener, popAlert, AlertRequest } from "../lib/alertStore";
 
 // Mounted once at the App root (see App.tsx). Every showAlert(...) call
@@ -80,7 +80,7 @@ const styles = StyleSheet.create({
   button: { flex: 1, backgroundColor: colors.textPrimary, height: 44, borderRadius: radius.sm, alignItems: "center", justifyContent: "center" },
   buttonCancel: { backgroundColor: colors.bg, borderWidth: 1, borderColor: colors.border },
   buttonDestructive: { backgroundColor: colors.danger },
-  buttonText: { ...typography.caption, color: "#FFFFFF", fontWeight: "700" },
+  buttonText: { ...typography.caption, color: "#FFFFFF", fontWeight: "700", fontFamily: FONT.bold },
   buttonTextCancel: { color: colors.textSecondary },
   buttonTextDestructive: { color: "#FFFFFF" },
 });
