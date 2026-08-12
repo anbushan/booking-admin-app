@@ -6,6 +6,7 @@ import { issueDriverStrike } from "../lib/strikes.js";
 import { clearChatForBooking } from "../lib/chat.js";
 import { closeRideIfNoActiveBookings } from "../lib/rideLifecycle.js";
 import { mapLimit } from "../lib/concurrency.js";
+import { releaseSeatHold } from "../lib/segments.js";
 
 // Runs on an interval from index.js. A driver no-show is a per-RIDE
 // event — if the driver never shows up, every passenger booked on that
@@ -40,16 +41,11 @@ export async function checkNoShows() {
     const now = new Date();
     await Promise.all(
       bookings.map(async (booking) => {
-        await prisma.$transaction([
-          prisma.booking.update({
-            where: { id: booking.id },
-            data: { status: "CANCELLED", cancelledBy: "SYSTEM", cancelReason: "NO_SHOW_DRIVER", cancelledAt: now },
-          }),
-          prisma.ride.update({
-            where: { id: booking.rideId },
-            data: { seatsAvailable: { increment: booking.seatsBooked } },
-          }),
-        ]);
+        await prisma.booking.update({
+          where: { id: booking.id },
+          data: { status: "CANCELLED", cancelledBy: "SYSTEM", cancelReason: "NO_SHOW_DRIVER", cancelledAt: now },
+        });
+        await releaseSeatHold(booking.rideId, booking.seatsBooked);
         await clearChatForBooking(booking.id);
         await refundIfPaid(booking.id).catch((err) =>
           console.error(`Refund check failed for booking ${booking.id}:`, err.message)

@@ -55,6 +55,10 @@ export default function RouteOptionsScreen({ route, navigation }: any) {
         } : {}),
       });
       Analytics.ridePublished(ride?.id || "");
+      // alt is only ever null from the "Publish anyway" button on the
+      // no-alternatives empty state below — everything selected off the
+      // FlatList of real cards always passes a real RouteOption.
+      if (!alt) Analytics.ridePublishedWithoutRoute(ride?.id || "");
       showAlert(t("routeOptions.ridePublishedTitle"), t("routeOptions.ridePublishedBody"));
       navigation.navigate("History", { role: "DRIVER" });
     } catch (err: any) {

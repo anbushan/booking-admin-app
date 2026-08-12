@@ -2,6 +2,7 @@ import { prisma } from "../lib/prisma.js";
 import { notify } from "../lib/notify.js";
 import { clearChatForBooking } from "../lib/chat.js";
 import { mapLimit } from "../lib/concurrency.js";
+import { releaseSeatHold } from "../lib/segments.js";
 
 // Runs on an interval from index.js. Redis TTL is the fast path for
 // expiring an unanswered booking request or a lapsed payment window;
@@ -24,13 +25,8 @@ export async function expireStaleBookings() {
   await mapLimit(stale, 8, async (booking) => {
     const expiryReason = booking.status === "AWAITING_PAYMENT" ? "PAYMENT_WINDOW" : "NO_DRIVER_RESPONSE";
 
-    await prisma.$transaction([
-      prisma.booking.update({ where: { id: booking.id }, data: { status: "EXPIRED", expiryReason } }),
-      prisma.ride.update({
-        where: { id: booking.rideId },
-        data: { seatsAvailable: { increment: booking.seatsBooked } },
-      }),
-    ]);
+    await prisma.booking.update({ where: { id: booking.id }, data: { status: "EXPIRED", expiryReason } });
+    await releaseSeatHold(booking.rideId, booking.seatsBooked);
     await clearChatForBooking(booking.id);
 
     if (expiryReason === "PAYMENT_WINDOW") {

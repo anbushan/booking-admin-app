@@ -8,6 +8,8 @@ import { getAppConfig } from "../lib/appConfig.js";
 import { issueDriverStrike, isDriverStrikeBlocked } from "../lib/strikes.js";
 import { clearChatForBooking } from "../lib/chat.js";
 import { isWithinIndia } from "../lib/geo.js";
+import { decodePolyline, progressAlongRouteKm, MATCH_RADIUS_KM } from "../lib/directions.js";
+import { availableSeatsForInterval, recomputeRideSeatsAvailable, releaseSeatHold, proratedFarePerSeat } from "../lib/segments.js";
 import { validate, isNonEmptyString, isLat, isLng, isPositiveInt } from "../lib/validate.js";
 import { photoViewUrl, photoViewUrlsByUser } from "../lib/photo.js";
 
@@ -78,7 +80,14 @@ router.post("/", requireAuth, requireRole("PASSENGER"), async (req, res) => {
     });
   }
 
-  const { rideId, seatsBooked, pickupLat, pickupLng, pickupAddress, isCustomPickup } = req.body;
+  const {
+    rideId, seatsBooked, pickupLat, pickupLng, pickupAddress, isCustomPickup,
+    // Previously accepted nowhere — every booking silently defaulted to
+    // the ride's own destination regardless of what the passenger
+    // actually searched/matched on. Optional here (older clients, or a
+    // ride with no route to project onto, still work exactly as before).
+    dropLat, dropLng, dropAddress, isCustomDrop,
+  } = req.body;
 
   const errors = validate(req.body, [
     { field: "rideId", check: isNonEmptyString, message: "Ride is required." },
@@ -86,6 +95,9 @@ router.post("/", requireAuth, requireRole("PASSENGER"), async (req, res) => {
     { field: "pickupLat", check: isLat, message: "Pickup location is invalid." },
     { field: "pickupLng", check: isLng, message: "Pickup location is invalid." },
     { field: "pickupAddress", check: (v) => isNonEmptyString(v, 300), message: "Pickup address is required." },
+    { field: "dropLat", check: isLat, message: "Drop location is invalid.", optional: true },
+    { field: "dropLng", check: isLng, message: "Drop location is invalid.", optional: true },
+    { field: "dropAddress", check: (v) => isNonEmptyString(v, 300), message: "Drop address is invalid.", optional: true },
   ]);
   if (errors.length) return res.status(400).json({ errors });
 
@@ -113,29 +125,71 @@ router.post("/", requireAuth, requireRole("PASSENGER"), async (req, res) => {
     if (ride.driverId === req.user.id) {
       return res.status(400).json({ error: "You can't book your own ride." });
     }
-    if (ride.seatsAvailable < seatsBooked) {
-      return res.status(400).json({ error: "Not enough seats left." });
+
+    // This passenger's own pickup/drop projected onto the ride's route —
+    // null on either side (no stored polyline, or the point doesn't
+    // project within the match radius) falls back to "occupies the rest
+    // of the route from wherever it can determine," never to "occupies
+    // nothing" — see lib/segments.js resolveInterval. Same projection
+    // math search matching already uses (rides.routes.js matchRideSegment),
+    // just computed once and stored instead of recomputed per search.
+    let pickupProgressKm = null;
+    let dropProgressKm = null;
+    if (ride.routePolyline) {
+      const points = decodePolyline(ride.routePolyline);
+      const pickup = progressAlongRouteKm(pickupLat, pickupLng, points);
+      if (pickup.distanceKm <= MATCH_RADIUS_KM) pickupProgressKm = pickup.progressKm;
+      if (dropLat != null && dropLng != null) {
+        const drop = progressAlongRouteKm(dropLat, dropLng, points);
+        if (drop.distanceKm <= MATCH_RADIUS_KM) dropProgressKm = drop.progressKm;
+      }
+    }
+
+    // Rides published before segment-aware booking shipped (totalSeats
+    // null) keep the exact old flat-pool check forever — every booking
+    // on one of those counts against the same single number regardless
+    // of segment, exactly as it always did.
+    if (ride.totalSeats == null) {
+      if (ride.seatsAvailable < seatsBooked) {
+        return res.status(400).json({ error: "Not enough seats left." });
+      }
+    } else {
+      const available = await availableSeatsForInterval(
+        ride,
+        pickupProgressKm ?? 0,
+        dropProgressKm ?? ride.routeDistanceKm ?? Infinity
+      );
+      if (available < seatsBooked) {
+        return res.status(400).json({ error: "Not enough seats left on this stretch of the route." });
+      }
     }
 
     const { bookingExpiryMinutes } = await getAppConfig();
     const expiresAt = new Date(Date.now() + bookingExpiryMinutes * 60 * 1000);
 
-    const [booking] = await prisma.$transaction([
-      prisma.booking.create({
-        data: {
-          rideId,
-          passengerId: req.user.id,
-          seatsBooked,
-          pickupLat, pickupLng, pickupAddress,
-          isCustomPickup: !!isCustomPickup,
-          expiresAt,
-        },
-      }),
-      prisma.ride.update({
-        where: { id: rideId },
-        data: { seatsAvailable: { decrement: seatsBooked } },
-      }),
-    ]);
+    const booking = await prisma.booking.create({
+      data: {
+        rideId,
+        passengerId: req.user.id,
+        seatsBooked,
+        pickupLat, pickupLng, pickupAddress,
+        isCustomPickup: !!isCustomPickup,
+        ...(dropLat != null && dropLng != null && dropAddress ? { dropLat, dropLng, dropAddress, isCustomDrop: !!isCustomDrop } : {}),
+        pickupProgressKm, dropProgressKm,
+        expiresAt,
+      },
+    });
+
+    if (ride.totalSeats == null) {
+      // Legacy flat-pool ride — same relative decrement as always.
+      await prisma.ride.update({ where: { id: rideId }, data: { seatsAvailable: { decrement: seatsBooked } } });
+    } else {
+      // New-style ride — seatsAvailable is a derived display figure now,
+      // not a counter; refresh it from the real, segment-aware picture
+      // rather than decrementing a number that no longer has a single
+      // well-defined "the" value across the whole route.
+      await recomputeRideSeatsAvailable(rideId);
+    }
 
     // Fallback sweep also runs a background cron (see cron/expireBookings.js);
     // this Redis TTL fires the fast path.
@@ -170,7 +224,11 @@ router.put("/:id/accept", requireAuth, requireRole("DRIVER"), async (req, res) =
   }
 
   const config = await getAppConfig();
-  const platformFeeAmount = (Number(booking.ride.pricePerSeat) * booking.seatsBooked * config.platformFeePercent) / 100;
+  // proratedFarePerSeat falls back to the full ride price whenever this
+  // booking has no resolved segment (legacy ride, or pickup/drop
+  // couldn't be projected) — same amount this always charged before.
+  const fare = proratedFarePerSeat(booking.ride, booking.pickupProgressKm, booking.dropProgressKm) * booking.seatsBooked;
+  const platformFeeAmount = (fare * config.platformFeePercent) / 100;
   const expiresAt = new Date(Date.now() + config.paymentWindowMinutes * 60 * 1000);
 
   const updated = await prisma.booking.update({
@@ -206,13 +264,8 @@ router.put("/:id/reject", requireAuth, requireRole("DRIVER"), async (req, res) =
     return res.status(400).json({ error: `Cannot reject a booking in status ${booking.status}.` });
   }
 
-  await prisma.$transaction([
-    prisma.booking.update({ where: { id: booking.id }, data: { status: "REJECTED" } }),
-    prisma.ride.update({
-      where: { id: booking.rideId },
-      data: { seatsAvailable: { increment: booking.seatsBooked } },
-    }),
-  ]);
+  await prisma.booking.update({ where: { id: booking.id }, data: { status: "REJECTED" } });
+  await releaseSeatHold(booking.rideId, booking.seatsBooked);
 
   await clearChatForBooking(booking.id);
 
@@ -256,16 +309,11 @@ router.put("/:id/cancel", requireAuth, requireRole("PASSENGER"), async (req, res
 
   const now = new Date();
 
-  await prisma.$transaction([
-    prisma.booking.update({
-      where: { id: booking.id },
-      data: { status: "CANCELLED", cancelledBy: "PASSENGER", cancelReason: "PASSENGER_WITHDRAWN", cancelledAt: now },
-    }),
-    prisma.ride.update({
-      where: { id: booking.rideId },
-      data: { seatsAvailable: { increment: booking.seatsBooked } },
-    }),
-  ]);
+  await prisma.booking.update({
+    where: { id: booking.id },
+    data: { status: "CANCELLED", cancelledBy: "PASSENGER", cancelReason: "PASSENGER_WITHDRAWN", cancelledAt: now },
+  });
+  await releaseSeatHold(booking.rideId, booking.seatsBooked);
   await clearChatForBooking(booking.id);
   // Safe no-op — nothing was ever charged at this stage.
   await refundIfPaid(booking.id).catch((err) =>
@@ -304,16 +352,11 @@ router.put("/:id/driver-cancel", requireAuth, requireRole("DRIVER"), async (req,
     strikeWorthy = !withinGrace;
   }
 
-  await prisma.$transaction([
-    prisma.booking.update({
-      where: { id: booking.id },
-      data: { status: "CANCELLED", cancelledBy: "DRIVER", cancelReason, cancelledAt: now },
-    }),
-    prisma.ride.update({
-      where: { id: booking.rideId },
-      data: { seatsAvailable: { increment: booking.seatsBooked } },
-    }),
-  ]);
+  await prisma.booking.update({
+    where: { id: booking.id },
+    data: { status: "CANCELLED", cancelledBy: "DRIVER", cancelReason, cancelledAt: now },
+  });
+  await releaseSeatHold(booking.rideId, booking.seatsBooked);
   await clearChatForBooking(booking.id);
 
   // Full refund regardless of timing once a fee was actually charged —
@@ -339,7 +382,15 @@ router.get("/my", requireAuth, requireRole("PASSENGER"), async (req, res) => {
     include: { ride: { include: { driver: { select: { id: true, name: true, ratingAvg: true, photoR2Key: true } } } } },
     orderBy: { createdAt: "desc" },
   });
-  res.json(await attachUnreadCounts(await attachDriverPhotos(bookings), req.user.id, "passengerLastReadAt"));
+  const withPhotos = await attachUnreadCounts(await attachDriverPhotos(bookings), req.user.id, "passengerLastReadAt");
+  // What this passenger actually owes per seat for their own matched
+  // segment — the "total fare" shown before a driver has even accepted
+  // (and so before platformFeeAmount exists yet) previously showed the
+  // ride's full-route price regardless of how much of it this booking
+  // actually covers (HistoryScreen.tsx). Falls back to the full ride
+  // price server-side for a legacy/no-route ride, same as everywhere
+  // else this is computed.
+  res.json(withPhotos.map((b) => ({ ...b, segmentPricePerSeat: proratedFarePerSeat(b.ride, b.pickupProgressKm, b.dropProgressKm) })));
 });
 
 // GET /api/bookings/driver-pending — every pending (BOOKED, awaiting
@@ -444,6 +495,11 @@ router.get("/:id", requireAuth, async (req, res) => {
     ...booking,
     ride: { ...booking.ride, driver: { ...booking.ride.driver, photoViewUrl: await photoViewUrl(booking.ride.driver.photoR2Key) } },
     passenger: { ...booking.passenger, photoViewUrl: await photoViewUrl(booking.passenger.photoR2Key) },
+    // What this specific booking's passenger owes per seat for their own
+    // matched segment — see rides.routes.js GET /:id/details for the
+    // same computation pre-booking. BookingDetailScreen.tsx shows this
+    // instead of the ride's full-route price.
+    segmentPricePerSeat: proratedFarePerSeat(booking.ride, booking.pickupProgressKm, booking.dropProgressKm),
     reviewForMe: reviewForMe
       ? {
           rating: reviewForMe.rating,

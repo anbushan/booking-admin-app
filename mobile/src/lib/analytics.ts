@@ -62,6 +62,12 @@ export const Analytics = {
   bookingCancelled: (bookingId: string, role: string) =>
     logEvent("booking_cancelled", { booking_id: bookingId, role }),
   ridePublished: (rideId: string) => logEvent("ride_published", { ride_id: rideId }),
+  // Fires only on the "Publish anyway" no-route path (RouteOptionsScreen's
+  // alternatives.length === 0 branch) — separate from ridePublished so we
+  // can see, from Firebase alone, how often Directions is actually coming
+  // back empty (even after the automatic retry in directions.js) versus
+  // this being a non-issue not worth building more UI around.
+  ridePublishedWithoutRoute: (rideId: string) => logEvent("ride_published_without_route", { ride_id: rideId }),
   rideCancelled: (rideId: string) => logEvent("ride_cancelled", { ride_id: rideId }),
   tripStarted: (bookingId: string) => logEvent("trip_started", { booking_id: bookingId }),
   tripCompleted: (bookingId: string) => logEvent("trip_completed", { booking_id: bookingId }),

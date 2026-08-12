@@ -13,14 +13,25 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { decodePolyline, haversineKm, bearingDeg, LatLng } from "../lib/mapGeo";
 import { dialProxyNumber } from "../lib/callHelper";
 import { useScreenView } from "../lib/useScreenView";
+import { CarLoader } from "../components/CarLoader";
 import Avatar from "../components/Avatar";
 import { useTranslation } from "../lib/i18n/I18nContext";
 
 const STALE_THRESHOLD_MS = 90 * 1000;
 const SOS_HOLD_MS = 3000;
 const LOCATION_REPORT_INTERVAL_MS = 10 * 1000;
+const MANIFEST_POLL_INTERVAL_MS = 8 * 1000;
 const AVG_SPEED_KMH = 25; // rough city-driving assumption, just for an ETA estimate
 const CAR_MOVE_DURATION_MS = 900; // matches the poll cadence closely enough to read as continuous motion
+
+type ManifestStop = {
+  id: string;
+  action: "AWAITING_START" | "AWAITING_OTP" | "IN_PROGRESS" | "COMPLETED";
+  seatsBooked: number;
+  pickupAddress: string;
+  dropAddress: string;
+  passenger: { id: string; name: string; ratingAvg?: number | null; photoViewUrl?: string | null };
+};
 
 // The three phases of a live trip, shown as a compact progress line at
 // the top of the info sheet — the same "where is this now" idea as the
@@ -72,9 +83,19 @@ export default function LiveTrackingScreen({ route, navigation }: any) {
   const [driverName, setDriverName] = useState<string | null>(null);
   const [driverPhoto, setDriverPhoto] = useState<string | null>(null);
   const [ride, setRide] = useState<{
+    id: string;
     sourceLat: number; sourceLng: number; destLat: number; destLng: number;
     sourceAddress: string; destAddress: string; routePolyline: string | null;
   } | null>(null);
+  // Every passenger currently relevant to this ride, not just this
+  // screen's own bookingId — a ride only ever has one at a time under
+  // the old flat-seat model, but segment-aware booking (see backend
+  // lib/segments.js) means several can be confirmed/in-progress at
+  // once, boarding and alighting at different points along the same
+  // drive. Driver-only; a passenger has no reason to see anyone else's
+  // booking. Degenerates to a single row for the common one-passenger
+  // ride, so nothing about that case reads any differently than before.
+  const [manifest, setManifest] = useState<ManifestStop[] | null>(null);
   const [carHeading, setCarHeading] = useState(0);
   const [holding, setHolding] = useState(false);
   const [calling, setCalling] = useState(false);
@@ -95,6 +116,7 @@ export default function LiveTrackingScreen({ route, navigation }: any) {
       if (booking.ride?.driver?.photoViewUrl) setDriverPhoto(booking.ride.driver.photoViewUrl);
       if (booking.ride) {
         setRide({
+          id: booking.ride.id,
           sourceLat: booking.ride.sourceLat,
           sourceLng: booking.ride.sourceLng,
           destLat: booking.ride.destLat,
@@ -106,6 +128,25 @@ export default function LiveTrackingScreen({ route, navigation }: any) {
       }
     }).catch(() => {});
   }, [bookingId]);
+
+  // Driver-only: who else is on this ride right now and what each of
+  // them needs next (see backend GET /api/trips/ride/:rideId/manifest).
+  // Polls independently of the position-tracking poll above — this can
+  // change from actions taken on a completely different screen instance
+  // (e.g. verifying a different passenger's OTP from StartTripScreen),
+  // not just from time passing.
+  useEffect(() => {
+    if (role !== "DRIVER" || !ride?.id) return;
+    let cancelled = false;
+    function load() {
+      api.getTripManifest(ride!.id).then((data) => {
+        if (!cancelled) setManifest(data.stops);
+      }).catch(() => {});
+    }
+    load();
+    const poll = setInterval(load, MANIFEST_POLL_INTERVAL_MS);
+    return () => { cancelled = true; clearInterval(poll); };
+  }, [role, ride?.id]);
 
   // Decoded route line. Falls back to a straight line between source and
   // destination for older rides published before route selection stored
@@ -271,8 +312,18 @@ export default function LiveTrackingScreen({ route, navigation }: any) {
     if (holdTimer.current) clearTimeout(holdTimer.current);
   }
 
-  function handleCompleteTrip() {
-    navigation.navigate("CompleteTripConfirmation", { bookingId });
+  // Every manifest row's action routes through here — always by that
+  // row's OWN bookingId, never assuming it's the same one this screen
+  // instance opened with. Reuses the exact same per-booking screens the
+  // single-passenger flow always has (StartTripScreen, Complete
+  // TripConfirmationScreen); a ride with only one passenger behaves
+  // identically to before, just via a named row instead of a bare button.
+  function handleStopAction(stop: ManifestStop) {
+    if (stop.action === "AWAITING_START" || stop.action === "AWAITING_OTP") {
+      navigation.navigate("StartTrip", { bookingId: stop.id });
+    } else if (stop.action === "IN_PROGRESS") {
+      navigation.navigate("CompleteTripConfirmation", { bookingId: stop.id, rideId: ride?.id });
+    }
   }
 
   async function handleCall() {
@@ -385,14 +436,54 @@ export default function LiveTrackingScreen({ route, navigation }: any) {
           </View>
         )}
 
-        <View style={styles.actions}>
-          {role === "DRIVER" && (
-            <Pressable style={styles.completeButton} onPress={handleCompleteTrip}>
-              <Ionicons name="flag-outline" size={17} color="#FFFFFF" />
-              <Text style={styles.completeButtonText}>{t("liveTracking.completeTrip")}</Text>
-            </Pressable>
-          )}
+        {/* Every passenger on this ride, oldest-boarding-first, each with
+            its own clearly-named action — replaces a single bare
+            "Complete trip" button, which had no way to say WHICH
+            passenger it meant the moment a ride could carry more than
+            one at a time. A one-passenger ride still shows exactly one
+            row here, so nothing about the common case looks any busier
+            than the old single button did. */}
+        {role === "DRIVER" && (
+          <View style={styles.manifestWrap}>
+            <Text style={styles.manifestTitle}>{t("liveTracking.passengersOnThisRide")}</Text>
+            {manifest == null ? (
+              <CarLoader size="sm" />
+            ) : (
+              manifest.map((stop) => (
+                <View key={stop.id} style={styles.manifestRow}>
+                  <Avatar uri={stop.passenger.photoViewUrl} name={stop.passenger.name} size={34} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.manifestName} numberOfLines={1}>{stop.passenger.name}</Text>
+                    <Text style={styles.manifestSub} numberOfLines={1}>
+                      {stop.action === "COMPLETED"
+                        ? t("liveTracking.droppedOff")
+                        : stop.action === "IN_PROGRESS"
+                        ? t("liveTracking.onBoardTo", { place: stop.dropAddress })
+                        : t("liveTracking.pickupAt", { place: stop.pickupAddress })}
+                    </Text>
+                  </View>
+                  {stop.action === "COMPLETED" ? (
+                    <View style={styles.manifestDoneBadge}>
+                      <Ionicons name="checkmark" size={14} color={colors.success} />
+                    </View>
+                  ) : (
+                    <Pressable style={styles.manifestActionButton} onPress={() => handleStopAction(stop)}>
+                      <Text style={styles.manifestActionText}>
+                        {stop.action === "IN_PROGRESS"
+                          ? t("liveTracking.dropOff")
+                          : stop.action === "AWAITING_OTP"
+                          ? t("liveTracking.verifyCode")
+                          : t("liveTracking.startPickup")}
+                      </Text>
+                    </Pressable>
+                  )}
+                </View>
+              ))
+            )}
+          </View>
+        )}
 
+        <View style={styles.actions}>
           <Pressable
             style={[styles.sosButton, holding && styles.sosButtonHolding]}
             onPressIn={startHold}
@@ -465,15 +556,18 @@ const styles = StyleSheet.create({
   driverSub: { ...typography.small, color: colors.textMuted, marginTop: 1 },
   callButton: { width: 40, height: 40, borderRadius: 20, backgroundColor: colors.successBg, alignItems: "center", justifyContent: "center" },
   actions: { gap: spacing.md, marginTop: spacing.xl },
-  completeButton: {
-    flexDirection: "row", gap: spacing.xs,
-    backgroundColor: colors.textPrimary,
-    height: 48,
-    borderRadius: radius.sm,
-    alignItems: "center",
-    justifyContent: "center",
+  manifestWrap: { marginTop: spacing.lg, gap: spacing.sm },
+  manifestTitle: { ...typography.small, color: colors.textMuted, fontWeight: "700", fontFamily: FONT.bold, textTransform: "uppercase", letterSpacing: 0.3 },
+  manifestRow: {
+    flexDirection: "row", alignItems: "center", gap: spacing.sm,
+    backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border,
+    borderRadius: radius.md, padding: spacing.sm,
   },
-  completeButtonText: { ...typography.title, color: "#FFFFFF" },
+  manifestName: { ...typography.body, fontWeight: "700", fontFamily: FONT.bold },
+  manifestSub: { ...typography.small, color: colors.textMuted, marginTop: 1 },
+  manifestDoneBadge: { width: 30, height: 30, borderRadius: 15, backgroundColor: colors.successBg, alignItems: "center", justifyContent: "center" },
+  manifestActionButton: { backgroundColor: colors.textPrimary, height: 34, borderRadius: radius.sm, paddingHorizontal: spacing.sm, alignItems: "center", justifyContent: "center" },
+  manifestActionText: { ...typography.small, color: "#FFFFFF", fontWeight: "700", fontFamily: FONT.bold },
   sosButton: {
     flexDirection: "row", gap: 6,
     backgroundColor: colors.dangerBg,

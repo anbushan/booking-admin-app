@@ -1,5 +1,15 @@
 import { reverseGeocode } from "./geo.js";
 
+// Shared "close enough to count as on this route" tolerance — used both
+// for search matching (rides.routes.js matchRideSegment) and for
+// resolving a booking's own pickup/drop onto the route at booking-create
+// time (bookings.routes.js, lib/segments.js). Deliberately more forgiving
+// than the 3-20km maxDetourKm a driver sets for pickup detours — this is
+// reconciling two *independent* geocoding lookups of the same real place
+// (the driver's publish-time search vs. the passenger's own search), not
+// judging how far out of the way a pickup is.
+export const MATCH_RADIUS_KM = 8;
+
 // Standard Google encoded-polyline decode (the algorithm Directions/Maps
 // use everywhere) — no npm dependency needed for ~20 lines, matching this
 // codebase's preference for small inline helpers (see haversineKm in
@@ -148,17 +158,32 @@ async function deriveStops(route, sourceAddress, destAddress) {
   return stops;
 }
 
+async function fetchDirections(sourceLat, sourceLng, destLat, destLng, alternatives) {
+  const url = `https://maps.googleapis.com/maps/api/directions/json?origin=${sourceLat},${sourceLng}&destination=${destLat},${destLng}&alternatives=${alternatives}&key=${process.env.GOOGLE_MAPS_API_KEY}`;
+  const response = await fetch(url).catch(() => null);
+  if (!response || !response.ok) return null;
+  const data = await response.json();
+  return data.status === "OK" ? data : null;
+}
+
 // GET route alternatives between two points, each with a derived stop
 // list. Directions returning just one viable route (common for short or
 // simple trips) is expected, not an error — callers show whatever comes
 // back.
+//
+// Asking for alternatives=true is a stricter request than the plain
+// single-route query — Google has been observed to come back with
+// ZERO_RESULTS for the former while the latter succeeds for the exact
+// same origin/destination. Retrying once without alternatives before
+// giving up recovers those cases silently (the driver still sees a
+// route to publish with, just without any alternate shape to pick
+// from) instead of falling straight to the no-polyline/"Publish
+// anyway" path on what was actually a routable trip.
 export async function getRouteAlternatives(sourceLat, sourceLng, destLat, destLng, sourceAddress, destAddress) {
-  const url = `https://maps.googleapis.com/maps/api/directions/json?origin=${sourceLat},${sourceLng}&destination=${destLat},${destLng}&alternatives=true&key=${process.env.GOOGLE_MAPS_API_KEY}`;
-  const response = await fetch(url).catch(() => null);
-  if (!response || !response.ok) return [];
-
-  const data = await response.json();
-  if (data.status !== "OK") return [];
+  const data =
+    (await fetchDirections(sourceLat, sourceLng, destLat, destLng, true)) ||
+    (await fetchDirections(sourceLat, sourceLng, destLat, destLng, false));
+  if (!data) return [];
 
   const alternatives = [];
   for (const route of data.routes) {

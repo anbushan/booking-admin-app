@@ -134,7 +134,18 @@ export const api = {
 
   getRideBookings: (rideId: string) => request(`/api/rides/${rideId}/bookings`),
 
-  getRideDetails: (rideId: string) => request(`/api/rides/${rideId}/details`),
+  // pickup/drop are optional — when given, the response's
+  // segmentPricePerSeat reflects what THIS passenger actually owes for
+  // their own matched stretch of the route, not the ride's full price
+  // (see rides.routes.js GET /:id/details). Omitting them (or a ride
+  // with no stored route at all) just returns the full ride price, same
+  // as before this existed.
+  getRideDetails: (rideId: string, pickup?: { lat: number; lng: number }, drop?: { lat: number; lng: number }) =>
+    request(
+      `/api/rides/${rideId}/details` +
+      (pickup ? `?pickupLat=${pickup.lat}&pickupLng=${pickup.lng}` : "") +
+      (pickup && drop ? `&dropLat=${drop.lat}&dropLng=${drop.lng}` : "")
+    ),
 
   createBooking: (payload: {
     rideId: string;
@@ -143,6 +154,10 @@ export const api = {
     pickupLng: number;
     pickupAddress: string;
     isCustomPickup?: boolean;
+    dropLat?: number;
+    dropLng?: number;
+    dropAddress?: string;
+    isCustomDrop?: boolean;
   }) => request("/api/bookings", { method: "POST", body: JSON.stringify(payload) }),
 
   acceptBooking: (bookingId: string) =>
@@ -175,6 +190,12 @@ export const api = {
     request(`/api/trips/${bookingId}/location`, { method: "PUT", body: JSON.stringify({ lat, lng }) }),
 
   trackTrip: (bookingId: string) => request(`/api/trips/${bookingId}/track`),
+
+  // Driver-only: every passenger currently relevant to this ride and
+  // what each of them needs next — see trips.routes.js GET
+  // /ride/:rideId/manifest. A ride with only ever one passenger at a
+  // time still returns exactly one stop.
+  getTripManifest: (rideId: string) => request(`/api/trips/ride/${rideId}/manifest`),
 
   // Either party can close out a ride that's been abandoned/stopped
   // mid-way. No refund/strike logic — just closes it so the passenger

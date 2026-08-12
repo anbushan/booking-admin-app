@@ -50,7 +50,7 @@ export default function BookingDetailScreen({ route, navigation }: any) {
     );
   }
 
-  const amount = Number(booking.ride.pricePerSeat) * booking.seatsBooked;
+  const amount = Number(booking.segmentPricePerSeat ?? booking.ride.pricePerSeat) * booking.seatsBooked;
 
   return (
     <SafeAreaView style={styles.screen} edges={["top", "bottom"]}>

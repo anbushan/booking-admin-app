@@ -7,7 +7,8 @@ import { getAppConfig } from "../lib/appConfig.js";
 import { isDriverStrikeBlocked } from "../lib/strikes.js";
 import { clearChatForBooking } from "../lib/chat.js";
 import { isWithinIndia } from "../lib/geo.js";
-import { getRouteAlternatives, decodePolyline, pointToPolylineDistanceKm, progressAlongRouteKm } from "../lib/directions.js";
+import { getRouteAlternatives, decodePolyline, pointToPolylineDistanceKm, progressAlongRouteKm, MATCH_RADIUS_KM } from "../lib/directions.js";
+import { peakOccupancy, recomputeRideSeatsAvailable, proratedFarePerSeat } from "../lib/segments.js";
 import { validate, isLat, isLng, isNonEmptyString, isFutureDate, isPositiveInt, isPositiveNumber } from "../lib/validate.js";
 import { photoViewUrl, photoViewUrlsByUser } from "../lib/photo.js";
 
@@ -202,6 +203,12 @@ router.post("/", requireAuth, requireRole("DRIVER"), async (req, res) => {
       ...(routeDurationMinutes != null && { routeDurationMinutes }),
       travelDate: new Date(travelDate),
       seatsAvailable,
+      // Every ride published from here on opts into segment-aware
+      // (interval) seat allocation — see lib/segments.js. Capacity is
+      // frozen at whatever seatsAvailable was given here; seatsAvailable
+      // itself keeps meaning "currently free" but is now a live,
+      // per-segment-recomputed figure rather than a flat counter.
+      totalSeats: seatsAvailable,
       pricePerSeat,
       maxDetourKm: maxDetourKm ?? config.defaultMaxDetourKm,
       preferences: preferences || {},
@@ -324,7 +331,11 @@ router.get("/popular-routes", requireAuth, async (req, res) => {
 
 router.get("/search", requireAuth, async (req, res) => {
   const { sourceLat, sourceLng, destLat, destLng, date, seats, startTime, endTime } = req.query;
-  const radiusKm = 8;
+  // Shared with booking-create's own pickup/drop projection (see
+  // lib/directions.js MATCH_RADIUS_KM) so a ride that matches here is
+  // guaranteed to also resolve a real interval at booking time, instead
+  // of the two using quietly different tolerances.
+  const radiusKm = MATCH_RADIUS_KM;
 
   let travelDateFilter;
   if (date) {
@@ -401,22 +412,62 @@ router.get("/search", requireAuth, async (req, res) => {
     isOwnRide: r.driverId === req.user.id,
     driverVerified: verifiedDriverIds.has(r.driverId),
     ...estimateArrival(r, matchInfoByRideId.get(r.id)?.dropProgressKm),
+    // What THIS passenger actually pays per seat for their own matched
+    // segment — falls back to the ride's full pricePerSeat whenever no
+    // segment was resolved (legacy ride, or the match was a straight-line
+    // fallback with no progress km at all). Shown in search instead of
+    // the flat full-route price so results aren't misleadingly high for
+    // a short hop.
+    segmentPricePerSeat: proratedFarePerSeat(
+      r,
+      matchInfoByRideId.get(r.id)?.pickupProgressKm,
+      matchInfoByRideId.get(r.id)?.dropProgressKm
+    ),
   }));
 
   res.json(results);
 });
 
-// GET /api/rides/:id/details
+// GET /api/rides/:id/details?pickupLat&pickupLng&dropLat&dropLng — the
+// pickup/drop query params are optional (older clients, or a driver
+// previewing their own published ride, still get the full ride's own
+// price back exactly as before) but are what let BookingConfirmScreen
+// show a passenger the real, segment-prorated price for their own
+// matched stretch instead of always the ride's full-route price.
 router.get("/:id/details", requireAuth, async (req, res) => {
   const ride = await prisma.ride.findUnique({
     where: { id: req.params.id },
     include: { driver: true, vehicle: true },
   });
   if (!ride) return res.status(404).json({ error: "Ride not found." });
+
+  let segmentPricePerSeat = Number(ride.pricePerSeat);
+  // req.query values are always strings — isLat/isLng require an actual
+  // `number` (see lib/validate.js isNumber), so these must be coerced
+  // before validating or the check below silently never passes and this
+  // whole block never runs, regardless of what was actually sent.
+  const pickupLat = Number(req.query.pickupLat);
+  const pickupLng = Number(req.query.pickupLng);
+  const dropLat = Number(req.query.dropLat);
+  const dropLng = Number(req.query.dropLng);
+  if (ride.routePolyline && isLat(pickupLat) && isLng(pickupLng)) {
+    const points = decodePolyline(ride.routePolyline);
+    const pickup = progressAlongRouteKm(pickupLat, pickupLng, points);
+    let dropProgressKm = null;
+    if (isLat(dropLat) && isLng(dropLng)) {
+      const drop = progressAlongRouteKm(dropLat, dropLng, points);
+      if (drop.distanceKm <= MATCH_RADIUS_KM) dropProgressKm = drop.progressKm;
+    }
+    if (pickup.distanceKm <= MATCH_RADIUS_KM) {
+      segmentPricePerSeat = proratedFarePerSeat(ride, pickup.progressKm, dropProgressKm);
+    }
+  }
+
   res.json({
     ...ride,
     driver: { ...ride.driver, photoViewUrl: await photoViewUrl(ride.driver.photoR2Key) },
     ...estimateArrival(ride),
+    segmentPricePerSeat,
   });
 });
 
@@ -510,16 +561,40 @@ router.put("/:id", requireAuth, requireRole("DRIVER"), async (req, res) => {
     }
   }
 
+  // On a segment-aware ride (totalSeats set), editing "seats" here means
+  // "change the car's total capacity" — seatsAvailable itself is a
+  // derived figure once any booking exists, never written directly.
+  // Can't drop capacity below whatever's already committed at the
+  // busiest point on the route, or an already-accepted booking would
+  // retroactively become an overbook.
+  if (seatsAvailable !== undefined && ride.totalSeats != null) {
+    const peak = await peakOccupancy(ride);
+    if (Number(seatsAvailable) < peak) {
+      return res.status(400).json({
+        error: `Can't reduce seats below ${peak} — that many are already booked at some point along this route.`,
+      });
+    }
+  }
+
   const updated = await prisma.ride.update({
     where: { id: req.params.id },
     data: {
       ...(pricePerSeat !== undefined && { pricePerSeat }),
-      ...(seatsAvailable !== undefined && { seatsAvailable }),
+      ...(seatsAvailable !== undefined && ride.totalSeats == null && { seatsAvailable }),
+      ...(seatsAvailable !== undefined && ride.totalSeats != null && { totalSeats: Number(seatsAvailable) }),
       ...(travelDate !== undefined && { travelDate: new Date(travelDate) }),
       ...(preferences !== undefined && { preferences }),
       ...(maxDetourKm !== undefined && { maxDetourKm }),
     },
   });
+
+  if (seatsAvailable !== undefined && ride.totalSeats != null) {
+    await recomputeRideSeatsAvailable(ride.id);
+    // `updated` above still carries the pre-recompute seatsAvailable —
+    // re-read so the response (which the driver's own edit-ride screen
+    // shows immediately) reflects the real, segment-aware number.
+    return res.json(await prisma.ride.findUnique({ where: { id: ride.id } }));
+  }
   res.json(updated);
 });
 

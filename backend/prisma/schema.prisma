@@ -148,7 +148,20 @@ model Ride {
   routeDurationMinutes Int?
   maxDetourKm     Float    @default(3)
   travelDate      DateTime
+  // seatsAvailable is a live DISPLAY figure — for a ride with totalSeats
+  // set (see below), it's recomputed after every booking/cancel as the
+  // worst-case (bottleneck) segment along the route, not a flat pool
+  // (see lib/segments.js). Kept as the same field/name every existing
+  // screen already reads so none of them needed to change.
   seatsAvailable  Int
+  // Immutable car capacity, set once at publish time from whatever
+  // seatsAvailable was given then. Null on any ride published before
+  // segment-aware booking shipped — those rides deliberately keep the
+  // old flat-pool behavior forever (see lib/segments.js and every call
+  // site that branches on `ride.totalSeats == null`), rather than
+  // guessing a capacity for bookings that already happened under the
+  // old rules.
+  totalSeats      Int?
   pricePerSeat    Decimal
   preferences     Json     @default("{}")
   status          String   @default("PUBLISHED") // PUBLISHED, CANCELLED, COMPLETED
@@ -180,6 +193,15 @@ model Booking {
   dropLng           Float?
   dropAddress       String?
   isCustomDrop      Boolean  @default(false)
+  // This booking's actual pickup/drop projected onto the ride's own
+  // routePolyline as distance-from-source (km) — set once at booking
+  // creation (see lib/directions.js progressAlongRouteKm, same helper
+  // search matching already uses). Null whenever the ride has no stored
+  // polyline (legacy/"Publish anyway" rides) or a custom point couldn't
+  // be projected — those bookings fall back to occupying the ride's
+  // whole route for capacity purposes, same as before this existed.
+  pickupProgressKm  Float?
+  dropProgressKm    Float?
 
   status            String   @default("BOOKED")
   // BOOKED, REJECTED, EXPIRED, AWAITING_PAYMENT, CHARGE_ATTEMPTED,

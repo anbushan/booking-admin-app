@@ -230,7 +230,7 @@ export default function HistoryScreen({ navigation, route }: any) {
                 <Text style={styles.route}>{t("common.routeTo", { source: item.ride?.sourceAddress, dest: item.ride?.destAddress })}</Text>
               </View>
               <View style={styles.rowBetween}>
-                <Text style={styles.fare}>{t("history.totalFare", { amount: Number(item.ride?.pricePerSeat) * item.seatsBooked })}</Text>
+                <Text style={styles.fare}>{t("history.totalFare", { amount: Number(item.segmentPricePerSeat ?? item.ride?.pricePerSeat) * item.seatsBooked })}</Text>
                 {!IN_FLIGHT_BOOKING_STATUSES.includes(item.status) && <StatusBadge status={item.status} size="sm" />}
               </View>
 

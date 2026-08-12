@@ -22,6 +22,12 @@ type RideResult = {
   vehicle?: { make: string; model: string; seatCapacity: number | null } | null;
   driverVerified?: boolean;
   pricePerSeat: string;
+  // What this passenger actually owes per seat for their own matched
+  // segment, not the ride's full-route price — see rides.routes.js
+  // GET /search. Always present (falls back to the full pricePerSeat
+  // server-side for a legacy/no-route ride), but optional here too so a
+  // stale cached response from before this shipped still renders.
+  segmentPricePerSeat?: number;
   seatsAvailable: number;
   seatsFull?: boolean;
   isOwnRide?: boolean;
@@ -79,7 +85,7 @@ export default function SearchResultsScreen({ navigation, route }: any) {
   const filteredSorted = useMemo(() => {
     const sorted = [...rides];
     if (sort === "cheapest") {
-      sorted.sort((a, b) => Number(a.pricePerSeat) - Number(b.pricePerSeat));
+      sorted.sort((a, b) => Number(a.segmentPricePerSeat ?? a.pricePerSeat) - Number(b.segmentPricePerSeat ?? b.pricePerSeat));
     } else if (sort === "rated") {
       sorted.sort((a, b) => (b.driver?.ratingAvg ?? 0) - (a.driver?.ratingAvg ?? 0));
     } else {
@@ -145,7 +151,20 @@ export default function SearchResultsScreen({ navigation, route }: any) {
               style={[styles.card, (item.seatsFull || item.isOwnRide) && styles.cardFull]}
               onPress={() => {
                 if (item.seatsFull || item.isOwnRide) return;
-                navigation.navigate("BookingConfirm", { rideId: item.id });
+                // Carries the passenger's own searched pickup/drop through
+                // to the booking screen — previously only rideId went
+                // across, so the booking always silently defaulted to the
+                // ride's full source/destination regardless of what was
+                // actually searched and matched here.
+                navigation.navigate("BookingConfirm", {
+                  rideId: item.id,
+                  pickupLat: sourceLat,
+                  pickupLng: sourceLng,
+                  pickupAddress: sourceAddress,
+                  ...(destLat != null && destLng != null
+                    ? { dropLat: destLat, dropLng: destLng, dropAddress: destAddress }
+                    : {}),
+                });
               }}
             >
               <View style={styles.cardTop}>
@@ -166,7 +185,7 @@ export default function SearchResultsScreen({ navigation, route }: any) {
                   </Text>
                 </View>
                 <View style={{ alignItems: "flex-end" }}>
-                  <Text style={styles.price}>Rs {item.pricePerSeat}</Text>
+                  <Text style={styles.price}>Rs {item.segmentPricePerSeat ?? item.pricePerSeat}</Text>
                   {item.isOwnRide ? (
                     <View style={[styles.seatsPill, styles.seatsPillFull]}>
                       <Ionicons name="person-circle-outline" size={11} color={colors.danger} />

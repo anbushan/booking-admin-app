@@ -7,12 +7,72 @@ import { clearChatForBooking } from "../lib/chat.js";
 import { closeRideIfNoActiveBookings } from "../lib/rideLifecycle.js";
 import { validate, isLat, isLng } from "../lib/validate.js";
 import { getIO } from "../lib/socket.js";
+import { proratedFarePerSeat } from "../lib/segments.js";
+import { photoViewUrl } from "../lib/photo.js";
 
 const router = Router();
 
 function generateTripOtp() {
   return String(Math.floor(1000 + Math.random() * 9000));
 }
+
+// A single next-step label per booking, so the mobile manifest screen
+// never has to re-derive "what does this driver still need to do here"
+// from raw status/timestamp fields itself — one source of truth for
+// that logic, shared with whatever other client ever reads this.
+//   AWAITING_START  — not yet told this passenger's pickup has begun
+//   AWAITING_OTP    — pickup started, waiting on the passenger's code
+//   IN_PROGRESS     — picked up, riding; next action is drop-off
+//   COMPLETED       — already dropped off
+function manifestAction(booking) {
+  if (booking.status === "COMPLETED") return "COMPLETED";
+  if (booking.status === "IN_PROGRESS") return "IN_PROGRESS";
+  if (booking.tripOtp) return "AWAITING_OTP";
+  return "AWAITING_START";
+}
+
+// GET /api/trips/ride/:rideId/manifest — every passenger currently
+// relevant to this specific drive (confirmed-but-not-started, mid-trip,
+// or already dropped off), ordered by where they board along the route
+// — the driver's single view of "who's next" once a ride can carry more
+// than one concurrent passenger (see lib/segments.js). A ride that's
+// only ever had one passenger at a time degrades to exactly the old
+// single-booking flow: one entry, one obvious next action.
+router.get("/ride/:rideId/manifest", requireAuth, requireRole("DRIVER"), async (req, res) => {
+  const ride = await prisma.ride.findUnique({ where: { id: req.params.rideId } });
+  if (!ride || ride.driverId !== req.user.id) {
+    return res.status(404).json({ error: "Ride not found." });
+  }
+
+  const bookings = await prisma.booking.findMany({
+    where: { rideId: ride.id, status: { in: ["CONFIRMED", "IN_PROGRESS", "COMPLETED"] } },
+    include: { passenger: { select: { id: true, name: true, ratingAvg: true, photoR2Key: true } } },
+    // Bookings with no resolved pickup point (legacy/no-route rides) sort
+    // first — nulls last would push a single-passenger legacy ride's one
+    // and only stop to the bottom for no reason.
+    orderBy: [{ pickupProgressKm: "asc" }, { createdAt: "asc" }],
+  });
+
+  const stops = await Promise.all(
+    bookings.map(async (b) => ({
+      id: b.id,
+      action: manifestAction(b),
+      seatsBooked: b.seatsBooked,
+      pickupAddress: b.pickupAddress,
+      dropAddress: b.dropAddress || ride.destAddress,
+      pickupProgressKm: b.pickupProgressKm,
+      dropProgressKm: b.dropProgressKm,
+      passenger: {
+        id: b.passenger.id,
+        name: b.passenger.name,
+        ratingAvg: b.passenger.ratingAvg,
+        photoViewUrl: await photoViewUrl(b.passenger.photoR2Key),
+      },
+    }))
+  );
+
+  res.json({ rideId: ride.id, totalSeats: ride.totalSeats, stops });
+});
 
 // POST /api/trips/:bookingId/start — driver initiates, generates an OTP
 // the passenger reads aloud (not sent by SMS — see plan section on Rapido
@@ -124,11 +184,20 @@ router.put("/:bookingId/location", requireAuth, requireRole("DRIVER"), async (re
   if (!booking || booking.ride.driverId !== req.user.id) {
     return res.status(404).json({ error: "Booking not found." });
   }
-  const updated = await prisma.booking.update({
-    where: { id: req.params.bookingId },
-    data: { lastLat: lat, lastLng: lng, lastLocationAt: new Date() },
+  // One GPS ping is the driver's real position for the whole car, not
+  // just whichever single booking the mobile app happened to open this
+  // screen with — under segment-aware booking there can be several
+  // passengers concurrently IN_PROGRESS on the same ride (one picked up
+  // at A, another mid-route at A1, etc.), and every one of them is
+  // relying on their own LiveTrackingScreen poll to move. Previously
+  // only the one bookingId in the URL ever got updated, so a second
+  // concurrent passenger's map silently went stale the whole trip.
+  const now = new Date();
+  await prisma.booking.updateMany({
+    where: { rideId: booking.rideId, status: "IN_PROGRESS" },
+    data: { lastLat: lat, lastLng: lng, lastLocationAt: now },
   });
-  res.json({ success: true, lastLocationAt: updated.lastLocationAt });
+  res.json({ success: true, lastLocationAt: now });
 });
 
 // GET /api/trips/:bookingId/track — passenger polls this; client computes
@@ -226,7 +295,13 @@ router.post("/:bookingId/complete", requireAuth, requireRole("DRIVER"), async (r
     return res.status(400).json({ error: "Only an in-progress trip can be completed." });
   }
 
-  const fullFare = Number(booking.ride.pricePerSeat) * booking.seatsBooked;
+  // Same prorated-by-segment fare the platform fee was already computed
+  // from at accept time (bookings.routes.js PUT /:id/accept) — using the
+  // ride's full pricePerSeat here would double-count the segment discount
+  // this passenger already got: they'd owe the platform fee on their
+  // actual (shorter) segment but the remaining cash/UPI amount on the
+  // ride's full length.
+  const fullFare = proratedFarePerSeat(booking.ride, booking.pickupProgressKm, booking.dropProgressKm) * booking.seatsBooked;
   const remainingFareAmount = fullFare - Number(booking.platformFeeAmount || 0);
 
   const updated = await prisma.booking.update({

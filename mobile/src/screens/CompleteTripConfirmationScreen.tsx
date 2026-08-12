@@ -12,7 +12,10 @@ import { useTranslation } from "../lib/i18n/I18nContext";
 export default function CompleteTripConfirmationScreen({ route, navigation }: any) {
   useScreenView("CompleteTripConfirmationScreen");
   const { t } = useTranslation();
-  const { bookingId } = route.params;
+  // rideId is optional — absent whenever this screen is reached some way
+  // that predates segment-aware booking existing; that case keeps the
+  // exact old behavior (reset straight to Earnings) below.
+  const { bookingId, rideId } = route.params;
   const [completing, setCompleting] = useState(false);
 
   async function handleConfirm() {
@@ -20,6 +23,27 @@ export default function CompleteTripConfirmationScreen({ route, navigation }: an
     try {
       await api.completeTrip(bookingId);
       Analytics.tripCompleted(bookingId);
+
+      // Other passengers can still be mid-trip or waiting to be picked
+      // up on this same ride (see backend lib/segments.js) — dropping
+      // just-this-one off shouldn't kick the driver out to Earnings and
+      // lose their place in the manifest. Only reset there once nobody
+      // else on the ride still needs anything from the driver.
+      if (rideId) {
+        const { stops } = await api.getTripManifest(rideId).catch(() => ({ stops: [] as any[] }));
+        const next = stops.find((s: any) => s.id !== bookingId && s.action !== "COMPLETED");
+        if (next) {
+          // reset(), not replace() — this screen was reached via
+          // navigate() from LiveTracking (ActiveTrip) for the
+          // just-completed booking, which is still sitting underneath in
+          // the stack with stale controls for a trip that's now done.
+          // Same reasoning as the Earnings reset below, just landing
+          // somewhere other than Earnings when there's still work left.
+          navigation.reset({ index: 0, routes: [{ name: "ActiveTrip", params: { bookingId: next.id, role: "DRIVER" } }] });
+          return;
+        }
+      }
+
       // replace() only swaps this screen — LiveTracking (ActiveTrip),
       // which navigated here via navigate() rather than replace(), was
       // still sitting underneath in the stack with its "Complete trip"/

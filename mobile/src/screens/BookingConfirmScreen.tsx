@@ -24,6 +24,12 @@ type RideDetails = {
   sourceLat: number;
   sourceLng: number;
   pricePerSeat: string;
+  // What THIS passenger actually owes per seat for their own matched
+  // pickup->drop, not the ride's full-route price — see
+  // rides.routes.js GET /:id/details. Falls back to the full ride price
+  // server-side whenever no segment could be resolved, so this is always
+  // present and always the right number to charge/display.
+  segmentPricePerSeat: number;
   seatsAvailable: number;
   driver?: { name: string; ratingAvg?: number; photoViewUrl?: string | null };
   travelDate: string;
@@ -35,7 +41,16 @@ type RideDetails = {
 export default function BookingConfirmScreen({ route, navigation }: any) {
   useScreenView("BookingConfirmScreen");
   const { t } = useTranslation();
-  const { rideId } = route.params;
+  const {
+    rideId,
+    // The passenger's own searched/matched pickup & drop (see
+    // SearchResultsScreen) — absent when this screen was reached some
+    // other way (e.g. a driver previewing their own ride), in which case
+    // everything below falls back to the ride's own source/destination,
+    // exactly the old behavior.
+    pickupLat, pickupLng, pickupAddress,
+    dropLat, dropLng, dropAddress,
+  } = route.params;
   const [ride, setRide] = useState<RideDetails | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
@@ -46,7 +61,11 @@ export default function BookingConfirmScreen({ route, navigation }: any) {
     setLoading(true);
     setError(false);
     api
-      .getRideDetails(rideId)
+      .getRideDetails(
+        rideId,
+        pickupLat != null ? { lat: pickupLat, lng: pickupLng } : undefined,
+        dropLat != null ? { lat: dropLat, lng: dropLng } : undefined
+      )
       .then((data) => {
         setRide(data);
         // Default to 1 seat, or 0 if the ride is already full — never
@@ -60,7 +79,7 @@ export default function BookingConfirmScreen({ route, navigation }: any) {
   useFocusEffect(useCallback(load, [rideId]));
 
   const full = !!ride && ride.seatsAvailable <= 0;
-  const fare = ride ? Number(ride.pricePerSeat) * seats : 0;
+  const fare = ride ? Number(ride.segmentPricePerSeat ?? ride.pricePerSeat) * seats : 0;
 
   function adjustSeats(delta: number) {
     if (!ride) return;
@@ -74,12 +93,21 @@ export default function BookingConfirmScreen({ route, navigation }: any) {
       await api.createBooking({
         rideId,
         seatsBooked: seats,
-        // Defaults to the ride's own pickup point — passengers can still
-        // pick a custom pickup from the map (see MapPinConfirmScreen);
-        // this is just what gets sent if they book without changing it.
-        pickupLat: ride.sourceLat,
-        pickupLng: ride.sourceLng,
-        pickupAddress: ride.sourceAddress,
+        // Falls back to the ride's own source point only when this
+        // screen genuinely has nothing better — passengers can still
+        // override with a custom pickup from the map (see
+        // MapPinConfirmScreen).
+        pickupLat: pickupLat ?? ride.sourceLat,
+        pickupLng: pickupLng ?? ride.sourceLng,
+        pickupAddress: pickupAddress ?? ride.sourceAddress,
+        // "Custom" here just means "not literally the ride's own
+        // starting point" — it's what the driver's booking-request card
+        // uses to decide whether to show a specific address or a plain
+        // "Default pickup" label (BookingRequestsScreen.tsx). A search-
+        // matched mid-route pickup (A1, not the ride's A) needs the real
+        // address shown, same as a manually-dropped map pin would.
+        isCustomPickup: pickupLat != null && (pickupLat !== ride.sourceLat || pickupLng !== ride.sourceLng),
+        ...(dropLat != null ? { dropLat, dropLng, dropAddress, isCustomDrop: true } : {}),
       });
       Analytics.bookingCreated(rideId, seats);
       showAlert(t("booking.requestSent"), t("booking.driverHas20Min"));
