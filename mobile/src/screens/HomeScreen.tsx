@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback } from "react";
-import { View, Text, StyleSheet, ScrollView, RefreshControl } from "react-native";
+import { View, Text, StyleSheet, ScrollView, RefreshControl, Platform } from "react-native";
 import { Pressable } from "../components/Pressable";
 import { useFocusEffect } from "@react-navigation/native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -193,7 +193,14 @@ function HomeScreenContent({ navigation }: any) {
   // effect (child) before this one (parent) on the same commit, so by
   // the time this runs the steps `start()` needs are already known.
   useEffect(() => {
-    if (!profile?.role || checkingActiveTrip) return;
+    // react-native-copilot's overlay waits on an internal onLayout inside
+    // its own <Modal> to self-measure before it can show anything — that
+    // callback never reliably fires for Modal content under
+    // react-native-web (confirmed: start() runs, but its promise chain
+    // just hangs, no error), so there's nothing to show on web. Real
+    // users only ever see this screen on Android/iOS, where it works;
+    // skip it here rather than silently doing nothing.
+    if (Platform.OS === "web" || !profile?.role || checkingActiveTrip) return;
     const role = profile.role as "DRIVER" | "PASSENGER";
     let cancelled = false;
     hasSeenCopilotTour(role).then((seen) => {
@@ -264,11 +271,15 @@ function HomeScreenContent({ navigation }: any) {
             <Text style={styles.name}>{firstName || t("home.thereFallback")}</Text>
             {/* Manual re-trigger — the auto-start (see the effect above)
                 only ever fires once per role, so this is the only way
-                back into the walkthrough after that first look. */}
-            <Pressable style={styles.tourLink} onPress={() => start()} hitSlop={6}>
-              <Ionicons name="sparkles-outline" size={12} color="#FFFFFF" />
-              <Text style={styles.tourLinkText}>{t("home.takeTour")}</Text>
-            </Pressable>
+                back into the walkthrough after that first look. Hidden
+                on web for the same reason the auto-start is skipped
+                there — see that effect's comment. */}
+            {Platform.OS !== "web" && (
+              <Pressable style={styles.tourLink} onPress={() => start()} hitSlop={6}>
+                <Ionicons name="sparkles-outline" size={12} color="#FFFFFF" />
+                <Text style={styles.tourLinkText}>{t("home.takeTour")}</Text>
+              </Pressable>
+            )}
           </View>
           <Pressable style={styles.avatarButton} onPress={() => navigation.navigate("Profile")} hitSlop={8}>
             <Avatar
