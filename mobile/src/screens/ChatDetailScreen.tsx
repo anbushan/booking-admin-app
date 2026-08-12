@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState, useCallback } from "react";
-import { View, Text, TextInput, FlatList, StyleSheet, Linking } from "react-native";
+import { View, Text, TextInput, FlatList, Image, StyleSheet, Linking } from "react-native";
 import { Pressable } from "../components/Pressable";
 import { useFocusEffect } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
@@ -8,6 +8,7 @@ import { colors, spacing, radius, typography, FONT } from "../theme/theme";
 import { api } from "../lib/api";
 import { getSocket } from "../lib/socket";
 import { dialProxyNumber } from "../lib/callHelper";
+import { pickImage, uploadToSignedUrl } from "../lib/imageUpload";
 import { useToast } from "../components/Toast";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { KeyboardAvoider } from "../components/KeyboardAvoider";
@@ -15,7 +16,14 @@ import { useScreenView } from "../lib/useScreenView";
 import Avatar from "../components/Avatar";
 import { useTranslation } from "../lib/i18n/I18nContext";
 
-type Message = { id: string; senderId: string; text: string; type?: "TEXT" | "LOCATION"; createdAt: string };
+type Message = { id: string; senderId: string; text: string; type?: "TEXT" | "LOCATION" | "IMAGE"; imageUrl?: string; createdAt: string };
+
+// Short "Aug 12, 6:30 PM" — just enough to tell two trips with the same
+// other party apart at a glance, not a full date/time treatment.
+function formatTripWhen(iso: string) {
+  const d = new Date(iso);
+  return `${d.toLocaleDateString(undefined, { month: "short", day: "numeric" })}, ${formatMessageTime(iso)}`;
+}
 
 function formatMessageTime(iso: string) {
   const d = new Date(iso);
@@ -44,6 +52,7 @@ export default function ChatDetailScreen({ route, navigation }: any) {
   const [text, setText] = useState("");
   const [calling, setCalling] = useState(false);
   const [sharingLocation, setSharingLocation] = useState(false);
+  const [uploadingImage, setUploadingImage] = useState(false);
   const [ended, setEnded] = useState(false);
   // Starts false (not "has this loaded yet, ever") rather than tracking
   // per-focus freshness — the footer only needs to avoid rendering a
@@ -53,6 +62,14 @@ export default function ChatDetailScreen({ route, navigation }: any) {
   const [detailLoaded, setDetailLoaded] = useState(false);
   const [otherName, setOtherName] = useState<string | null>(paramOtherName || null);
   const [otherPhoto, setOtherPhoto] = useState<string | null>(paramOtherPhoto || null);
+  // Which trip this conversation is actually about — a bare name/role
+  // ("Your driver") doesn't distinguish between two different trips with
+  // the same person, or say anything at all once someone has more than
+  // one live chat at once (increasingly real: a segment-aware ride can
+  // now carry several concurrent passengers, each with their own chat
+  // to the same driver). Set once, same reasoning as otherName/otherPhoto
+  // above — a booking's own route/time don't change mid-conversation.
+  const [tripSummary, setTripSummary] = useState<{ sourceAddress: string; destAddress: string; travelDate: string } | null>(null);
   const socketRef = useRef<any>(null);
   const { showError } = useToast();
 
@@ -89,6 +106,13 @@ export default function ChatDetailScreen({ route, navigation }: any) {
           const other = calleeRole === "DRIVER" ? booking.ride?.driver : booking.passenger;
           setOtherName((prev) => prev ?? other?.name ?? null);
           setOtherPhoto((prev) => prev ?? other?.photoViewUrl ?? null);
+          if (booking.ride) {
+            setTripSummary((prev) => prev ?? {
+              sourceAddress: booking.ride.sourceAddress,
+              destAddress: booking.ride.destAddress,
+              travelDate: booking.ride.travelDate,
+            });
+          }
         })
         .catch(() => {});
       // Opening this conversation is what clears its unread badge
@@ -159,9 +183,39 @@ export default function ChatDetailScreen({ route, navigation }: any) {
     }
   }
 
+  // Same upload-then-message pattern as SearchOptionsModal/AddVehicle's
+  // photo pickers (see lib/imageUpload.ts) — pick, resize/compress,
+  // upload straight to R2 via a signed URL, then send only the resulting
+  // r2Key over the socket as this message's `text` (same convention
+  // LOCATION already uses "lat,lng" for — see socket.js).
+  async function handleSendImage() {
+    try {
+      const picked = await pickImage();
+      if (!picked) return;
+      setUploadingImage(true);
+      const { r2Key, uploadUrl } = await api.getChatImageUploadUrl(bookingId);
+      await uploadToSignedUrl(uploadUrl, picked.uri, picked.mimeType);
+      socketRef.current?.emit("message:send", { bookingId, text: r2Key, type: "IMAGE" });
+    } catch (err: any) {
+      showError(err.message || t("chatDetail.couldntSendImage"));
+    } finally {
+      setUploadingImage(false);
+    }
+  }
+
   function openLocation(text: string) {
     const [lat, lng] = text.split(",");
     Linking.openURL(`https://maps.google.com/?q=${lat},${lng}`);
+  }
+
+  // Same info-icon-opens-an-explainer pattern HistoryScreen's cancel
+  // policy already uses (showCancelPolicy) — nothing here was ever
+  // explained anywhere: why the conversation disappears (clearChatFor
+  // Booking runs the instant the trip starts, or the booking is
+  // cancelled/expires — see trips.routes.js/bookings.routes.js), and
+  // what shouldn't go in it in the meantime.
+  function showChatInfo() {
+    showAlert(t("chatDetail.infoTitle"), t("chatDetail.infoBody"));
   }
 
   return (
@@ -173,9 +227,26 @@ export default function ChatDetailScreen({ route, navigation }: any) {
         </Pressable>
         <Avatar uri={otherPhoto} name={otherName} size={32} />
         <View style={{ flex: 1 }}>
-          <Text style={styles.title}>{otherName || t("chatDetail.title")}</Text>
-          {!!calleeRole && <Text style={styles.subtitle}>{calleeRole === "DRIVER" ? t("chatDetail.yourDriver") : t("chatDetail.yourPassenger")}</Text>}
+          <Text style={styles.title} numberOfLines={1}>{otherName || t("chatDetail.title")}</Text>
+          {!!calleeRole && (
+            <Text style={styles.subtitle} numberOfLines={1}>
+              {calleeRole === "DRIVER" ? t("chatDetail.yourDriver") : t("chatDetail.yourPassenger")}
+              {tripSummary ? ` · ${formatTripWhen(tripSummary.travelDate)}` : ""}
+            </Text>
+          )}
+          {/* Which trip, specifically — a bare name/role doesn't say
+              that on its own, especially with more than one concurrent
+              chat to the same person now possible (segment-aware
+              multi-passenger rides). */}
+          {tripSummary && (
+            <Text style={styles.tripRoute} numberOfLines={1}>
+              {t("common.routeTo", { source: tripSummary.sourceAddress, dest: tripSummary.destAddress })}
+            </Text>
+          )}
         </View>
+        <Pressable style={styles.infoButton} onPress={showChatInfo} hitSlop={6}>
+          <Ionicons name="information-circle-outline" size={20} color={colors.textMuted} />
+        </Pressable>
         {!!calleeRole && !ended && (
           <Pressable style={styles.callButton} onPress={handleCall} disabled={calling} hitSlop={6}>
             <Ionicons name={calling ? "call" : "call-outline"} size={16} color={colors.success} />
@@ -211,6 +282,24 @@ export default function ChatDetailScreen({ route, navigation }: any) {
               </Pressable>
             );
           }
+          if (item.type === "IMAGE") {
+            return (
+              <View style={[styles.bubble, styles.imageBubble, isMine ? styles.bubbleMine : styles.bubbleTheirs]}>
+                {item.imageUrl ? (
+                  <Image source={{ uri: item.imageUrl }} style={styles.imageContent} resizeMode="cover" />
+                ) : (
+                  // The URL is a short-lived signed link resolved server-side
+                  // at send/fetch time (see chat.routes.js attachImageUrls) —
+                  // missing only if that resolution itself failed, not a
+                  // normal loading state.
+                  <View style={[styles.imageContent, styles.imageFallback]}>
+                    <Ionicons name="image-outline" size={22} color={colors.textMuted} />
+                  </View>
+                )}
+                <Text style={[styles.timeText, isMine && { color: "rgba(255,255,255,0.7)" }]}>{formatMessageTime(item.createdAt)}</Text>
+              </View>
+            );
+          }
           return (
             <View style={[styles.bubble, isMine ? styles.bubbleMine : styles.bubbleTheirs]}>
               <Text style={[styles.bubbleText, isMine && { color: "#FFFFFF" }]}>{item.text}</Text>
@@ -238,6 +327,9 @@ export default function ChatDetailScreen({ route, navigation }: any) {
         </View>
       ) : (
         <View style={styles.inputRow}>
+          <Pressable style={styles.shareButton} onPress={handleSendImage} disabled={uploadingImage}>
+            <Ionicons name={uploadingImage ? "hourglass-outline" : "image-outline"} size={18} color={colors.accentText} />
+          </Pressable>
           <Pressable style={styles.shareButton} onPress={handleShareLocation} disabled={sharingLocation}>
             <Ionicons name="location-outline" size={18} color={colors.accentText} />
           </Pressable>
@@ -264,6 +356,8 @@ const styles = StyleSheet.create({
   backButton: { width: 36, height: 36, borderRadius: 18, alignItems: "center", justifyContent: "center" },
   title: { ...typography.title, fontSize: 14 },
   subtitle: { ...typography.small, color: colors.textMuted, marginTop: 1 },
+  tripRoute: { ...typography.small, color: colors.textMuted, marginTop: 1, fontSize: 10 },
+  infoButton: { width: 30, height: 30, alignItems: "center", justifyContent: "center" },
   callButton: { width: 34, height: 34, borderRadius: 17, backgroundColor: colors.successBg, alignItems: "center", justifyContent: "center" },
   chatBg: { flex: 1, backgroundColor: "#EAE6DA" },
   bubble: { maxWidth: "78%", padding: spacing.sm, borderRadius: radius.md },
@@ -272,6 +366,9 @@ const styles = StyleSheet.create({
   bubbleText: { ...typography.caption, color: colors.textPrimary },
   timeText: { ...typography.small, color: colors.textMuted, fontSize: 10, marginTop: 2, alignSelf: "flex-end" },
   locationBubble: { minWidth: 160 },
+  imageBubble: { padding: 4 },
+  imageContent: { width: 200, height: 200, borderRadius: radius.sm - 2 },
+  imageFallback: { alignItems: "center", justifyContent: "center", backgroundColor: colors.bg },
   locationRow: { flexDirection: "row", alignItems: "center", gap: 5 },
   locationText: { ...typography.caption, color: colors.textPrimary, fontWeight: "700", fontFamily: FONT.bold },
   locationHint: { ...typography.small, color: colors.textMuted, marginTop: 2 },

@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { prisma } from "../lib/prisma.js";
 import { requireAuth } from "../middleware/auth.js";
+import { notify } from "../lib/notify.js";
 import { validate, isNonEmptyString, isInRange } from "../lib/validate.js";
 
 const router = Router();
@@ -66,6 +67,16 @@ router.post("/", requireAuth, async (req, res) => {
     where: { id: toUserId },
     data: { ratingAvg: agg._avg.rating || rating },
   });
+
+  // Was silent before — the reviewed party (almost always the driver,
+  // since the passenger-rates-driver flow is the one actually wired up
+  // in the app today) had no way to know a rating came in short of
+  // opening the app and checking their own profile. Falls through to
+  // BookingDetail (resolveNotificationTarget's default for anything with
+  // a bookingId) which already surfaces the review via `reviewForMe`.
+  const stars = "★".repeat(rating);
+  await notify(toUserId, "REVIEW_RECEIVED", "You got a new rating",
+    comment ? `${stars} — "${comment}"` : `${stars} rating received.`, bookingId);
 
   res.status(201).json(review);
 });

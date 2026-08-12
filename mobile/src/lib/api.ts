@@ -292,6 +292,9 @@ export const api = {
 
   markChatRead: (bookingId: string) => request(`/api/chats/${bookingId}/read`, { method: "PUT" }),
 
+  getChatImageUploadUrl: (bookingId: string) =>
+    request(`/api/chats/${bookingId}/image-upload-url`, { method: "POST" }),
+
   // Bridges a masked call between driver and passenger — see
   // calls.routes.js. In dev (CALL_PROXY_ENABLED=false) this returns a
   // mock proxy number instead of placing a real call.

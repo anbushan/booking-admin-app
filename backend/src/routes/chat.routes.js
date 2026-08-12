@@ -1,9 +1,26 @@
 import { Router } from "express";
+import { PutObjectCommand } from "@aws-sdk/client-s3";
+import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { prisma } from "../lib/prisma.js";
 import { requireAuth } from "../middleware/auth.js";
 import { notify } from "../lib/notify.js";
+import { r2, R2_BUCKET } from "../lib/r2.js";
+import { photoViewUrl } from "../lib/photo.js";
 
 const router = Router();
+const UPLOAD_URL_TTL_SECONDS = 600; // 10 min — matches users.routes.js/vehicles.routes.js
+
+// A chat IMAGE message reuses the existing `text` column to hold the R2
+// key, same convention LOCATION already established (text = "lat,lng"
+// instead of a new lat/lng column pair) — no schema change needed. This
+// resolves that key into an actual short-lived viewable URL for the
+// client to render, the same way photoViewUrl already does everywhere
+// else a stored R2 key needs to become an <Image> src.
+async function attachImageUrls(messages) {
+  return Promise.all(
+    messages.map(async (m) => (m.type === "IMAGE" ? { ...m, imageUrl: await photoViewUrl(m.text) } : m))
+  );
+}
 
 // A conversation is scoped to a booking — driver and passenger only,
 // which keeps the chat list simple (no generic DM system needed for MVP).
@@ -30,7 +47,27 @@ router.get("/:bookingId/messages", requireAuth, async (req, res) => {
     where: { bookingId: req.params.bookingId },
     orderBy: { createdAt: "asc" },
   });
-  res.json(messages);
+  res.json(await attachImageUrls(messages));
+});
+
+// POST /api/chat/:bookingId/image-upload-url — same presigned-PUT
+// pattern as users.routes.js's profile-photo upload: the client PUTs
+// bytes straight to R2 using the signed URL this returns, then sends the
+// r2Key (not the bytes) as the message's `text` over the socket. Same
+// participant + CONFIRMED-window gate as actually sending a message —
+// no point letting someone stage an upload for a conversation they
+// couldn't send into anyway.
+router.post("/:bookingId/image-upload-url", requireAuth, async (req, res) => {
+  const participant = await resolveParticipant(req.params.bookingId, req.user.id);
+  if (!participant) return res.status(404).json({ error: "Booking not found." });
+  if (participant.booking.status !== "CONFIRMED") {
+    return res.status(400).json({ error: "This conversation isn't open right now." });
+  }
+
+  const r2Key = `chat/${req.params.bookingId}/${Date.now()}-${req.user.id}`;
+  const command = new PutObjectCommand({ Bucket: R2_BUCKET, Key: r2Key });
+  const uploadUrl = await getSignedUrl(r2, command, { expiresIn: UPLOAD_URL_TTL_SECONDS });
+  res.json({ r2Key, uploadUrl });
 });
 
 router.post("/:bookingId/messages", requireAuth, async (req, res) => {
@@ -61,13 +98,13 @@ router.post("/:bookingId/messages", requireAuth, async (req, res) => {
   // with push permission denied) and a push if they have a token on file.
   const recipientId = participant.role === "PASSENGER" ? participant.booking.ride.driverId : participant.booking.passengerId;
   const sender = await prisma.user.findUnique({ where: { id: req.user.id }, select: { name: true } });
-  const preview = message.type === "LOCATION" ? "Shared their location" : text.length > 80 ? `${text.slice(0, 80)}…` : text;
+  const preview = message.type === "LOCATION" ? "Shared their location" : message.type === "IMAGE" ? "📷 Sent a photo" : text.length > 80 ? `${text.slice(0, 80)}…` : text;
   await notify(recipientId, "NEW_MESSAGE", `New message from ${sender?.name || "them"}`, preview, req.params.bookingId);
 
   // Realtime delivery happens via Socket.IO (see lib/socket.js) — this
   // REST endpoint is the durable write path / fallback for clients not
   // currently connected to the socket.
-  res.status(201).json(message);
+  res.status(201).json(message.type === "IMAGE" ? { ...message, imageUrl: await photoViewUrl(message.text) } : message);
 });
 
 // PUT /api/chats/:bookingId/read — called when a side opens this

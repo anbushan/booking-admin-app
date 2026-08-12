@@ -93,6 +93,9 @@ function HomeScreenContent({ navigation }: any) {
   const [refreshing, setRefreshing] = useState(false);
   const [recentSearches, setRecentSearches] = useState<RecentLocation[]>([]);
   const [popularRoutes, setPopularRoutes] = useState<PopularRoute[]>([]);
+  // null while unknown (don't flash the banner before the first fetch
+  // resolves); [] once confirmed empty is what actually shows it.
+  const [emergencyContactCount, setEmergencyContactCount] = useState<number | null>(null);
 
   useEffect(() => {
     api.getMyProfile().then(setProfile).catch(() => {});
@@ -109,6 +112,16 @@ function HomeScreenContent({ navigation }: any) {
   useEffect(() => {
     api.getPopularRoutes().then(setPopularRoutes).catch(() => setPopularRoutes([]));
   }, []);
+
+  // Re-reads on every focus, same reason recentSearches does — coming
+  // straight back from EmergencyContacts after adding one should clear
+  // this banner immediately, not leave it showing until some unrelated
+  // re-render happens to trigger a refetch.
+  useFocusEffect(
+    useCallback(() => {
+      api.getEmergencyContacts().then((list: any[]) => setEmergencyContactCount(list.length)).catch(() => {});
+    }, [])
+  );
 
   function searchRoute(src: Point, dest: Point) {
     navigation.navigate("SearchResults", {
@@ -475,6 +488,25 @@ function HomeScreenContent({ navigation }: any) {
         </>
       )}
 
+      {/* The SOS button on every trip (see TrustBadges above) is only
+          actually useful if there's someone configured to notify —
+          triggering it with zero emergency contacts set up silently
+          notifies no one (see LiveTrackingScreen's own fix for that
+          moment). Surfacing it here, proactively, means a driver/
+          passenger finds out before an emergency, not during one. */}
+      {emergencyContactCount === 0 && (
+        <Pressable style={styles.sosBanner} onPress={() => navigation.navigate("EmergencyContacts")}>
+          <View style={styles.sosBannerIconWrap}>
+            <Ionicons name="alert-circle-outline" size={18} color={colors.danger} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.sosBannerTitle}>{t("home.noEmergencyContactTitle")}</Text>
+            <Text style={styles.sosBannerBody}>{t("home.noEmergencyContactBody")}</Text>
+          </View>
+          <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
+        </Pressable>
+      )}
+
       <SearchOptionsModal
         visible={optionsVisible}
         initialDate={travelDate}
@@ -617,6 +649,15 @@ const styles = StyleSheet.create({
   howItWorksLinkLabel: { ...typography.small, color: colors.accentText, fontWeight: "700", fontFamily: FONT.bold, textDecorationLine: "underline" },
   howItWorksLink: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 4, marginTop: spacing.sm },
   howItWorksLinkText: { ...typography.small, color: colors.accentText, fontWeight: "700", fontFamily: FONT.bold },
+  sosBanner: {
+    flexDirection: "row", alignItems: "center", gap: spacing.sm,
+    backgroundColor: colors.dangerBg, borderWidth: 1, borderColor: colors.danger,
+    borderRadius: radius.md, padding: spacing.md,
+    marginHorizontal: spacing.lg, marginTop: spacing.lg,
+  },
+  sosBannerIconWrap: { width: 32, height: 32, borderRadius: 16, backgroundColor: colors.surface, alignItems: "center", justifyContent: "center" },
+  sosBannerTitle: { ...typography.caption, fontWeight: "700", fontFamily: FONT.bold, color: colors.danger },
+  sosBannerBody: { ...typography.small, color: colors.textSecondary, marginTop: 1 },
   sectionLabel: {
     ...typography.title,
     marginHorizontal: spacing.lg,

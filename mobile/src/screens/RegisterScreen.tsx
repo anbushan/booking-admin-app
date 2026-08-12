@@ -93,6 +93,15 @@ export default function RegisterScreen({ navigation }: any) {
             value={email}
             onChangeText={(v) => { setEmail(v); if (errors.email) setErrors((e) => ({ ...e, email: undefined })); }}
           />
+          {/* Was a bare "Email (optional)" label with no reason given to
+              actually fill it in — this is the same field/storage, just
+              framed around what leaving it gets a rider (booking
+              reminders), which is what the label change was actually
+              asking for. No email currently gets sent to it yet — that's
+              a separate, real feature (needs a transactional email
+              provider wired up, none exists in this stack today) tracked
+              on its own, not implied by this copy change. */}
+          <Text style={styles.emailHint}>{t("register.emailHint")}</Text>
           <FieldError message={errors.email} />
 
           <Text style={styles.label}>{t("register.roleLabel")}</Text>
@@ -152,6 +161,7 @@ const styles = StyleSheet.create({
   title: { ...typography.title, fontSize: 18, textAlign: "center" },
   subtitle: { ...typography.small, color: colors.textMuted, textAlign: "center", marginTop: 4, marginBottom: spacing.lg },
   label: { ...typography.caption, color: colors.textSecondary, marginBottom: spacing.xs, marginTop: spacing.md },
+  emailHint: { ...typography.small, color: colors.textMuted, marginTop: 4 },
   input: {
     backgroundColor: colors.surface,
     borderWidth: 1,

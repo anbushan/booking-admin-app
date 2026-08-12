@@ -298,9 +298,23 @@ export default function LiveTrackingScreen({ route, navigation }: any) {
       setHolding(false);
       try {
         const loc = position || { lat: 12.9352, lng: 77.6146 };
-        await api.triggerSos(bookingId, loc);
+        const result = await api.triggerSos(bookingId, loc);
         Analytics.sosTriggered(bookingId);
-        showAlert(t("liveTracking.helpOnWayTitle"), t("liveTracking.helpOnWayBody"));
+        // The alert used to always say "help is on the way" regardless
+        // of whether anyone was actually notified — the backend still
+        // creates the alert record and returns success even with zero
+        // emergency contacts configured (contactsNotified: 0), so a
+        // real emergency with no contacts set up was silently
+        // reassuring someone that help was coming when nobody was ever
+        // actually contacted.
+        if (result.contactsNotified > 0) {
+          showAlert(t("liveTracking.helpOnWayTitle"), t("liveTracking.helpOnWayBody"));
+        } else {
+          showAlert(t("liveTracking.noContactsTitle"), t("liveTracking.noContactsBody"), [
+            { text: t("liveTracking.addContactNow"), onPress: () => navigation.navigate("EmergencyContacts") },
+            { text: t("common.ok") },
+          ]);
+        }
       } catch (err: any) {
         showAlert(t("liveTracking.couldntSendSos"), err.message);
       }

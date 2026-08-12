@@ -1,5 +1,5 @@
 import React, { useState, useCallback } from "react";
-import { View, Text, StyleSheet } from "react-native";
+import { View, Text, StyleSheet, ScrollView } from "react-native";
 import { Pressable } from "../components/Pressable";
 import { useFocusEffect } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
@@ -31,7 +31,7 @@ type RideDetails = {
   // present and always the right number to charge/display.
   segmentPricePerSeat: number;
   seatsAvailable: number;
-  driver?: { name: string; ratingAvg?: number; photoViewUrl?: string | null };
+  driver?: { id: string; name: string; ratingAvg?: number; photoViewUrl?: string | null };
   travelDate: string;
   estimatedArrivalAt: string;
   estimatedDurationMinutes: number;
@@ -56,6 +56,10 @@ export default function BookingConfirmScreen({ route, navigation }: any) {
   const [error, setError] = useState(false);
   const [seats, setSeats] = useState(1);
   const [submitting, setSubmitting] = useState(false);
+  // What other passengers have said about this specific driver — shown
+  // right here so it can actually inform the decision to book, not just
+  // linked out to a profile the passenger has to remember to go check.
+  const [driverReviews, setDriverReviews] = useState<any[]>([]);
 
   function load() {
     setLoading(true);
@@ -71,6 +75,9 @@ export default function BookingConfirmScreen({ route, navigation }: any) {
         // Default to 1 seat, or 0 if the ride is already full — never
         // default to a count higher than what's actually left.
         setSeats(data.seatsAvailable > 0 ? 1 : 0);
+        if (data.driver?.id) {
+          api.getReviewsForUser(data.driver.id).then(setDriverReviews).catch(() => setDriverReviews([]));
+        }
       })
       .catch(() => setError(true))
       .finally(() => setLoading(false));
@@ -133,13 +140,23 @@ export default function BookingConfirmScreen({ route, navigation }: any) {
       ) : error || !ride ? (
         <ErrorState message={t("booking.couldntLoadRide")} onRetry={load} />
       ) : (
-        <View style={styles.body}>
+        // Was a plain, non-scrolling View — with a variable-length route
+        // stops list above it, the "Request booking" button could end up
+        // pushed past the bottom of the screen entirely on a shorter
+        // device (or a shrunk web viewport) with no way to scroll down to
+        // reach it, reading as "the button is overlapping/hidden behind
+        // the bottom of the screen" rather than what was actually
+        // happening (it was rendered off-screen, not merely obscured).
+        <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
           <View style={styles.routeRow}>
             <Ionicons name="navigate-outline" size={14} color={colors.textMuted} />
             <Text style={styles.route}>{t("common.routeTo", { source: ride.sourceAddress, dest: ride.destAddress })}</Text>
           </View>
           {ride.driver?.name && (
-            <View style={styles.driverRow}>
+            <Pressable
+              style={styles.driverRow}
+              onPress={() => ride.driver?.id && navigation.navigate("PublicProfile", { userId: ride.driver.id })}
+            >
               <Avatar uri={ride.driver.photoViewUrl} name={ride.driver.name} size={24} />
               <Text style={styles.driverName}>{ride.driver.name}</Text>
               {ride.driver.ratingAvg != null && (
@@ -148,6 +165,33 @@ export default function BookingConfirmScreen({ route, navigation }: any) {
                   <Text style={styles.driverName}>{ride.driver.ratingAvg.toFixed(1)}</Text>
                 </View>
               )}
+              <View style={{ flex: 1 }} />
+              <Ionicons name="chevron-forward" size={13} color={colors.textMuted} />
+            </Pressable>
+          )}
+
+          {/* What other passengers have said about this driver — see
+              driverReviews fetch in load(). Only the first two, so this
+              stays a quick "here's what people say" glance rather than
+              turning the confirm screen into the full profile page;
+              "See all" is right there for anyone who wants more. */}
+          {driverReviews.length > 0 && (
+            <View style={styles.reviewsWrap}>
+              <View style={styles.reviewsHeaderRow}>
+                <Text style={styles.reviewsTitle}>{t("booking.aboutThisDriver")}</Text>
+                {driverReviews.length > 2 && ride.driver?.id && (
+                  <Pressable onPress={() => navigation.navigate("PublicProfile", { userId: ride.driver!.id })}>
+                    <Text style={styles.reviewsSeeAll}>{t("booking.seeAllReviews")}</Text>
+                  </Pressable>
+                )}
+              </View>
+              {driverReviews.slice(0, 2).map((review) => (
+                <View key={review.id} style={styles.reviewCard}>
+                  <Text style={styles.reviewStars}>{"★".repeat(review.rating)}</Text>
+                  {review.comment ? <Text style={styles.reviewComment} numberOfLines={2}>{review.comment}</Text> : null}
+                  <Text style={styles.reviewFrom}>{review.fromUser?.name || t("publicProfile.riderFallback")}</Text>
+                </View>
+              ))}
             </View>
           )}
 
@@ -225,7 +269,7 @@ export default function BookingConfirmScreen({ route, navigation }: any) {
               {full ? t("booking.rideIsFull") : submitting ? t("booking.sendingRequest") : t("booking.requestBooking")}
             </Text>
           </Pressable>
-        </View>
+        </ScrollView>
       )}
     </SafeAreaView>
   );
@@ -239,6 +283,14 @@ const styles = StyleSheet.create({
   driverRow: { flexDirection: "row", alignItems: "center", gap: spacing.xs, marginTop: spacing.sm },
   driverName: { ...typography.caption, color: colors.textSecondary },
   driverRatingRow: { flexDirection: "row", alignItems: "center", gap: 3, marginLeft: spacing.xs },
+  reviewsWrap: { marginTop: spacing.md },
+  reviewsHeaderRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  reviewsTitle: { ...typography.caption, color: colors.textSecondary, fontWeight: "700" },
+  reviewsSeeAll: { ...typography.small, color: colors.accentText, fontWeight: "700" },
+  reviewCard: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: radius.sm, padding: spacing.sm, marginTop: spacing.xs },
+  reviewStars: { color: colors.marigold, fontSize: 12 },
+  reviewComment: { ...typography.caption, marginTop: 3, color: colors.textPrimary },
+  reviewFrom: { ...typography.small, color: colors.textMuted, marginTop: 3 },
   timelineCard: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: radius.md, padding: spacing.md, marginTop: spacing.md },
   row: {
     flexDirection: "row",

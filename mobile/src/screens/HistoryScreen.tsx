@@ -286,7 +286,16 @@ export default function HistoryScreen({ navigation, route }: any) {
                         icon="chatbubble-outline"
                         label={t("history.chat")}
                         badge={item.unreadMessageCount}
-                        onPress={() => navigation.navigate("ChatDetail", { bookingId: item.id, calleeRole: "DRIVER" })}
+                        onPress={() => navigation.navigate("ChatDetail", {
+                          bookingId: item.id,
+                          calleeRole: "DRIVER",
+                          // Already in memory (this card's own driver
+                          // avatar/name come from the same object) — see
+                          // ChatDetailScreen's header comment for why
+                          // this is what actually kills the flicker.
+                          otherName: item.ride?.driver?.name,
+                          otherPhoto: item.ride?.driver?.photoViewUrl,
+                        })}
                       />
                     </>
                   )}

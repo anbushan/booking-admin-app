@@ -128,7 +128,15 @@ export default function TripOtpScreen({ route, navigation }: any) {
         </Pressable>
         <Pressable
           style={styles.iconButton}
-          onPress={() => navigation.navigate("ChatDetail", { bookingId, calleeRole: "DRIVER" })}
+          onPress={() => navigation.navigate("ChatDetail", {
+            bookingId,
+            calleeRole: "DRIVER",
+            // Already in state (rendered right above) — see
+            // ChatDetailScreen's header comment for why this kills the
+            // flicker on this entry point too.
+            otherName: driverName,
+            otherPhoto: driverPhoto,
+          })}
           hitSlop={4}
         >
           <Ionicons name="chatbubble-outline" size={17} color={colors.accentText} />

@@ -29,7 +29,7 @@ type Trip = {
   id: string;
   status: string;
   seatsBooked: number;
-  passenger?: { name: string };
+  passenger?: { name: string; photoViewUrl?: string | null };
   ride?: { sourceAddress: string; destAddress: string; travelDate?: string };
   unreadMessageCount?: number;
 };
@@ -149,7 +149,15 @@ export default function UpcomingTripsScreen({ navigation }: any) {
                   {item.status === "CONFIRMED" && (
                     <Pressable
                       style={[styles.actionButton, styles.chatButton, { flexDirection: "row", alignItems: "center" }]}
-                      onPress={() => navigation.navigate("ChatDetail", { bookingId: item.id, calleeRole: "PASSENGER" })}
+                      onPress={() => navigation.navigate("ChatDetail", {
+                        bookingId: item.id,
+                        calleeRole: "PASSENGER",
+                        // Already in memory (this row already shows the
+                        // passenger's name) — see ChatDetailScreen's
+                        // header comment for why this kills the flicker.
+                        otherName: item.passenger?.name,
+                        otherPhoto: item.passenger?.photoViewUrl,
+                      })}
                     >
                       <Text style={styles.chatButtonText}>{t("history.chat")}</Text>
                       <UnreadBadge count={item.unreadMessageCount} />
