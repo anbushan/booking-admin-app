@@ -69,20 +69,26 @@ router.post("/:bookingId/charge", requireAuth, async (req, res) => {
   res.json({ orderId: order.id, amount, keyId: process.env.RAZORPAY_KEY_ID });
 });
 
-// POST /api/payments/:bookingId/mock-confirm — dev-only stand-in for a
-// real Razorpay Checkout + webhook round trip. react-native-razorpay is
-// a native module that can't run in Expo Go or a web preview (same
+// POST /api/payments/:bookingId/mock-confirm — stand-in for a real
+// Razorpay Checkout + webhook round trip. react-native-razorpay is a
+// native module that can't run in Expo Go or a web preview (same
 // constraint noted elsewhere for react-native-maps and
 // @react-native-community/datetimepicker), so there's no way to drive a
 // real payment sheet during that kind of testing. This does exactly what
 // the webhook's payment.captured branch does, skipping the parts that
-// require an actual Razorpay checkout session. Gated on NODE_ENV alone
-// (not a second flag) is deliberate here — unlike the OTP bypass, this
-// endpoint only ever *helps* a booking along a path it could already
-// reach for free (no charge is simulated, no money-adjacent bypass), and
-// it's inert in any non-development deploy.
+// require an actual Razorpay checkout session.
+//
+// Was gated on NODE_ENV === "development" alone. Same underlying
+// incident as auth.routes.js's isDevTestNumber: Railway's NODE_ENV had
+// been sitting on "development" in production by mistake, then got
+// fixed to "production" — which correctly closed this endpoint off too,
+// but that then blocked legitimate testing of the payment flow (e.g. on
+// a device without a working webhook — see the RAZORPAY_WEBHOOK_SECRET
+// gap this same session found) with no way to turn it back on without
+// reopening NODE_ENV itself. Same fix: its own dedicated env var,
+// independent of NODE_ENV, defaulting to off.
 router.post("/:bookingId/mock-confirm", requireAuth, async (req, res) => {
-  if (process.env.NODE_ENV !== "development") {
+  if (process.env.ALLOW_MOCK_PAYMENT_CONFIRM !== "true") {
     return res.status(404).json({ error: "Not found." });
   }
 

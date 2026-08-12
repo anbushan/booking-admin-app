@@ -3,7 +3,7 @@ import jwt from "jsonwebtoken";
 import bcrypt from "bcryptjs";
 import { prisma } from "../lib/prisma.js";
 import { redis } from "../lib/redis.js";
-import { sendOtpViaMsg91 } from "../lib/msg91.js";
+import { sendOtpViaTwoFactor } from "../lib/twofactor.js";
 import { isPhone } from "../lib/validate.js";
 import { requireAuth } from "../middleware/auth.js";
 import { serializeUser } from "../lib/serializeUser.js";
@@ -81,11 +81,11 @@ router.post("/send-otp", async (req, res) => {
   } else {
     otp = generateOtp();
     try {
-      await sendOtpViaMsg91(phone, otp);
+      await sendOtpViaTwoFactor(phone, otp);
     } catch (err) {
       // Express 4 doesn't catch rejections thrown inside an async handler —
       // left unguarded, this takes down the entire process for every user,
-      // not just this request (e.g. any real signup attempt while MSG91
+      // not just this request (e.g. any real signup attempt while 2Factor
       // isn't configured). Fail this one request instead.
       console.error(`send-otp failed for ${phone}:`, err.message);
       return res.status(502).json({ error: "Couldn't send the verification code. Please try again." });

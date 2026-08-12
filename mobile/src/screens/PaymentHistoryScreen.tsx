@@ -58,8 +58,13 @@ export default function PaymentHistoryScreen({ navigation }: any) {
             style={styles.row}
             onPress={() => navigation.navigate("PaymentDetail", { booking: item })}
           >
-            <View>
-              <Text style={styles.route}>{item.ride?.sourceAddress} to {item.ride?.destAddress}</Text>
+            {/* flex: 1 + numberOfLines is what's missing here — without it,
+                a long source/dest address has nothing to shrink or wrap
+                against inside this row, so the row's total width grows
+                past the screen edge instead of truncating, pushing the
+                amount/status column (and sometimes itself) off-screen. */}
+            <View style={{ flex: 1, marginRight: spacing.sm }}>
+              <Text style={styles.route} numberOfLines={1}>{item.ride?.sourceAddress} to {item.ride?.destAddress}</Text>
               <Text style={styles.date}>{item.platformFeePaidAt ? new Date(item.platformFeePaidAt).toLocaleDateString() : "—"}</Text>
             </View>
             <View style={{ alignItems: "flex-end" }}>

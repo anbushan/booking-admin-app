@@ -15,10 +15,10 @@ import { useTranslation } from "../lib/i18n/I18nContext";
 // Hardcoded true rather than gated on `__DEV__` — that global isn't
 // reliably true across every way this app gets previewed (e.g. Expo
 // web), and this button is harmless either way: the backend endpoint it
-// calls (POST /api/payments/:bookingId/mock-confirm) 404s outside
-// NODE_ENV=development on its own, so that's the real gate. Flip this
-// to false once you no longer need to test payments without a native
-// Razorpay build.
+// calls (POST /api/payments/:bookingId/mock-confirm) 404s unless
+// ALLOW_MOCK_PAYMENT_CONFIRM=true is set server-side, so that's the real
+// gate. Flip this to false once you no longer need to test payments
+// without a native Razorpay build.
 const SHOW_MOCK_PAYMENT_BUTTON = true;
 
 export default function PaymentScreen({ route, navigation }: any) {
