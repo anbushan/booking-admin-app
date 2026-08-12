@@ -163,10 +163,10 @@ export default function LandingPage() {
                 </>
               ) : (
                 <>
-                  <span className="mkt-btn mkt-btn-disabled">
+                  <Link href="/download" className="mkt-btn mkt-btn-disabled">
                     Get it on Google Play
                     <span className="mkt-btn-badge">Coming soon</span>
-                  </span>
+                  </Link>
                   <Link href="/faq" className="mkt-btn mkt-btn-secondary">Read the FAQ</Link>
                 </>
               )}
@@ -270,6 +270,9 @@ export default function LandingPage() {
             </div>
           ))}
         </div>
+        <Link href="/safety" className="mkt-btn mkt-btn-secondary" style={{ marginTop: 24 }}>
+          More on how safety works
+        </Link>
       </section>
 
       <section className="mkt-band">

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Logo } from "./Logo";
-import { NAV_LINKS, FOOTER_LINKS, BRAND_NAME } from "../lib/siteContent";
+import { MarketingHeader } from "./MarketingHeader";
+import { FOOTER_LINKS, BRAND_NAME } from "../lib/siteContent";
 import { poppins } from "../lib/fonts";
 
 // Shared chrome for every public marketing page (landing, FAQ, blog) —
@@ -12,21 +13,7 @@ import { poppins } from "../lib/fonts";
 export function MarketingShell({ children }: { children: React.ReactNode }) {
   return (
     <div className={poppins.variable} style={{ minHeight: "100vh", display: "flex", flexDirection: "column", fontFamily: "var(--font-poppins)" }}>
-      <header className="mkt-header">
-        <div className="mkt-header-inner">
-          <Link href="/" className="mkt-brand">
-            <Logo size={30} />
-            <span>{BRAND_NAME}</span>
-          </Link>
-          <nav className="mkt-nav">
-            {NAV_LINKS.map((link) => (
-              <Link key={link.href} href={link.href} className="mkt-nav-link">
-                {link.label}
-              </Link>
-            ))}
-          </nav>
-        </div>
-      </header>
+      <MarketingHeader />
 
       <main style={{ flex: 1 }}>{children}</main>
 

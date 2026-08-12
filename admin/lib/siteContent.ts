@@ -33,19 +33,30 @@ export const CONTACT_EMAIL = "anbushanthi001@gmail.com";
 // once the app is actually published.
 export const STORE_LINKS_READY = false;
 
+// Trimmed from 7 to 6 — and, more importantly, switched from same-page
+// scroll anchors (#features, #passenger-journey, ...) to real distinct
+// URLs. Two reasons: the anchor-heavy version is what caused the mobile
+// header bug (7 items in a horizontal scroll strip, hard-cropped on a
+// phone — see globals.css's mask-image fix); and fragment anchors carry
+// no SEO weight of their own (they're not separately indexable pages),
+// while these are — every one of these is a real crawlable URL now, so
+// the nav itself is also internal-linking work, not just navigation.
 export const NAV_LINKS = [
   { href: "/", label: "Home" },
-  { href: "/#features", label: "Features" },
-  { href: "/#passenger-journey", label: "Passenger journey" },
-  { href: "/#driver-journey", label: "Driver journey" },
-  { href: "/#safety", label: "Safety" },
+  { href: "/about", label: "About" },
+  { href: "/safety", label: "Safety" },
+  { href: "/download", label: "Download" },
   { href: "/faq", label: "FAQ" },
   { href: "/blog", label: "Blog" },
 ];
 
 export const FOOTER_LINKS = [
+  { href: "/about", label: "About" },
+  { href: "/safety", label: "Safety" },
+  { href: "/download", label: "Download" },
   { href: "/faq", label: "FAQ" },
   { href: "/blog", label: "Blog" },
+  { href: "/contact", label: "Contact" },
   { href: "/legal/terms", label: "Terms" },
   { href: "/legal/privacy", label: "Privacy" },
 ];

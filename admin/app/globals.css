@@ -615,33 +615,70 @@
   flex-wrap: wrap;
 }
 
-/* 7 nav links wrapping on a narrow phone would turn the sticky header
-   into 3-4 lines, eating a big share of the viewport on every scroll
-   position. A horizontal scroll strip (like a lot of mobile sites use
-   for a longer nav) keeps the header a single fixed-height row instead;
-   nothing's hidden, it's a swipe away. Scrollbar hidden across engines
-   since this is a nav strip, not a content area someone needs a visible
-   scrollbar affordance for. */
+/* Two earlier passes (a horizontal scroll strip, then a wider fade on
+   that same strip) both kept reading as "broken" in screenshots at
+   actual phone width, even though both were technically working
+   correctly (verified via computed styles — genuinely scrollable, no
+   page-level overflow). A real hamburger menu removes the ambiguity
+   entirely instead of trying to make "this scrolls" more obvious: on
+   mobile, the inline link row is replaced by a single toggle button,
+   and every link is either fully visible (desktop) or fully visible in
+   an opened dropdown (mobile) — nothing partially cropped or faded
+   either way. See MarketingHeader.tsx for the toggle logic. */
+.mkt-nav-toggle {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  border: 1px solid #E3E1D8;
+  background: #FFFFFF;
+  color: #1A1A18;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.mkt-nav-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 19;
+  background: rgba(26, 26, 24, 0.25);
+}
+
+.mkt-nav-mobile-panel {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  z-index: 21;
+  background: #FFFFFF;
+  border-bottom: 1px solid #E3E1D8;
+  box-shadow: 0 12px 24px rgba(26, 26, 24, 0.08);
+  display: flex;
+  flex-direction: column;
+  padding: 8px 24px 16px;
+}
+
+.mkt-nav-mobile-link {
+  padding: 12px 4px;
+  font-size: 15px;
+  font-weight: 500;
+  color: #1A1A18;
+  text-decoration: none;
+  border-bottom: 1px solid #F0EEE6;
+}
+
+.mkt-nav-mobile-link:last-child {
+  border-bottom: none;
+}
+
 @media (max-width: 640px) {
-  .mkt-header-inner {
-    flex-wrap: nowrap;
-  }
-  .mkt-brand {
-    flex-shrink: 0;
-  }
-  .mkt-nav {
-    flex-wrap: nowrap;
-    overflow-x: auto;
-    gap: 18px;
-    flex: 1;
-    min-width: 0;
-    scrollbar-width: none;
-  }
-  .mkt-nav::-webkit-scrollbar {
+  .mkt-nav-desktop {
     display: none;
   }
-  .mkt-nav-link {
-    flex-shrink: 0;
+  .mkt-nav-toggle {
+    display: flex;
   }
 }
 
