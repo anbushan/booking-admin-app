@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { View, Text, ScrollView, StyleSheet, Linking } from "react-native";
+import { View, Text, ScrollView, StyleSheet, Linking, Share } from "react-native";
 import { Pressable } from "../components/Pressable";
 import { Ionicons } from "@expo/vector-icons";
 import { showAlert } from "../lib/alert";
@@ -20,6 +20,20 @@ import { useTranslation } from "../lib/i18n/I18nContext";
 const TERMS_URL = "https://carpool-admin-gray.vercel.app/legal/terms";
 const PRIVACY_URL = "https://carpool-admin-gray.vercel.app/legal/privacy";
 const SUPPORT_EMAIL = "anbushanthi001@gmail.com";
+// Live today regardless of store status — the marketing site's own
+// download page (admin/app/download), which already handles "not on
+// the store yet" honestly (see its own STORE_LINKS_READY gate) rather
+// than pointing anyone at a broken store listing.
+const DOWNLOAD_URL = "https://carpool-admin-gray.vercel.app/download";
+
+// Flip once the app actually has a live Play Store listing — same gate,
+// same reasoning as admin/lib/siteContent.ts's STORE_LINKS_READY on the
+// download page's store badges. The package ID is already fixed
+// (app.json), so enabling this later is a one-line change, no other
+// code to touch.
+const PLAY_STORE_READY = false;
+const ANDROID_PACKAGE = "com.carpool.app";
+const PLAY_STORE_URL = `https://play.google.com/store/apps/details?id=${ANDROID_PACKAGE}`;
 
 export function SettingsScreen({ navigation }: any) {
   useScreenView("SettingsScreen");
@@ -32,6 +46,17 @@ export function SettingsScreen({ navigation }: any) {
     api.getMyProfile().then(setProfile).catch(() => {});
   }, []);
 
+  async function handleShare() {
+    try {
+      await Share.share({ message: t("settings.shareMessage", { url: DOWNLOAD_URL }) });
+      Analytics.appShared();
+    } catch {
+      // Share sheet dismissal throws on some platforms — nothing to
+      // recover from, same as every other Pressable that fires a native
+      // sheet in this app (see handleCall's cancel handling elsewhere).
+    }
+  }
+
   const rows: { key: string; label: string; icon: keyof typeof Ionicons.glyphMap; onPress: () => void }[] = [
     { key: "profile", label: t("settings.profile"), icon: "person-outline", onPress: () => navigation.navigate("Profile") },
     { key: "ratings", label: t("settings.yourRatings"), icon: "star-outline", onPress: () => navigation.navigate("RatingsReceived") },
@@ -40,6 +65,13 @@ export function SettingsScreen({ navigation }: any) {
     { key: "loginPasscode", label: t("settings.loginPasscode"), icon: "key-outline", onPress: () => navigation.navigate("LoginPasscode") },
     { key: "language", label: t("settings.language"), icon: "language-outline", onPress: () => navigation.navigate("LanguageSelection") },
     { key: "notifications", label: t("sideMenu.notifications"), icon: "notifications-outline", onPress: () => navigation.navigate("Notifications") },
+    { key: "shareApp", label: t("settings.shareApp"), icon: "share-social-outline", onPress: handleShare },
+    // Hidden until PLAY_STORE_READY flips — a "Rate us" row pointing at
+    // a store listing that doesn't exist yet would be a dead end, worse
+    // than not offering it at all (see PLAY_STORE_READY above).
+    ...(PLAY_STORE_READY
+      ? [{ key: "rateApp", label: t("settings.rateApp"), icon: "star-half-outline" as const, onPress: () => Linking.openURL(PLAY_STORE_URL) }]
+      : []),
     { key: "helpSupport", label: t("settings.helpSupport"), icon: "help-circle-outline", onPress: () => navigation.navigate("HelpSupport") },
     { key: "about", label: t("settings.aboutTerms"), icon: "document-text-outline", onPress: () => navigation.navigate("About") },
   ];

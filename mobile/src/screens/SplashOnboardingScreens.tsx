@@ -75,7 +75,16 @@ export function SplashScreen({ navigation }: any) {
       } else if (seenOnboarding) {
         navigation.replace("PhoneEntry");
       } else {
-        navigation.replace("Onboarding");
+        // First launch, ever — language wasn't reachable at all until
+        // Settings, deep past onboarding/phone entry/OTP, all of which
+        // default to English with no device-locale detection. The
+        // onboarding carousel's own slides already call t() (see below),
+        // so picking a language here means the carousel itself shows up
+        // correctly localized too, not just phone entry/OTP — same
+        // implementation cost as gating after the carousel, strictly
+        // more benefit. Skipping keeps today's default (English)
+        // unchanged.
+        navigation.replace("LanguageSelection", { onboardingEntry: true });
       }
     }, 1200);
     return () => clearTimeout(timer);

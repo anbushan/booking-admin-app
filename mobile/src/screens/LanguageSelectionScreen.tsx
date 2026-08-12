@@ -38,9 +38,17 @@ function sortLocales(list: string[]) {
   });
 }
 
-export default function LanguageSelectionScreen({ navigation }: any) {
+export default function LanguageSelectionScreen({ navigation, route }: any) {
   useScreenView("LanguageSelectionScreen");
   const { t, locale, setLocale } = useTranslation();
+  // Reached two different ways: from Settings (push, "Confirm" should
+  // just pop back to where you were), or once, on a genuinely fresh
+  // install, straight after Splash (replace, nothing to go back to —
+  // see SplashOnboardingScreens.tsx). onboardingEntry picks between the
+  // two: forward into the onboarding carousel instead of goBack(), plus
+  // a Skip that's meaningless in the Settings context (there's nothing
+  // to "skip" when you navigated here on purpose to change it).
+  const onboardingEntry = !!route?.params?.onboardingEntry;
   const [locales, setLocales] = useState<string[]>(LOCALE_ORDER);
   // Picking a row no longer applies it immediately — it just marks a
   // pending choice, so a stray tap doesn't switch the whole app out from
@@ -72,21 +80,42 @@ export default function LanguageSelectionScreen({ navigation }: any) {
   // Actually switches the app's language now (see I18nContext) — this
   // used to only write AsyncStorage directly, so every screen kept
   // showing English regardless of what was picked here.
+  function proceed() {
+    if (onboardingEntry) {
+      navigation.replace("Onboarding");
+    } else {
+      navigation.goBack();
+    }
+  }
+
   async function handleConfirm() {
     if (pending === locale) {
-      navigation.goBack();
+      proceed();
       return;
     }
     setConfirming(true);
     await setLocale(pending);
     Analytics.languageChanged(pending);
     setConfirming(false);
-    navigation.goBack();
+    proceed();
   }
 
   return (
     <SafeAreaView style={styles.screen} edges={["top", "bottom"]}>
-      <BackHeader title={t("settings.language")} onBack={() => navigation.goBack()} />
+      <BackHeader
+        title={t("settings.language")}
+        onBack={onboardingEntry ? proceed : () => navigation.goBack()}
+        // Deliberately literal "Skip", not run through t() — this is the
+        // language picker itself, shown before any language has been
+        // chosen; the row labels below have the same reasoning (each
+        // language's own name isn't translated either, for the same
+        // "has to be legible before you've picked anything" constraint.
+        right={onboardingEntry ? (
+          <Pressable onPress={proceed} hitSlop={8}>
+            <Text style={styles.skipText}>Skip</Text>
+          </Pressable>
+        ) : undefined}
+      />
 
       <FlatList
         style={{ flex: 1 }}
@@ -103,7 +132,9 @@ export default function LanguageSelectionScreen({ navigation }: any) {
 
       <View style={styles.footer}>
         <Pressable style={styles.confirmButton} onPress={handleConfirm} disabled={confirming}>
-          <Text style={styles.confirmButtonText}>{confirming ? t("switchRole.switching") : t("common.confirm")}</Text>
+          <Text style={styles.confirmButtonText}>
+            {confirming ? t("switchRole.switching") : onboardingEntry ? t("common.continue") : t("common.confirm")}
+          </Text>
         </Pressable>
       </View>
     </SafeAreaView>
@@ -116,6 +147,7 @@ const styles = StyleSheet.create({
   rowActive: { borderColor: colors.accent, backgroundColor: colors.accentBg },
   rowText: typography.body,
   checkmark: { color: colors.accentText, fontWeight: "700", fontFamily: FONT.bold },
+  skipText: { ...typography.body, color: colors.textMuted, fontWeight: "700", fontFamily: FONT.bold },
   footer: { padding: spacing.lg, borderTopWidth: 1, borderTopColor: colors.border, backgroundColor: colors.surface },
   confirmButton: { backgroundColor: colors.textPrimary, height: 46, borderRadius: radius.sm, alignItems: "center", justifyContent: "center" },
   confirmButtonText: { ...typography.title, color: "#FFFFFF" },
