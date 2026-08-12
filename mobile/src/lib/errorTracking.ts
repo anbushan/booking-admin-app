@@ -21,6 +21,26 @@ import * as Sentry from "@sentry/react-native";
 // string is safe to ship, it just means nothing gets captured).
 const SENTRY_DSN = "";
 
+// NOTE on the native side: "@sentry/react-native" was removed from
+// app.json's `plugins` array (see git history) after it broke the first
+// real EAS build. That Expo config plugin unconditionally injects a
+// sentry.gradle hook into android/app/build.gradle for native crash
+// symbolication + source-map upload — even with no DSN/org/project
+// configured, and even with SENTRY_DISABLE_AUTO_UPLOAD=true (which only
+// skips the upload task itself; a separate `finalizedBy`-chained
+// "collect modules" task in that same script still runs a Node script
+// unconditionally whenever the file exists in node_modules, i.e.
+// always). That's a real Gradle-build-time dependency this app has no
+// use for yet, since there's no real Sentry project to symbolicate
+// against (SENTRY_DSN above is empty). None of that affects the JS-side
+// SDK below — Sentry.init/wrap/ErrorBoundary/setUser all work purely in
+// JS regardless of the native plugin being present. Once a real DSN
+// exists, re-add "@sentry/react-native" to app.json's plugins AND set
+// real SENTRY_ORG/SENTRY_PROJECT/SENTRY_AUTH_TOKEN (via `eas secret` or
+// eas.json env) before the next build, so the native hook has something
+// real to authenticate against instead of failing again.
+
+
 export function initErrorTracking() {
   Sentry.init({
     dsn: SENTRY_DSN,

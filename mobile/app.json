@@ -62,8 +62,7 @@
       ],
       "expo-font",
       "expo-notifications",
-      "./plugins/withDisableForceDark",
-      "@sentry/react-native"
+      "./plugins/withDisableForceDark"
     ],
     "extra": {
       "eas": {
