@@ -4,6 +4,7 @@ import { Pressable } from "../components/Pressable";
 import { useFocusEffect } from "@react-navigation/native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
+import { CopilotProvider, CopilotStep, walkthroughable, useCopilot } from "react-native-copilot";
 import { colors, spacing, radius, typography, FONT } from "../theme/theme";
 import SearchOptionsModal, { formatSearchDate } from "../components/SearchOptionsModal";
 import { CarLoader } from "../components/CarLoader";
@@ -15,6 +16,15 @@ import { useScreenView } from "../lib/useScreenView";
 import Avatar from "../components/Avatar";
 import { getRecentSearches, RecentLocation } from "../lib/recentSearches";
 import { useTranslation } from "../lib/i18n/I18nContext";
+import { hasSeenCopilotTour, markCopilotTourSeen } from "../lib/copilotOnboarding";
+
+// `walkthroughable` just forwards a `copilot` ref/onLayout prop into the
+// wrapped component's own props — defined once at module scope (not
+// inside the component body) so CopilotStep isn't handed a brand-new
+// component type on every render, which would remount its child and
+// break the ref registration copilot relies on to measure it.
+const CopilotView = walkthroughable(View);
+const CopilotPressable = walkthroughable(Pressable);
 
 type Point = { lat: number; lng: number; address: string };
 type PopularRoute = {
@@ -35,9 +45,37 @@ const DRIVER_ACTIONS = [
   { route: "Earnings", labelKey: "home.earnings", icon: "wallet-outline" },
 ] as const;
 
+// Wraps the actual screen in CopilotProvider so `useCopilot()` is
+// available inside it — the provider has to be an ancestor of every
+// CopilotStep it coordinates, and of whatever calls `start()`. Scoped
+// to just this screen (not App.tsx's root) since the walkthrough only
+// ever points at Home's own elements; CopilotProvider's highlight
+// overlay renders through RN's own <Modal>, so nesting it here instead
+// of at the root doesn't clip or mis-position it.
 export default function HomeScreen({ navigation }: any) {
+  const { t } = useTranslation();
+  return (
+    <CopilotProvider
+      overlay="view"
+      animated
+      androidStatusBarVisible
+      backdropColor="rgba(22,33,58,0.7)"
+      labels={{
+        previous: t("copilot.labels.previous"),
+        next: t("copilot.labels.next"),
+        skip: t("copilot.labels.skip"),
+        finish: t("copilot.labels.finish"),
+      }}
+    >
+      <HomeScreenContent navigation={navigation} />
+    </CopilotProvider>
+  );
+}
+
+function HomeScreenContent({ navigation }: any) {
   useScreenView("HomeScreen");
   const { t } = useTranslation();
+  const { start } = useCopilot();
   const insets = useSafeAreaInsets();
   const [source, setSource] = useState<Point>(DEFAULT_SOURCE);
   const [destination, setDestination] = useState<Point | null>(null);
@@ -147,6 +185,25 @@ export default function HomeScreen({ navigation }: any) {
   const hour = new Date().getHours();
   const greeting = hour < 12 ? t("home.goodMorning") : hour < 17 ? t("home.goodAfternoon") : hour < 21 ? t("home.goodEvening") : t("home.goodNight");
 
+  // Auto-starts the walkthrough exactly once per role, the first time
+  // that role's real Home content (with its CopilotSteps registered)
+  // is actually on screen — gated on `!checkingActiveTrip` so this
+  // never fires against the loading branch below, which renders no
+  // CopilotSteps at all. React fires a CopilotStep's own registration
+  // effect (child) before this one (parent) on the same commit, so by
+  // the time this runs the steps `start()` needs are already known.
+  useEffect(() => {
+    if (!profile?.role || checkingActiveTrip) return;
+    const role = profile.role as "DRIVER" | "PASSENGER";
+    let cancelled = false;
+    hasSeenCopilotTour(role).then((seen) => {
+      if (seen || cancelled) return;
+      start();
+      markCopilotTourSeen(role);
+    });
+    return () => { cancelled = true; };
+  }, [profile?.role, checkingActiveTrip]);
+
   if (checkingActiveTrip) {
     // AppBottomNav still renders here, not just in the loaded return
     // below — otherwise the bar is simply absent for this first beat,
@@ -205,6 +262,13 @@ export default function HomeScreen({ navigation }: any) {
           <View>
             <Text style={styles.greeting}>{greeting}</Text>
             <Text style={styles.name}>{firstName || t("home.thereFallback")}</Text>
+            {/* Manual re-trigger — the auto-start (see the effect above)
+                only ever fires once per role, so this is the only way
+                back into the walkthrough after that first look. */}
+            <Pressable style={styles.tourLink} onPress={() => start()} hitSlop={6}>
+              <Ionicons name="sparkles-outline" size={12} color="#FFFFFF" />
+              <Text style={styles.tourLinkText}>{t("home.takeTour")}</Text>
+            </Pressable>
           </View>
           <Pressable style={styles.avatarButton} onPress={() => navigation.navigate("Profile")} hitSlop={8}>
             <Avatar
@@ -226,99 +290,113 @@ export default function HomeScreen({ navigation }: any) {
         // ride as a driver account would just fail. This is the driver's
         // actual loop: publish, then respond to requests as they come in.
         <View style={styles.driverPanel}>
-          <Pressable style={styles.ctaMarigold} onPress={() => navigation.navigate("OfferRide")}>
-            <Ionicons name="add-circle-outline" size={18} color="#FFFFFF" />
-            <Text style={styles.ctaText}>{t("home.offerARide")}</Text>
-          </Pressable>
-          {DRIVER_ACTIONS.map((action) => (
-            <Pressable
-              key={action.route}
-              style={styles.driverActionRow}
-              onPress={() => navigation.navigate(action.route, "params" in action ? action.params : undefined)}
-            >
-              <View style={styles.driverActionIconWrap}>
-                <Ionicons name={action.icon as any} size={17} color={colors.accentText} />
-              </View>
-              <Text style={styles.driverActionText}>{t(action.labelKey)}</Text>
-              {action.route === "BookingRequests" && pendingRequestCount > 0 && (
-                <View style={styles.badge}>
-                  <Text style={styles.badgeText}>{pendingRequestCount > 9 ? "9+" : pendingRequestCount}</Text>
-                </View>
-              )}
-              <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
-            </Pressable>
-          ))}
+          <CopilotStep name="driverOfferRide" order={1} text={t("copilot.driver.step1")}>
+            <CopilotPressable style={styles.ctaMarigold} onPress={() => navigation.navigate("OfferRide")}>
+              <Ionicons name="add-circle-outline" size={18} color="#FFFFFF" />
+              <Text style={styles.ctaText}>{t("home.offerARide")}</Text>
+            </CopilotPressable>
+          </CopilotStep>
+          <CopilotStep name="driverActions" order={2} text={t("copilot.driver.step2")}>
+            <CopilotView>
+              {DRIVER_ACTIONS.map((action) => (
+                <Pressable
+                  key={action.route}
+                  style={styles.driverActionRow}
+                  onPress={() => navigation.navigate(action.route, "params" in action ? action.params : undefined)}
+                >
+                  <View style={styles.driverActionIconWrap}>
+                    <Ionicons name={action.icon as any} size={17} color={colors.accentText} />
+                  </View>
+                  <Text style={styles.driverActionText}>{t(action.labelKey)}</Text>
+                  {action.route === "BookingRequests" && pendingRequestCount > 0 && (
+                    <View style={styles.badge}>
+                      <Text style={styles.badgeText}>{pendingRequestCount > 9 ? "9+" : pendingRequestCount}</Text>
+                    </View>
+                  )}
+                  <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
+                </Pressable>
+              ))}
+            </CopilotView>
+          </CopilotStep>
           <Text style={styles.driverHint}>{t("home.driverHint")}</Text>
 
           {/* A static preview of the whole flow, not tied to any one
               ride — new drivers land here with zero context for what
               "Booking requests"/"Payment queue"/"Start trip now" even
               mean until they've lived through the loop once. */}
-          <Pressable
-            style={({ pressed }) => [styles.howItWorksCard, pressed && styles.howItWorksCardPressed]}
-            onPress={() => setHowItWorksVisible(true)}
-          >
-            <View style={styles.howItWorksAccentBar} />
-            <View style={styles.howItWorksBody}>
-              <View style={styles.howItWorksHeaderRow}>
-                <Ionicons name="information-circle-outline" size={16} color={colors.accentText} />
-                <Text style={styles.howItWorksTitle}>{t("home.newToOfferingRides")}</Text>
+          <CopilotStep name="driverHowItWorks" order={3} text={t("copilot.driver.step3")}>
+            <CopilotPressable
+              style={({ pressed }: { pressed: boolean }) => [styles.howItWorksCard, pressed && styles.howItWorksCardPressed]}
+              onPress={() => setHowItWorksVisible(true)}
+            >
+              <View style={styles.howItWorksAccentBar} />
+              <View style={styles.howItWorksBody}>
+                <View style={styles.howItWorksHeaderRow}>
+                  <Ionicons name="information-circle-outline" size={16} color={colors.accentText} />
+                  <Text style={styles.howItWorksTitle}>{t("home.newToOfferingRides")}</Text>
+                </View>
+                <View style={styles.howItWorksPreviewRow}>
+                  {DRIVER_STEPS.map((step, i) => (
+                    <React.Fragment key={step.titleKey}>
+                      <View style={styles.howItWorksIconWrap}>
+                        <Ionicons name={step.icon} size={13} color={colors.accentText} />
+                      </View>
+                      {i < DRIVER_STEPS.length - 1 && <View style={styles.howItWorksConnector} />}
+                    </React.Fragment>
+                  ))}
+                </View>
+                {/* An explicit, underlined "link" label — the icon-row
+                    above plus a bare chevron wasn't reading as tappable on
+                    its own; this makes the clickability unambiguous. */}
+                <View style={styles.howItWorksLinkRow}>
+                  <Text style={styles.howItWorksLinkLabel}>{t("home.seeHowItWorks")}</Text>
+                  <Ionicons name="chevron-forward" size={13} color={colors.accentText} />
+                </View>
               </View>
-              <View style={styles.howItWorksPreviewRow}>
-                {DRIVER_STEPS.map((step, i) => (
-                  <React.Fragment key={step.titleKey}>
-                    <View style={styles.howItWorksIconWrap}>
-                      <Ionicons name={step.icon} size={13} color={colors.accentText} />
-                    </View>
-                    {i < DRIVER_STEPS.length - 1 && <View style={styles.howItWorksConnector} />}
-                  </React.Fragment>
-                ))}
-              </View>
-              {/* An explicit, underlined "link" label — the icon-row
-                  above plus a bare chevron wasn't reading as tappable on
-                  its own; this makes the clickability unambiguous. */}
-              <View style={styles.howItWorksLinkRow}>
-                <Text style={styles.howItWorksLinkLabel}>{t("home.seeHowItWorks")}</Text>
-                <Ionicons name="chevron-forward" size={13} color={colors.accentText} />
-              </View>
-            </View>
-          </Pressable>
+            </CopilotPressable>
+          </CopilotStep>
 
           <TrustBadges role="DRIVER" />
         </View>
       ) : (
         <>
-          <View style={styles.searchCard}>
-            <Pressable style={styles.field} onPress={() => openLocationSearch(setSource)}>
-              <View style={[styles.dot, { backgroundColor: colors.accent }]} />
-              <Text style={styles.fieldText}>{source.address}</Text>
-            </Pressable>
-            <Pressable
-              style={[styles.field, { borderBottomWidth: 0 }]}
-              onPress={() => openLocationSearch(setDestination)}
-            >
-              <View style={[styles.dot, { backgroundColor: colors.marigold }]} />
-              <Text style={[styles.fieldText, !destination && { color: colors.textMuted }]}>
-                {destination?.address || t("home.whereTo")}
-              </Text>
-            </Pressable>
-          </View>
+          <CopilotStep name="passengerSearch" order={1} text={t("copilot.passenger.step1")}>
+            <CopilotView style={styles.searchCard}>
+              <Pressable style={styles.field} onPress={() => openLocationSearch(setSource)}>
+                <View style={[styles.dot, { backgroundColor: colors.accent }]} />
+                <Text style={styles.fieldText}>{source.address}</Text>
+              </Pressable>
+              <Pressable
+                style={[styles.field, { borderBottomWidth: 0 }]}
+                onPress={() => openLocationSearch(setDestination)}
+              >
+                <View style={[styles.dot, { backgroundColor: colors.marigold }]} />
+                <Text style={[styles.fieldText, !destination && { color: colors.textMuted }]}>
+                  {destination?.address || t("home.whereTo")}
+                </Text>
+              </Pressable>
+            </CopilotView>
+          </CopilotStep>
 
-          <View style={styles.row}>
-            <Pressable style={[styles.chip, { flex: 1 }]} onPress={() => setOptionsVisible(true)}>
-              <Ionicons name="calendar-outline" size={14} color={colors.textSecondary} />
-              <Text style={styles.chipText}>{formatSearchDate(travelDate, t)}</Text>
-            </Pressable>
-            <Pressable style={[styles.chip, { width: 76 }]} onPress={() => setOptionsVisible(true)}>
-              <Ionicons name="people-outline" size={14} color={colors.textSecondary} />
-              <Text style={styles.chipText}>{seats}</Text>
-            </Pressable>
-          </View>
+          <CopilotStep name="passengerOptions" order={2} text={t("copilot.passenger.step2")}>
+            <CopilotView style={styles.row}>
+              <Pressable style={[styles.chip, { flex: 1 }]} onPress={() => setOptionsVisible(true)}>
+                <Ionicons name="calendar-outline" size={14} color={colors.textSecondary} />
+                <Text style={styles.chipText}>{formatSearchDate(travelDate, t)}</Text>
+              </Pressable>
+              <Pressable style={[styles.chip, { width: 76 }]} onPress={() => setOptionsVisible(true)}>
+                <Ionicons name="people-outline" size={14} color={colors.textSecondary} />
+                <Text style={styles.chipText}>{seats}</Text>
+              </Pressable>
+            </CopilotView>
+          </CopilotStep>
 
-          <Pressable style={styles.cta} onPress={handleSearch}>
-            <Ionicons name="search-outline" size={18} color="#FFFFFF" />
-            <Text style={styles.ctaText}>{t("home.searchRides")}</Text>
-          </Pressable>
+          <CopilotStep name="passengerSearchButton" order={3} text={t("copilot.passenger.step3")}>
+            <CopilotPressable style={styles.cta} onPress={handleSearch}>
+              <Ionicons name="search-outline" size={18} color="#FFFFFF" />
+              <Text style={styles.ctaText}>{t("home.searchRides")}</Text>
+            </CopilotPressable>
+          </CopilotStep>
 
           <Pressable style={styles.howItWorksLink} onPress={() => setHowItWorksVisible(true)}>
             <Ionicons name="information-circle-outline" size={14} color={colors.accentText} />
@@ -428,6 +506,8 @@ const styles = StyleSheet.create({
   },
   greeting: { color: "#FFFFFF", opacity: 0.8, fontSize: 13 },
   name: { color: "#FFFFFF", fontSize: 18, fontWeight: "700", fontFamily: FONT.bold, marginTop: 2 },
+  tourLink: { flexDirection: "row", alignItems: "center", gap: 4, marginTop: 6 },
+  tourLinkText: { color: "#FFFFFF", opacity: 0.85, fontSize: 11, fontWeight: "700", fontFamily: FONT.bold, textDecorationLine: "underline" },
   searchCard: {
     backgroundColor: colors.surface,
     marginHorizontal: spacing.lg,

@@ -62,6 +62,15 @@
       ],
       "expo-font",
       "expo-notifications",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/brand-mark.png",
+          "imageWidth": 200,
+          "resizeMode": "contain",
+          "backgroundColor": "#F1EFE8"
+        }
+      ],
       "./plugins/withDisableForceDark"
     ],
     "extra": {

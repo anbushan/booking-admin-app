@@ -1,5 +1,10 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { View } from "react-native";
+// Namespace import, not a named one — this file already has its own
+// `SplashScreen` (the JS screen component from SplashOnboardingScreens
+// below); importing expo-splash-screen's own SplashScreen export under
+// the same name would collide.
+import * as ExpoSplashScreen from "expo-splash-screen";
 import { NavigationContainer } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { StatusBar } from "expo-status-bar";
@@ -28,6 +33,20 @@ import { colors } from "./src/theme/theme";
 // whole point is catching errors as early in the app's life as
 // possible, so this can't wait until inside the App() component body.
 initErrorTracking();
+
+// Keeps the native splash screen (the app's own brand mark — see
+// app.json's expo-splash-screen plugin config) on screen instead of
+// letting it auto-dismiss the instant the native side is ready, which
+// is well before Poppins has finished loading and this component has
+// rendered anything real. Without this, there was a real gap between
+// "native splash disappears" and "actual content appears," and with no
+// splash config in app.json at all before this, Expo's own generic
+// default filled that gap — that's the flash of Expo's own branding
+// this fixes, not a timing bug in this app's JS. Failure here (e.g.
+// called twice across a fast refresh) is harmless to swallow — the
+// splash either shows or it doesn't, there's no broken state to recover
+// from either way.
+ExpoSplashScreen.preventAutoHideAsync().catch(() => {});
 
 import { SplashScreen, OnboardingScreen } from "./src/screens/SplashOnboardingScreens";
 import { AppSocketBridge } from "./src/components/AppSocketBridge";
@@ -112,6 +131,22 @@ function App() {
     Poppins_600SemiBold,
     Poppins_700Bold,
   });
+
+  // Hides the native splash (held open by preventAutoHideAsync above)
+  // the moment there's real content to hand off to — this exact
+  // condition, not a fixed delay, so the handoff is as tight as the
+  // device's own font-load time rather than an arbitrary guess in
+  // either direction. From here it goes straight into
+  // SplashOnboardingScreens' own SplashScreen, which has its own
+  // animated logo entrance — the native splash showing the same static
+  // mark first is what makes that read as one continuous moment instead
+  // of two splash screens back to back.
+  useEffect(() => {
+    if (fontsLoaded || fontsError) {
+      ExpoSplashScreen.hideAsync().catch(() => {});
+    }
+  }, [fontsLoaded, fontsError]);
+
   if (!fontsLoaded && !fontsError) {
     return <View style={{ flex: 1, backgroundColor: colors.bg }} />;
   }
