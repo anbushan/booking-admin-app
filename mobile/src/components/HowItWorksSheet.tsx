@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { View, Text, Modal, ScrollView, Animated, Easing, StyleSheet } from "react-native";
 import { Pressable } from "./Pressable";
 import { Ionicons } from "@expo/vector-icons";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { colors, spacing, radius, typography, FONT } from "../theme/theme";
 import { useTranslation } from "../lib/i18n/I18nContext";
 
@@ -39,6 +40,10 @@ type Props = {
 
 export function HowItWorksSheet({ visible, role, onClose }: Props) {
   const { t } = useTranslation();
+  // Same fix as SearchOptionsModal — this sheet's "Got it" button sat at
+  // spacing.lg from the bottom edge with no accounting for the device's
+  // own inset, since Modal presents outside the screen's SafeAreaView.
+  const insets = useSafeAreaInsets();
   const steps = role === "DRIVER" ? DRIVER_STEPS : PASSENGER_STEPS;
 
   // Hand-rolled slide-up rather than Modal's own `animationType="slide"`
@@ -76,7 +81,7 @@ export function HowItWorksSheet({ visible, role, onClose }: Props) {
         <Pressable style={StyleSheet.absoluteFill} onPress={onClose} noFeedback />
       </Animated.View>
 
-      <Animated.View style={[styles.sheet, { transform: [{ translateY }] }]}>
+      <Animated.View style={[styles.sheet, { paddingBottom: Math.max(insets.bottom, spacing.lg), transform: [{ translateY }] }]}>
         <View style={styles.handle} />
         <View style={styles.headerRow}>
           <Text style={styles.title}>{t("howItWorks.title")}</Text>

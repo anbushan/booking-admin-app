@@ -134,7 +134,13 @@ export function AddEmergencyContactScreen({ navigation }: any) {
   }
 
   return (
-    <SafeAreaView style={styles.screen} edges={["top"]}>
+    // "bottom" included here, unlike the list screen above — that one
+    // renders AppBottomNav, which pads for the device's own bottom
+    // inset itself; this is a pushed sub-screen with no bottom nav to
+    // do that, so without this the "Save contact" button had nothing
+    // protecting it from the gesture bar/nav buttons on a device with
+    // tight bottom insets.
+    <SafeAreaView style={styles.screen} edges={["top", "bottom"]}>
       <Text style={{ ...typography.title, padding: spacing.lg, paddingBottom: spacing.sm }}>{t("emergencyContacts.addTitle")}</Text>
 
       <KeyboardAvoider>

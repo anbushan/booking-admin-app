@@ -103,7 +103,9 @@ export function HelpSupportScreen({ navigation }: any) {
   useScreenView("HelpSupportScreen");
   const { t } = useTranslation();
   return (
-    <SafeAreaView style={styles.screen} edges={["top"]}>
+    // "bottom" included — a pushed sub-screen, no AppBottomNav here to
+    // pad for the device's own inset the way the hub screens do.
+    <SafeAreaView style={styles.screen} edges={["top", "bottom"]}>
       <Text style={{ ...typography.title, padding: spacing.lg, paddingBottom: spacing.sm }}>{t("settings.helpSupport")}</Text>
       <View style={styles.body}>
         <Text style={styles.paragraph}>{t("settings.helpBody")}</Text>
@@ -121,7 +123,8 @@ export function AboutScreen({ navigation }: any) {
   useScreenView("AboutScreen");
   const { t } = useTranslation();
   return (
-    <SafeAreaView style={styles.screen} edges={["top"]}>
+    // "bottom" included — same reasoning as HelpSupportScreen above.
+    <SafeAreaView style={styles.screen} edges={["top", "bottom"]}>
       <Text style={{ ...typography.title, padding: spacing.lg, paddingBottom: spacing.sm }}>{t("settings.aboutTerms")}</Text>
       <View style={styles.body}>
         <Text style={styles.paragraph}>NanbaGO v0.1.0</Text>

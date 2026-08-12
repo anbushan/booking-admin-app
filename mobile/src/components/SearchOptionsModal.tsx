@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { View, Text, Modal, ScrollView, TextInput, Animated, Easing, StyleSheet } from "react-native";
 import { Pressable } from "./Pressable";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { colors, spacing, radius, typography, FONT } from "../theme/theme";
 import { KeyboardAvoider } from "./KeyboardAvoider";
 import { useTranslation } from "../lib/i18n/I18nContext";
@@ -112,6 +113,14 @@ type Props = {
 
 export default function SearchOptionsModal({ visible, initialDate, initialSeats, onClose, onConfirm, rangeMode = false }: Props) {
   const { t } = useTranslation();
+  // RN's <Modal> presents as its own native view hierarchy, outside the
+  // screen's own SafeAreaView — the sheet's Cancel/Done row sat right at
+  // spacing.lg (16px) from the edge with nothing accounting for the
+  // device's own bottom inset (gesture bar / 3-button nav), so it was
+  // genuinely covered on phones with a tall inset. SafeAreaProvider's
+  // context still reaches in here fine (it's a React context, not tied
+  // to native view hierarchy) even though the Modal itself is a portal.
+  const insets = useSafeAreaInsets();
   const dateOptions = useState(buildDateOptions)[0];
   const [selectedDate, setSelectedDate] = useState(initialDate);
   const [timeText, setTimeText] = useState(() => timeToText(initialDate));
@@ -177,7 +186,7 @@ export default function SearchOptionsModal({ visible, initialDate, initialSeats,
       <Animated.View style={[styles.backdrop, { opacity: backdropOpacity }]} pointerEvents="none" />
       <KeyboardAvoider style={styles.avoiderBackdrop}>
         <Animated.View style={{ transform: [{ translateY }] }}>
-        <View style={styles.sheet}>
+        <View style={[styles.sheet, { paddingBottom: Math.max(insets.bottom, spacing.lg) }]}>
           <Text style={styles.sheetTitle}>{t("searchOptions.whenTraveling")}</Text>
 
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.dateRow}>

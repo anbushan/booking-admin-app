@@ -168,7 +168,10 @@ export function EditProfileScreen({ route, navigation }: any) {
   }
 
   return (
-    <SafeAreaView style={styles.screen} edges={["top"]}>
+    // "bottom" included here — this is a pushed sub-screen (no
+    // AppBottomNav, unlike ProfileScreen itself above), so the "Save"
+    // button needs its own protection from the device's bottom inset.
+    <SafeAreaView style={styles.screen} edges={["top", "bottom"]}>
       <Text style={{ ...typography.title, padding: spacing.lg, paddingBottom: spacing.sm }}>{t("profile.editProfile")}</Text>
       <KeyboardAvoider>
       <View style={styles.body}>

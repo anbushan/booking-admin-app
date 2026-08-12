@@ -1,7 +1,8 @@
 import React, { useEffect, useRef, useState } from "react";
-import { View, Text, Modal, Animated, Easing, Dimensions, StyleSheet } from "react-native";
+import { View, Text, Modal, ScrollView, Animated, Easing, Dimensions, StyleSheet } from "react-native";
 import { Pressable } from "./Pressable";
 import { Ionicons } from "@expo/vector-icons";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { showAlert } from "../lib/alert";
 import { colors, spacing, radius, typography, FONT } from "../theme/theme";
 import { logout } from "../lib/api";
@@ -35,6 +36,15 @@ type Props = {
 
 export default function SideMenu({ visible, onClose, navigation, profile, unreadCount = 0, upcomingTripsCount = 0 }: Props) {
   const { t } = useTranslation();
+  // Two real gaps this closes, not just one: the panel was a plain View
+  // with no ScrollView at all, so on a driver account (9 rows —
+  // notifications, 5 driver-section rows, 2 account-section rows, sign
+  // out) a small enough device could push "Sign out" off-screen
+  // entirely, not just overlapped — genuinely unreachable, not a visual
+  // nitpick. And like every other Modal in this app, this presents
+  // outside the screen's own SafeAreaView, so nothing was padding for
+  // the device's bottom inset either.
+  const insets = useSafeAreaInsets();
   const [mounted, setMounted] = useState(visible);
   const translateX = useRef(new Animated.Value(SCREEN_WIDTH)).current;
   const backdropOpacity = useRef(new Animated.Value(0)).current;
@@ -110,6 +120,13 @@ export default function SideMenu({ visible, onClose, navigation, profile, unread
             <Ionicons name="close" size={18} color={colors.textPrimary} />
           </Pressable>
 
+          {/* Everything below the close button now scrolls — was a bare
+              View before, so a driver account's longer row list had no
+              way to reach "Sign out" at all on a small enough screen,
+              not just an overlap. contentContainerStyle's paddingBottom
+              is the device inset fix, same reasoning as every other
+              Modal-based sheet in this app. */}
+          <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: Math.max(insets.bottom, spacing.lg) }}>
           <Pressable style={styles.profileBlock} onPress={() => go("Profile")}>
             <View style={{ marginBottom: spacing.sm }}>
               <Avatar uri={profile?.photoViewUrl} name={profile?.name} size={48} />
@@ -161,6 +178,7 @@ export default function SideMenu({ visible, onClose, navigation, profile, unread
             <Ionicons name="log-out-outline" size={17} color={colors.danger} />
             <Text style={styles.logoutText}>{t("sideMenu.logOut")}</Text>
           </Pressable>
+          </ScrollView>
         </Animated.View>
       </View>
     </Modal>
