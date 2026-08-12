@@ -35,13 +35,26 @@ function signInResponse(user, isNewUser) {
 }
 
 function isDevTestNumber(phone) {
-  // Double-gate, deliberately: both conditions must hold, so a
-  // misconfigured NODE_ENV alone can never unlock the static OTP.
+  // Was gated on NODE_ENV === "development" — but that same flag also
+  // gates real dangers elsewhere (payments.routes.js's mock-confirm
+  // endpoint fake-confirms a payment with no actual charge whenever
+  // NODE_ENV isn't "production"). Railway's NODE_ENV had been sitting on
+  // "development" this whole time, so fixing *that* correctly closed
+  // mock-confirm — but it also took this bypass down with it, and since
+  // MSG91_API_KEY was never actually configured, real phone numbers
+  // 502'd trying to send a real OTP. That combination briefly made
+  // production un-loggable-into for anyone. ALLOW_TEST_PHONE_OTP is its
+  // own dedicated flag now, independent of NODE_ENV, so this bypass and
+  // "is this a dangerous dev-only endpoint" can be turned on/off
+  // separately — this one only ever unlocks a fixed OTP for a short,
+  // explicit phone-number whitelist, not a blanket "trust anything"
+  // switch, so it's safe to leave on for real device testing without
+  // reopening anything else.
   const whitelist = (process.env.DEV_TEST_NUMBERS || "")
     .split(",")
     .map((n) => n.trim())
     .filter(Boolean);
-  return process.env.NODE_ENV === "development" && whitelist.includes(phone);
+  return process.env.ALLOW_TEST_PHONE_OTP === "true" && whitelist.includes(phone);
 }
 
 function generateOtp() {
