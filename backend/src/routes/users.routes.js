@@ -155,6 +155,18 @@ router.delete("/me", requireAuth, async (req, res) => {
     return res.status(409).json({ error: "Account can't be deleted yet.", blockers });
   }
 
+  // A paid Eko verification check (license/RC/Aadhaar) leaves the most
+  // sensitive PII this app ever holds — full name, DOB, address, and
+  // (for Aadhaar) a government ID number — sitting in a *Json column,
+  // which the general field-by-field scrub above doesn't touch. None of
+  // it is referenced by anything else (unlike Vehicle/Ride/Booking,
+  // which other users' trip history depends on), so it's deleted
+  // outright, same as emergencyContact below, rather than merely
+  // unlinked from the now-anonymized account.
+  const ownedVehicleIds = (
+    await prisma.vehicle.findMany({ where: { driverId: req.user.id }, select: { id: true } })
+  ).map((v) => v.id);
+
   await prisma.$transaction([
     prisma.user.update({
       where: { id: req.user.id },
@@ -173,6 +185,11 @@ router.delete("/me", requireAuth, async (req, res) => {
     // Fully theirs, nothing else references it — deleted outright
     // rather than scrubbed in place.
     prisma.emergencyContact.deleteMany({ where: { userId: req.user.id } }),
+    prisma.driverVerification.deleteMany({ where: { driverId: req.user.id } }),
+    prisma.passengerVerification.deleteMany({ where: { userId: req.user.id } }),
+    ...(ownedVehicleIds.length
+      ? [prisma.vehicleVerification.deleteMany({ where: { vehicleId: { in: ownedVehicleIds } } })]
+      : []),
   ]);
 
   res.json({ deleted: true });

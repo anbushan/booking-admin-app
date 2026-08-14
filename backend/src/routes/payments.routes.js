@@ -6,7 +6,7 @@ import { notify } from "../lib/notify.js";
 import { razorpay } from "../lib/razorpay.js";
 import { getAppConfig } from "../lib/appConfig.js";
 import { isPositiveNumber } from "../lib/validate.js";
-import { confirmDriverVerificationPayment, confirmVehicleVerificationPayment } from "../lib/verification.js";
+import { confirmDriverVerificationPayment, confirmVehicleVerificationPayment, confirmPassengerVerificationPayment } from "../lib/verification.js";
 import { getIO } from "../lib/socket.js";
 
 const router = Router();
@@ -133,12 +133,13 @@ router.post("/:bookingId/mock-confirm", requireAuth, async (req, res) => {
 // POST /api/payments/webhook/razorpay — MUST be idempotent, since Razorpay
 // can redeliver webhooks. We check current status before crediting again.
 //
-// One webhook covers three unrelated payment kinds now, told apart by
+// One webhook covers four unrelated payment kinds now, told apart by
 // which `notes` key the order was created with: a booking's platform
 // fee (notes.bookingId, the original/only kind until now), a driver's
-// verification fee (notes.driverVerificationId), or an additional
-// vehicle's RC-only fee (notes.vehicleVerificationId) — see
-// verification.routes.js's charge endpoints for where each is set.
+// license fee (notes.driverVerificationId), a vehicle's RC fee
+// (notes.vehicleVerificationId), or a passenger's Aadhaar fee
+// (notes.passengerVerificationId) — see verification.routes.js's
+// charge endpoints for where each is set.
 router.post("/webhook/razorpay", async (req, res) => {
   const signature = req.headers["x-razorpay-signature"];
   const expected = crypto
@@ -198,6 +199,15 @@ router.post("/webhook/razorpay", async (req, res) => {
     if (event === "payment.captured") {
       await confirmVehicleVerificationPayment(vv.id, paymentId, amountInr);
       getIO()?.to(`user:${vv.vehicle.driverId}`).emit("verification:paymentConfirmed", { kind: "vehicle", vehicleId: vv.vehicleId });
+    }
+  } else if (notes.passengerVerificationId) {
+    const pv = await prisma.passengerVerification.findUnique({ where: { id: notes.passengerVerificationId } });
+    if (!pv) return res.status(404).json({ error: "Passenger verification not found." });
+    if (pv.paymentStatus === "PAID") return res.json({ success: true, alreadyProcessed: true });
+
+    if (event === "payment.captured") {
+      await confirmPassengerVerificationPayment(pv.id, paymentId, amountInr);
+      getIO()?.to(`user:${pv.userId}`).emit("verification:paymentConfirmed", { kind: "passenger" });
     }
   } else {
     return res.status(400).json({ error: "Missing payment reference." });

@@ -11,6 +11,7 @@ import { CarLoader } from "../components/CarLoader";
 import { AppBottomNav } from "../components/AppBottomNav";
 import { HowItWorksSheet, DRIVER_STEPS, PASSENGER_STEPS } from "../components/HowItWorksSheet";
 import { TrustBadges } from "../components/TrustBadges";
+import { VerifiedBadge } from "../components/VerifiedBadge";
 import { api } from "../lib/api";
 import { useScreenView } from "../lib/useScreenView";
 import Avatar from "../components/Avatar";
@@ -97,6 +98,7 @@ function HomeScreenContent({ navigation }: any) {
   // resolves); [] once confirmed empty is what actually shows it.
   const [emergencyContactCount, setEmergencyContactCount] = useState<number | null>(null);
   const [licenseStatus, setLicenseStatus] = useState<string | null>(null);
+  const [aadhaarStatus, setAadhaarStatus] = useState<string | null>(null);
 
   useEffect(() => {
     api.getMyProfile().then(setProfile).catch(() => {});
@@ -199,6 +201,18 @@ function HomeScreenContent({ navigation }: any) {
       if (profile?.role !== "DRIVER") return;
       api.getVerificationStatus()
         .then((data: any) => setLicenseStatus(data.driverVerification?.licenseStatus || "UNVERIFIED"))
+        .catch(() => {});
+    }, [profile?.role])
+  );
+
+  // Same reasoning as the driver license fetch above, mirrored for the
+  // passenger-side Aadhaar badge banner below — only fetched in the
+  // passenger view, hidden once verified.
+  useFocusEffect(
+    useCallback(() => {
+      if (profile?.role !== "PASSENGER") return;
+      api.getPassengerVerificationStatus()
+        .then((data: any) => setAadhaarStatus(data.passengerVerification?.aadhaarStatus || "UNVERIFIED"))
         .catch(() => {});
     }, [profile?.role])
   );
@@ -461,6 +475,44 @@ function HomeScreenContent({ navigation }: any) {
 
           <TrustBadges role="PASSENGER" />
 
+          {/* Same idea as the driver license banner above — advertises
+              the optional passenger ID badge right on Home, not just
+              tucked into Profile. Shows the actual VerifiedBadge
+              component so "how it looks" isn't just a claim, plus the
+              same benefit bullets VerifyPassengerScreen leads with.
+              Gone once verified — the badge itself carries it from
+              there (BookingRequestsScreen etc. on the driver's side). */}
+          {aadhaarStatus != null && aadhaarStatus !== "VERIFIED" && (
+            <Pressable style={styles.idVerifyCard} onPress={() => navigation.navigate("VerifyPassenger")}>
+              <View style={styles.idVerifyHeaderRow}>
+                <View style={styles.verifyBannerIconWrap}>
+                  <Ionicons name="shield-checkmark" size={16} color={colors.accentText} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.verifyBannerTitle}>{t("verification.passengerHomeBannerTitle")}</Text>
+                  <Text style={styles.verifyBannerBody}>{t("verification.passengerHomeBannerBody")}</Text>
+                </View>
+                <Ionicons name="chevron-forward" size={16} color={colors.accentText} />
+              </View>
+
+              <View style={styles.idVerifyPreviewRow}>
+                <Text style={styles.idVerifyPreviewLabel}>{t("verification.homeBannerPreviewLabel")}</Text>
+                <VerifiedBadge verified size="sm" label={t("verification.idVerifiedLabel")} />
+              </View>
+
+              <View style={styles.idVerifyBenefits}>
+                <View style={styles.idVerifyBenefitRow}>
+                  <Ionicons name="checkmark-circle-outline" size={13} color={colors.success} />
+                  <Text style={styles.idVerifyBenefitText}>{t("verification.passengerWhyBenefit1")}</Text>
+                </View>
+                <View style={styles.idVerifyBenefitRow}>
+                  <Ionicons name="checkmark-circle-outline" size={13} color={colors.success} />
+                  <Text style={styles.idVerifyBenefitText}>{t("verification.passengerWhyBenefit2")}</Text>
+                </View>
+              </View>
+            </Pressable>
+          )}
+
           {popularRoutes.length > 0 && (
             <>
               <Text style={styles.sectionLabel}>{t("home.popularRoutes")}</Text>
@@ -672,6 +724,19 @@ const styles = StyleSheet.create({
   verifyBannerIconWrap: { width: 32, height: 32, borderRadius: 16, backgroundColor: colors.surface, alignItems: "center", justifyContent: "center" },
   verifyBannerTitle: { ...typography.caption, color: colors.accentText, fontWeight: "700", fontFamily: FONT.bold },
   verifyBannerBody: { ...typography.small, color: colors.textSecondary, marginTop: 1, lineHeight: 15 },
+  idVerifyCard: {
+    backgroundColor: colors.accentBg, borderRadius: radius.md,
+    marginTop: spacing.md, padding: spacing.md, gap: spacing.sm,
+  },
+  idVerifyHeaderRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
+  idVerifyPreviewRow: {
+    flexDirection: "row", alignItems: "center", justifyContent: "space-between",
+    backgroundColor: colors.surface, borderRadius: radius.sm, paddingVertical: spacing.xs, paddingHorizontal: spacing.sm,
+  },
+  idVerifyPreviewLabel: { ...typography.small, color: colors.textMuted },
+  idVerifyBenefits: { gap: 4 },
+  idVerifyBenefitRow: { flexDirection: "row", alignItems: "center", gap: 6 },
+  idVerifyBenefitText: { ...typography.small, color: colors.textSecondary, flex: 1 },
   howItWorksCard: {
     flexDirection: "row",
     backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border,

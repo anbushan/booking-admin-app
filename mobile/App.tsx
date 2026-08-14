@@ -70,6 +70,7 @@ import UpcomingTripsScreen from "./src/screens/UpcomingTripsScreen";
 import VehicleListScreen from "./src/screens/VehicleListScreen";
 import EditVehicleScreen from "./src/screens/EditVehicleScreen";
 import VerifyDriverScreen from "./src/screens/VerifyDriverScreen";
+import VerifyPassengerScreen from "./src/screens/VerifyPassengerScreen";
 import EarningsScreen from "./src/screens/EarningsScreen";
 import EditRideScreen from "./src/screens/EditRideScreen";
 
@@ -201,6 +202,7 @@ function App() {
         <Stack.Screen name="ActiveTrip" component={LiveTrackingScreen} />
         <Stack.Screen name="VehicleList" component={VehicleListScreen} />
         <Stack.Screen name="VerifyDriver" component={VerifyDriverScreen} />
+        <Stack.Screen name="VerifyPassenger" component={VerifyPassengerScreen} />
         <Stack.Screen name="EditVehicle" component={EditVehicleScreen} />
         <Stack.Screen name="Earnings" component={EarningsScreen} />
         <Stack.Screen name="EditRide" component={EditRideScreen} />

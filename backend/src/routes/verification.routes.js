@@ -3,8 +3,8 @@ import { prisma } from "../lib/prisma.js";
 import { requireAuth, requireRole } from "../middleware/auth.js";
 import { razorpay } from "../lib/razorpay.js";
 import { getAppConfig } from "../lib/appConfig.js";
-import { verifyRC, verifyLicense, isRcVerified, isLicenseVerified } from "../lib/eko.js";
-import { confirmDriverVerificationPayment, confirmVehicleVerificationPayment } from "../lib/verification.js";
+import { verifyRC, verifyLicense, verifyAadhaar, isRcVerified, isLicenseVerified, isAadhaarVerified } from "../lib/eko.js";
+import { confirmDriverVerificationPayment, confirmVehicleVerificationPayment, confirmPassengerVerificationPayment } from "../lib/verification.js";
 import { validate, isNonEmptyString, isValidDate, isFutureDate } from "../lib/validate.js";
 import { getIO } from "../lib/socket.js";
 
@@ -14,6 +14,13 @@ const router = Router();
 // "TN0120230012345", "MH12 20110012345") so this isn't a strict pattern
 // match, just alphanumeric-with-separators of a plausible length.
 const DL_NUMBER_PATTERN = /^[A-Za-z0-9][A-Za-z0-9\-/ ]{5,19}$/;
+
+// Aadhaar numbers are exactly 12 digits — a genuinely fixed format,
+// unlike DL/RC's state-by-state variation, so this one's a strict
+// pattern rather than a loose one. Spaces allowed on input (how it's
+// usually written/read aloud, "1234 5678 9012") and stripped before
+// validating or sending to Eko.
+const AADHAAR_PATTERN = /^\d{12}$/;
 
 function isValidDob(value) {
   if (!isNonEmptyString(value, 30) || !isValidDate(value) || isFutureDate(value)) return false;
@@ -60,6 +67,19 @@ function buildRcPreview(raw, regNumber, wouldPass) {
     insuranceUpto: d.vehicle_insurance_upto ?? null,
     insuranceCompany: d.vehicle_insurance_company_name ?? null,
     puccUpto: d.pucc_upto ?? null,
+    wouldPass,
+  };
+}
+
+function buildAadhaarPreview(raw, aadhaarNumber, wouldPass) {
+  const d = raw?.data || {};
+  return {
+    aadhaarNumber: d.aadhaar_number ?? aadhaarNumber,
+    name: d.name ?? null,
+    status: d.status ?? null,
+    dob: d.dob ?? null,
+    gender: d.gender ?? null,
+    address: d.address ?? null,
     wouldPass,
   };
 }
@@ -307,6 +327,123 @@ router.post("/vehicle/:vehicleId/verify/confirm", requireAuth, requireRole("DRIV
     },
   });
   res.json({ vehicleVerification: updated });
+});
+
+// GET /api/verification/passenger/status — deliberately its own
+// endpoint, not folded into GET /status above: that one is hard-gated
+// to requireRole("DRIVER"), but Aadhaar verification is reachable by
+// any authenticated user (the same account can be both a driver and a
+// passenger — see the User model's dual role support), so a
+// driver-only gate would break it for a passenger-only account.
+router.get("/passenger/status", requireAuth, async (req, res) => {
+  const passengerVerification = await prisma.passengerVerification.findUnique({ where: { userId: req.user.id } });
+  const out = passengerVerification && passengerVerification.aadhaarStatus === "VERIFIED"
+    ? { ...passengerVerification, confirmedPreview: buildAadhaarPreview(passengerVerification.aadhaarEkoResponse, passengerVerification.aadhaarEkoResponse?.data?.aadhaar_number ?? null, true) }
+    : passengerVerification;
+  res.json({ passengerVerification: out });
+});
+
+// POST /api/verification/passenger/charge — flat, one-time Aadhaar fee.
+router.post("/passenger/charge", requireAuth, async (req, res) => {
+  let pv = await prisma.passengerVerification.findUnique({ where: { userId: req.user.id } });
+  if (pv?.paymentStatus === "PAID") {
+    return res.status(400).json({ error: "You're already verified." });
+  }
+  if (!pv) {
+    pv = await prisma.passengerVerification.create({ data: { userId: req.user.id } });
+  }
+
+  const { aadhaarVerificationFeeInr } = await getAppConfig();
+  const order = await razorpay.orders.create({
+    amount: Math.round(aadhaarVerificationFeeInr * 100),
+    currency: "INR",
+    receipt: pv.id,
+    notes: { passengerVerificationId: pv.id },
+  });
+  await prisma.passengerVerification.update({
+    where: { id: pv.id },
+    data: { paymentStatus: "CHARGE_ATTEMPTED", razorpayOrderId: order.id },
+  });
+
+  res.json({ orderId: order.id, amount: aadhaarVerificationFeeInr, keyId: process.env.RAZORPAY_KEY_ID });
+});
+
+// POST /api/verification/passenger/mock-confirm-payment — same dev-only
+// stand-in as the driver/vehicle ones above, same gate.
+router.post("/passenger/mock-confirm-payment", requireAuth, async (req, res) => {
+  if (process.env.ALLOW_MOCK_PAYMENT_CONFIRM !== "true") {
+    return res.status(404).json({ error: "Not found." });
+  }
+  let pv = await prisma.passengerVerification.findUnique({ where: { userId: req.user.id } });
+  if (!pv) pv = await prisma.passengerVerification.create({ data: { userId: req.user.id } });
+  const { aadhaarVerificationFeeInr } = await getAppConfig();
+  await confirmPassengerVerificationPayment(pv.id, `mock_${pv.id}`, aadhaarVerificationFeeInr);
+  getIO()?.to(`user:${req.user.id}`).emit("verification:paymentConfirmed", { kind: "passenger" });
+  res.json({ success: true });
+});
+
+// POST /api/verification/passenger/verify — the "check" step, same
+// preview-then-confirm shape as license/RC above.
+router.post("/passenger/verify", requireAuth, async (req, res) => {
+  const { aadhaarNumber } = req.body;
+  const normalized = typeof aadhaarNumber === "string" ? aadhaarNumber.replace(/\s+/g, "") : aadhaarNumber;
+  const errors = validate({ aadhaarNumber: normalized }, [
+    { field: "aadhaarNumber", check: (v) => typeof v === "string" && AADHAAR_PATTERN.test(v), message: "Enter a valid 12-digit Aadhaar number." },
+  ]);
+  if (errors.length) return res.status(400).json({ errors });
+
+  const pv = await prisma.passengerVerification.findUnique({ where: { userId: req.user.id } });
+  if (!pv || pv.paymentStatus !== "PAID") {
+    return res.status(400).json({ error: "Payment required before verification." });
+  }
+  if (pv.aadhaarStatus === "VERIFIED") {
+    return res.json({ passengerVerification: pv, preview: null });
+  }
+
+  const result = await verifyAadhaar(normalized).catch((err) => ({ verified: false, raw: { error: err.message } }));
+  const updatedPv = await prisma.passengerVerification.update({
+    where: { id: pv.id },
+    data: { aadhaarStatus: "PENDING", aadhaarEkoResponse: result.raw },
+  });
+
+  res.json({
+    passengerVerification: updatedPv,
+    preview: buildAadhaarPreview(result.raw, normalized, result.verified),
+  });
+});
+
+// POST /api/verification/passenger/verify/confirm — commits the
+// already-fetched Aadhaar response, no second Eko call.
+router.post("/passenger/verify/confirm", requireAuth, async (req, res) => {
+  const pv = await prisma.passengerVerification.findUnique({ where: { userId: req.user.id } });
+  if (!pv || pv.aadhaarStatus !== "PENDING" || !pv.aadhaarEkoResponse) {
+    return res.status(400).json({ error: "Nothing to confirm — run the check first." });
+  }
+  const updatedPv = await prisma.passengerVerification.update({
+    where: { id: pv.id },
+    data: {
+      aadhaarStatus: isAadhaarVerified(pv.aadhaarEkoResponse) ? "VERIFIED" : "FAILED",
+      aadhaarVerifiedAt: new Date(),
+    },
+  });
+  res.json({ passengerVerification: updatedPv });
+});
+
+// POST /api/verification/passenger/reset — same "edit means pay again"
+// affordance as driver/reset above.
+router.post("/passenger/reset", requireAuth, async (req, res) => {
+  const pv = await prisma.passengerVerification.findUnique({ where: { userId: req.user.id } });
+  if (!pv || pv.aadhaarStatus === "UNVERIFIED") {
+    return res.status(400).json({ error: "Nothing to reset." });
+  }
+  const updatedPv = await prisma.passengerVerification.update({
+    where: { id: pv.id },
+    data: {
+      paymentStatus: "UNPAID", razorpayOrderId: null, razorpayPaymentId: null, amountPaidInr: null, paidAt: null,
+      aadhaarStatus: "UNVERIFIED", aadhaarEkoResponse: null, aadhaarVerifiedAt: null,
+    },
+  });
+  res.json({ passengerVerification: updatedPv });
 });
 
 export default router;

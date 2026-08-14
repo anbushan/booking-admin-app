@@ -78,6 +78,7 @@ model User {
   reviewsReceived    Review[] @relation("ReviewsReceived")
   driverStrikes      DriverStrike[]
   driverVerification DriverVerification?
+  passengerVerification PassengerVerification?
 }
 
 model Vehicle {
@@ -438,6 +439,8 @@ model AppConfig {
   // RC fee charged per vehicle (every vehicle, including the first).
   licenseVerificationFeeInr Float @default(4)
   vehicleRcFeeInr           Float @default(4)
+  // Same idea, passenger-side — flat, one-time Aadhaar identity check.
+  aadhaarVerificationFeeInr Float @default(4)
 
   updatedAt           DateTime @updatedAt
 }
@@ -548,6 +551,30 @@ model VehicleVerification {
   rcStatus           String    @default("UNVERIFIED") // UNVERIFIED, PENDING, VERIFIED, FAILED
   rcEkoResponse      Json?
   rcVerifiedAt       DateTime?
+
+  createdAt          DateTime  @default(now())
+}
+
+// Passenger-side identity check (Aadhaar) — same pay/check/confirm shape
+// as DriverVerification's license, same badge-not-gate rule: booking a
+// ride never requires this, it just earns a visible "ID verified" badge
+// a driver sees on an incoming request. One row per user (not per role —
+// the same account can be both a driver and a passenger, and this is a
+// personal identity fact either way).
+model PassengerVerification {
+  id                 String    @id @default(cuid())
+  userId             String    @unique
+  user               User      @relation(fields: [userId], references: [id])
+
+  paymentStatus      String    @default("UNPAID") // UNPAID, CHARGE_ATTEMPTED, PAID
+  razorpayOrderId    String?
+  razorpayPaymentId  String?
+  amountPaidInr      Decimal?
+  paidAt             DateTime?
+
+  aadhaarStatus      String    @default("UNVERIFIED") // UNVERIFIED, PENDING, VERIFIED, FAILED
+  aadhaarEkoResponse Json?
+  aadhaarVerifiedAt  DateTime?
 
   createdAt          DateTime  @default(now())
 }

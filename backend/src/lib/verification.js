@@ -28,6 +28,26 @@ export async function isVehicleRcVerified(vehicle) {
   return vv?.rcStatus === "VERIFIED";
 }
 
+// Passenger-side identity check (Aadhaar) — no legacy manual-review
+// fallback exists here (there was never a Document docType for this,
+// unlike license/RC), so it's just the one Eko-paid path.
+export async function isPassengerVerified(userId) {
+  const pv = await prisma.passengerVerification.findUnique({ where: { userId } });
+  return pv?.aadhaarStatus === "VERIFIED";
+}
+
+// Batched version for a list endpoint (a driver's incoming requests)
+// that needs this per-row without a query-per-passenger.
+export async function verifiedPassengerIdsBatch(userIds) {
+  const unique = [...new Set(userIds)];
+  if (!unique.length) return new Set();
+  const rows = await prisma.passengerVerification.findMany({
+    where: { userId: { in: unique }, aadhaarStatus: "VERIFIED" },
+    select: { userId: true },
+  });
+  return new Set(rows.map((r) => r.userId));
+}
+
 // Batched version for a list endpoint (search results, booking lists)
 // that needs this per-row without a query-per-driver — same shape as
 // photoViewUrlsByUser (lib/photo.js).
@@ -73,6 +93,13 @@ export async function confirmDriverVerificationPayment(driverVerificationId, pay
 export async function confirmVehicleVerificationPayment(vehicleVerificationId, paymentId, amountInr) {
   await prisma.vehicleVerification.update({
     where: { id: vehicleVerificationId },
+    data: { paymentStatus: "PAID", razorpayPaymentId: paymentId, amountPaidInr: amountInr, paidAt: new Date() },
+  });
+}
+
+export async function confirmPassengerVerificationPayment(passengerVerificationId, paymentId, amountInr) {
+  await prisma.passengerVerification.update({
+    where: { id: passengerVerificationId },
     data: { paymentStatus: "PAID", razorpayPaymentId: paymentId, amountPaidInr: amountInr, paidAt: new Date() },
   });
 }

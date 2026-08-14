@@ -31,7 +31,7 @@ type ManifestStop = {
   seatsBooked: number;
   pickupAddress: string;
   dropAddress: string;
-  passenger: { id: string; name: string; ratingAvg?: number | null; photoViewUrl?: string | null };
+  passenger: { id: string; name: string; ratingAvg?: number | null; photoViewUrl?: string | null; passengerVerified?: boolean };
 };
 
 // The three phases of a live trip, shown as a compact progress line at
@@ -473,7 +473,12 @@ export default function LiveTrackingScreen({ route, navigation }: any) {
                 <View key={stop.id} style={styles.manifestRow}>
                   <Avatar uri={stop.passenger.photoViewUrl} name={stop.passenger.name} size={34} />
                   <View style={{ flex: 1 }}>
-                    <Text style={styles.manifestName} numberOfLines={1}>{stop.passenger.name}</Text>
+                    <View style={styles.manifestNameRow}>
+                      <Text style={styles.manifestName} numberOfLines={1}>{stop.passenger.name}</Text>
+                      {stop.passenger.passengerVerified && (
+                        <VerifiedBadge verified size="sm" label={t("verification.idVerifiedLabel")} />
+                      )}
+                    </View>
                     <Text style={styles.manifestSub} numberOfLines={1}>
                       {stop.action === "COMPLETED"
                         ? t("liveTracking.droppedOff")
@@ -583,7 +588,8 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border,
     borderRadius: radius.md, padding: spacing.sm,
   },
-  manifestName: { ...typography.body, fontWeight: "700", fontFamily: FONT.bold },
+  manifestNameRow: { flexDirection: "row", alignItems: "center", gap: 6 },
+  manifestName: { ...typography.body, fontWeight: "700", fontFamily: FONT.bold, flexShrink: 1 },
   manifestSub: { ...typography.small, color: colors.textMuted, marginTop: 1 },
   manifestDoneBadge: { width: 30, height: 30, borderRadius: 15, backgroundColor: colors.successBg, alignItems: "center", justifyContent: "center" },
   manifestActionButton: { backgroundColor: colors.textPrimary, height: 34, borderRadius: radius.sm, paddingHorizontal: spacing.sm, alignItems: "center", justifyContent: "center" },

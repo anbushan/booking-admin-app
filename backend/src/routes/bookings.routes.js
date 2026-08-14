@@ -12,7 +12,7 @@ import { decodePolyline, progressAlongRouteKm, MATCH_RADIUS_KM } from "../lib/di
 import { availableSeatsForInterval, recomputeRideSeatsAvailable, releaseSeatHold, proratedFarePerSeat } from "../lib/segments.js";
 import { validate, isNonEmptyString, isLat, isLng, isPositiveInt } from "../lib/validate.js";
 import { photoViewUrl, photoViewUrlsByUser } from "../lib/photo.js";
-import { verifiedDriverIdsBatch, isVehicleRcVerified } from "../lib/verification.js";
+import { verifiedDriverIdsBatch, isVehicleRcVerified, verifiedPassengerIdsBatch, isPassengerVerified } from "../lib/verification.js";
 
 const router = Router();
 
@@ -417,7 +417,12 @@ router.get("/driver-pending", requireAuth, requireRole("DRIVER"), async (req, re
     },
     orderBy: { expiresAt: "asc" },
   });
-  res.json(await attachPassengerPhotos(bookings));
+  const withPhotos = await attachPassengerPhotos(bookings);
+  const verifiedPassengerIds = await verifiedPassengerIdsBatch(withPhotos.map((b) => b.passenger.id));
+  res.json(withPhotos.map((b) => ({
+    ...b,
+    passenger: { ...b.passenger, passengerVerified: verifiedPassengerIds.has(b.passenger.id) },
+  })));
 });
 
 // GET /api/bookings/driver-active — every active-ish booking across all
@@ -441,7 +446,12 @@ router.get("/driver-active", requireAuth, requireRole("DRIVER"), async (req, res
     },
     orderBy: { createdAt: "desc" },
   });
-  res.json(await attachUnreadCounts(await attachPassengerPhotos(bookings), req.user.id, "driverLastReadAt"));
+  const withUnread = await attachUnreadCounts(await attachPassengerPhotos(bookings), req.user.id, "driverLastReadAt");
+  const verifiedPassengerIds = await verifiedPassengerIdsBatch(withUnread.map((b) => b.passenger.id));
+  res.json(withUnread.map((b) => ({
+    ...b,
+    passenger: { ...b.passenger, passengerVerified: verifiedPassengerIds.has(b.passenger.id) },
+  })));
 });
 
 // GET /api/bookings/active-trip — the caller's own current IN_PROGRESS
@@ -499,6 +509,7 @@ router.get("/:id", requireAuth, async (req, res) => {
 
   const licenseVerified = (await verifiedDriverIdsBatch([booking.ride.driverId])).has(booking.ride.driverId);
   const rcVerified = await isVehicleRcVerified(booking.ride.vehicle);
+  const passengerVerified = await isPassengerVerified(booking.passenger.id);
 
   res.json({
     ...booking,
@@ -509,7 +520,7 @@ router.get("/:id", requireAuth, async (req, res) => {
       licenseVerified,
       rcVerified,
     },
-    passenger: { ...booking.passenger, photoViewUrl: await photoViewUrl(booking.passenger.photoR2Key) },
+    passenger: { ...booking.passenger, photoViewUrl: await photoViewUrl(booking.passenger.photoR2Key), passengerVerified },
     // What this specific booking's passenger owes per seat for their own
     // matched segment — see rides.routes.js GET /:id/details for the
     // same computation pre-booking. BookingDetailScreen.tsx shows this

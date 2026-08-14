@@ -85,6 +85,7 @@ export default function BookingDetailScreen({ route, navigation }: any) {
             <Text style={styles.label}>{t("register.passenger")}</Text>
             <View style={styles.valueRow}>
               <Text style={styles.value}>{booking.passenger.name || booking.passenger.phone}</Text>
+              <VerifiedBadge verified={!!booking.passenger.passengerVerified} size="sm" label={booking.passenger.passengerVerified ? t("verification.idVerifiedLabel") : t("verification.idUnverifiedLabel")} />
               {!!booking.passenger.id && <Ionicons name="chevron-forward" size={14} color={colors.textMuted} />}
             </View>
           </Pressable>

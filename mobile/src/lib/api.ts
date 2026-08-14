@@ -130,6 +130,24 @@ export const api = {
   confirmVehicleRC: (vehicleId: string) =>
     request(`/api/verification/vehicle/${vehicleId}/verify/confirm`, { method: "POST" }),
 
+  // Passenger-side Aadhaar identity verification — same pay -> check ->
+  // confirm shape as driver/vehicle above, but its own endpoint family
+  // (verification.routes.js's /passenger/* routes) since it's reachable
+  // by any authenticated user, not just DRIVER-role accounts. Purely a
+  // trust badge — never required to book.
+  getPassengerVerificationStatus: () => request("/api/verification/passenger/status"),
+
+  chargePassengerVerification: () =>
+    request("/api/verification/passenger/charge", { method: "POST" }),
+  mockConfirmPassengerVerificationPayment: () =>
+    request("/api/verification/passenger/mock-confirm-payment", { method: "POST" }),
+  verifyAadhaar: (aadhaarNumber: string) =>
+    request("/api/verification/passenger/verify", { method: "POST", body: JSON.stringify({ aadhaarNumber }) }),
+  confirmAadhaarVerification: () =>
+    request("/api/verification/passenger/verify/confirm", { method: "POST" }),
+  resetPassengerVerification: () =>
+    request("/api/verification/passenger/reset", { method: "POST" }),
+
   getProfilePhotoUploadUrl: () =>
     request("/api/users/me/photo-upload-url", { method: "POST" }),
 

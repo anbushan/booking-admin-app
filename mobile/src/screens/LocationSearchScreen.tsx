@@ -1,24 +1,46 @@
 import React, { useState } from "react";
-import { View, TextInput, FlatList, Text, StyleSheet, ActivityIndicator, Platform } from "react-native";
+import { View, TextInput, FlatList, Text, StyleSheet, ActivityIndicator, Platform, Linking } from "react-native";
 import { Pressable } from "../components/Pressable";
 import { useFocusEffect } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
-import {
-  ExpoSpeechRecognitionModule,
-  useSpeechRecognitionEvent,
-} from "expo-speech-recognition";
 import { colors, spacing, radius, typography, FONT } from "../theme/theme";
 import { api } from "../lib/api";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useToast } from "../components/Toast";
 import { EmptyState } from "../components/EmptyState";
 import { KeyboardAvoider } from "../components/KeyboardAvoider";
+import { PermissionModal } from "../components/PermissionModal";
 import { useScreenView } from "../lib/useScreenView";
 import { getRecentSearches, addRecentSearch, RecentLocation } from "../lib/recentSearches";
 import { useTranslation } from "../lib/i18n/I18nContext";
 
 type Suggestion = { placeId: string; description: string };
 type PopularLocation = { address: string; lat: number; lng: number; count: number };
+
+// expo-speech-recognition's native module has no optional fallback —
+// its own index.js calls requireNativeModule("ExpoSpeechRecognition")
+// at import time with nothing to catch a missing binary, so a plain
+// `import ... from "expo-speech-recognition"` throws immediately (before
+// this screen even mounts) on any JS bundle running against a native
+// build that doesn't have it compiled in — Expo Go, or any device/
+// simulator still on an older build from before this dependency was
+// added. Since this screen used to be statically imported from App.tsx,
+// that crash used to take down the whole app at launch, not just this
+// screen. Loaded via require() inside try/catch instead, so an old
+// binary just loses the mic button rather than the entire app.
+let SpeechRecognitionModule: typeof import("expo-speech-recognition") | null = null;
+try {
+  SpeechRecognitionModule = require("expo-speech-recognition");
+} catch {
+  SpeechRecognitionModule = null;
+}
+const VOICE_SEARCH_AVAILABLE = !!SpeechRecognitionModule;
+// Availability is fixed for the whole app session (it can never flip
+// between renders), so swapping in a same-shaped no-op when the real
+// module isn't there still satisfies the Rules of Hooks — this screen
+// always calls exactly one of the two, consistently, every render.
+const useSpeechRecognitionEvent: typeof import("expo-speech-recognition").useSpeechRecognitionEvent =
+  SpeechRecognitionModule?.useSpeechRecognitionEvent ?? (() => {});
 
 // Generates a fresh session token per search session — Autocomplete billing
 // is per-session, not per-keystroke, as long as the session ends with a
@@ -44,6 +66,9 @@ export default function LocationSearchScreen({ navigation, route }: any) {
   const [recent, setRecent] = useState<RecentLocation[]>([]);
   const [popular, setPopular] = useState<PopularLocation[]>([]);
   const [listening, setListening] = useState(false);
+  const [micModalVisible, setMicModalVisible] = useState(false);
+  const [micModalBlocked, setMicModalBlocked] = useState(false);
+  const [requestingMicPermission, setRequestingMicPermission] = useState(false);
   const { showError } = useToast();
 
   // Recent searches are re-read on every focus (a pick made elsewhere
@@ -130,19 +155,68 @@ export default function LocationSearchScreen({ navigation, route }: any) {
     showError(t("locationSearch.voiceSearchFailed"));
   });
 
+  function startListening() {
+    if (!SpeechRecognitionModule) return;
+    setQuery("");
+    setSuggestions([]);
+    SpeechRecognitionModule.ExpoSpeechRecognitionModule.start({ lang: "en-IN", interimResults: true, continuous: false });
+  }
+
+  // Tapping the mic never pops the raw OS permission dialog cold — the
+  // first time, it shows PermissionModal to explain why first (same
+  // "ask before asking" pattern LocationPermissionPrimingScreen uses
+  // for location), and only requests for real once the user taps Allow
+  // there. Once granted, every later tap here skips straight to
+  // startListening() — getPermissionsAsync() doesn't itself prompt, so
+  // checking it first means an already-granted user is never nagged
+  // again.
   async function handleVoiceSearch() {
+    if (!SpeechRecognitionModule) return;
+    const { ExpoSpeechRecognitionModule } = SpeechRecognitionModule;
     if (listening) {
       ExpoSpeechRecognitionModule.stop();
       return;
     }
-    const result = await ExpoSpeechRecognitionModule.requestPermissionsAsync();
-    if (!result.granted) {
-      showError(t("locationSearch.micPermissionDenied"));
+    const existing = await ExpoSpeechRecognitionModule.getPermissionsAsync();
+    if (existing.granted) {
+      startListening();
       return;
     }
-    setQuery("");
-    setSuggestions([]);
-    ExpoSpeechRecognitionModule.start({ lang: "en-IN", interimResults: true, continuous: false });
+    setMicModalBlocked(!existing.canAskAgain);
+    setMicModalVisible(true);
+  }
+
+  async function handleAllowMicPermission() {
+    if (!SpeechRecognitionModule) return;
+    const { ExpoSpeechRecognitionModule } = SpeechRecognitionModule;
+    if (micModalBlocked) {
+      // Already permanently denied (Android's "don't ask again", or iOS
+      // after a first refusal) — requestPermissionsAsync() would just
+      // silently re-deny instead of prompting, so Settings is the only
+      // real next step.
+      setMicModalVisible(false);
+      Linking.openSettings();
+      return;
+    }
+    setRequestingMicPermission(true);
+    try {
+      const result = await ExpoSpeechRecognitionModule.requestPermissionsAsync();
+      setMicModalVisible(false);
+      if (result.granted) {
+        // "Do it later" never applies here — the whole point of priming
+        // first is that once they've actually said yes, the thing they
+        // tapped the mic for happens immediately, not on a second tap.
+        startListening();
+      } else {
+        showError(t("locationSearch.micPermissionDenied"));
+      }
+    } finally {
+      setRequestingMicPermission(false);
+    }
+  }
+
+  function handleNotNowMicPermission() {
+    setMicModalVisible(false);
   }
 
   async function handleUseCurrentLocation() {
@@ -180,13 +254,15 @@ export default function LocationSearchScreen({ navigation, route }: any) {
             onChangeText={handleChangeText}
             autoFocus
           />
-          <Pressable onPress={handleVoiceSearch} hitSlop={8}>
-            <Ionicons
-              name={listening ? "mic" : "mic-outline"}
-              size={18}
-              color={listening ? colors.danger : colors.textMuted}
-            />
-          </Pressable>
+          {VOICE_SEARCH_AVAILABLE && (
+            <Pressable onPress={handleVoiceSearch} hitSlop={8}>
+              <Ionicons
+                name={listening ? "mic" : "mic-outline"}
+                size={18}
+                color={listening ? colors.danger : colors.textMuted}
+              />
+            </Pressable>
+          )}
         </View>
       </View>
 
@@ -251,6 +327,19 @@ export default function LocationSearchScreen({ navigation, route }: any) {
         }
       />
       </KeyboardAvoider>
+
+      {VOICE_SEARCH_AVAILABLE && (
+        <PermissionModal
+          visible={micModalVisible}
+          icon="mic-outline"
+          title={t("locationSearch.micPermissionTitle")}
+          description={t("locationSearch.micPermissionDescription")}
+          allowing={requestingMicPermission}
+          blocked={micModalBlocked}
+          onAllow={handleAllowMicPermission}
+          onNotNow={handleNotNowMicPermission}
+        />
+      )}
     </SafeAreaView>
   );
 }

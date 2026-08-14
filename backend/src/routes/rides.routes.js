@@ -11,7 +11,7 @@ import { getRouteAlternatives, decodePolyline, pointToPolylineDistanceKm, progre
 import { peakOccupancy, recomputeRideSeatsAvailable, proratedFarePerSeat } from "../lib/segments.js";
 import { validate, isLat, isLng, isNonEmptyString, isFutureDate, isPositiveInt, isPositiveNumber } from "../lib/validate.js";
 import { photoViewUrl, photoViewUrlsByUser } from "../lib/photo.js";
-import { verifiedDriverIdsBatch, isVehicleRcVerified } from "../lib/verification.js";
+import { verifiedDriverIdsBatch, isVehicleRcVerified, verifiedPassengerIdsBatch } from "../lib/verification.js";
 
 const router = Router();
 
@@ -498,7 +498,7 @@ router.get("/:id/bookings", requireAuth, requireRole("DRIVER"), async (req, res)
 
   const bookings = await prisma.booking.findMany({
     where: { rideId: req.params.id, status: "BOOKED" },
-    include: { passenger: { select: { name: true, ratingAvg: true, photoR2Key: true } } },
+    include: { passenger: { select: { id: true, name: true, ratingAvg: true, photoR2Key: true } } },
     orderBy: { createdAt: "asc" },
   });
 
@@ -509,7 +509,16 @@ router.get("/:id/bookings", requireAuth, requireRole("DRIVER"), async (req, res)
     }))
   );
 
-  res.json(withPhotos);
+  // BookingRequestsScreen.tsx renders the exact same passenger row
+  // (with the ID-verified badge) whether it got here via this endpoint
+  // (opened for one specific ride) or /api/bookings/driver-pending
+  // (the general inbox) — passengerVerified has to be on both or the
+  // badge silently reads as "unverified" for everyone on this path.
+  const verifiedPassengerIds = await verifiedPassengerIdsBatch(withPhotos.map((b) => b.passenger.id));
+  res.json(withPhotos.map((b) => ({
+    ...b,
+    passenger: { ...b.passenger, passengerVerified: verifiedPassengerIds.has(b.passenger.id) },
+  })));
 });
 
 router.get("/my", requireAuth, requireRole("DRIVER"), async (req, res) => {

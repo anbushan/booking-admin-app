@@ -51,6 +51,10 @@ export function ProfileScreen({ navigation }: any) {
     { icon: "pencil-outline", label: t("profile.editProfile"), onPress: () => navigation.navigate("EditProfile", { profile }) },
     { icon: "star-outline", label: t("settings.yourRatings"), onPress: () => navigation.navigate("RatingsReceived") },
     { icon: "receipt-outline", label: t("settings.paymentHistory"), onPress: () => navigation.navigate("PaymentHistory") },
+    // Reachable by any role (an account can be both a driver and a
+    // passenger) — purely a trust badge, never required to book, so
+    // it's just a settings-style link rather than gated to one role.
+    { icon: "shield-checkmark-outline", label: t("verification.passengerLink"), onPress: () => navigation.navigate("VerifyPassenger") },
     ...(isDriver
       ? [
           { icon: "car-sport-outline" as const, label: t("sideMenu.myVehicles"), onPress: () => navigation.navigate("VehicleList") },

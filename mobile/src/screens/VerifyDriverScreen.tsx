@@ -125,7 +125,11 @@ function IdCard({
       </View>
       <View style={styles.idBody}>
         <Text style={styles.idNumberLabel}>{kind === "license" ? "DL NO." : "REG NO."}</Text>
-        <Text style={styles.idNumber}>{number}</Text>
+        {/* DL numbers can run up to 20 characters (DL_NUMBER_PATTERN) —
+            at this font size/letter-spacing that can outrun the card's
+            width on the narrowest phones still in use. Shrinks to fit
+            rather than clipping or wrapping mid-number. */}
+        <Text style={styles.idNumber} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.6}>{number}</Text>
         {status && (
           <View style={[styles.statusChip, wouldPass ? styles.statusChipGood : styles.statusChipBad, { marginTop: spacing.xs }]}>
             <Text style={[styles.statusChipText, { color: wouldPass ? colors.success : colors.danger }]}>{status}</Text>

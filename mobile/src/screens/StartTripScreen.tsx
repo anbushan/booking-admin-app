@@ -15,6 +15,7 @@ import { BackHeader } from "../components/BackHeader";
 import { dialProxyNumber } from "../lib/callHelper";
 import { useScreenView } from "../lib/useScreenView";
 import Avatar from "../components/Avatar";
+import { VerifiedBadge } from "../components/VerifiedBadge";
 import { useTranslation } from "../lib/i18n/I18nContext";
 
 export default function StartTripScreen({ route, navigation }: any) {
@@ -28,6 +29,7 @@ export default function StartTripScreen({ route, navigation }: any) {
   const [passengerName, setPassengerName] = useState(t("startTrip.passengerFallback"));
   const [passengerPhoto, setPassengerPhoto] = useState<string | null>(null);
   const [passengerRating, setPassengerRating] = useState<number | null>(null);
+  const [passengerVerified, setPassengerVerified] = useState(false);
   const [calling, setCalling] = useState(false);
   const { showError } = useToast();
 
@@ -56,6 +58,7 @@ export default function StartTripScreen({ route, navigation }: any) {
           if (booking.passenger?.name) setPassengerName(booking.passenger.name);
           if (booking.passenger?.photoViewUrl) setPassengerPhoto(booking.passenger.photoViewUrl);
           if (booking.passenger?.ratingAvg != null) setPassengerRating(booking.passenger.ratingAvg);
+          setPassengerVerified(!!booking.passenger?.passengerVerified);
         }
         if (startResult.status === "rejected") {
           // Previously this silently fell through to the verify-pickup
@@ -155,12 +158,19 @@ export default function StartTripScreen({ route, navigation }: any) {
               <Avatar uri={passengerPhoto} name={passengerName} size={38} />
               <View style={{ flex: 1 }}>
                 <Text style={styles.passengerName}>{passengerName}</Text>
-                {passengerRating != null && (
-                  <View style={styles.ratingRow}>
-                    <Ionicons name="star" size={11} color={colors.warning} />
-                    <Text style={styles.passengerMeta}>{passengerRating.toFixed(1)}</Text>
-                  </View>
-                )}
+                <View style={styles.ratingRow}>
+                  {passengerRating != null && (
+                    <>
+                      <Ionicons name="star" size={11} color={colors.warning} />
+                      <Text style={styles.passengerMeta}>{passengerRating.toFixed(1)}</Text>
+                    </>
+                  )}
+                  <VerifiedBadge
+                    verified={passengerVerified}
+                    size="sm"
+                    label={passengerVerified ? t("verification.idVerifiedLabel") : t("verification.idUnverifiedLabel")}
+                  />
+                </View>
               </View>
               <Pressable style={styles.callButton} onPress={handleCall} disabled={calling} hitSlop={4}>
                 <Ionicons name="call-outline" size={17} color={colors.accentText} />
@@ -201,7 +211,7 @@ const styles = StyleSheet.create({
     borderRadius: radius.md, padding: spacing.md, marginBottom: spacing.lg,
   },
   passengerName: { ...typography.body, fontWeight: "700", fontFamily: FONT.bold },
-  ratingRow: { flexDirection: "row", alignItems: "center", gap: 3, marginTop: 1 },
+  ratingRow: { flexDirection: "row", alignItems: "center", gap: 6, marginTop: 1 },
   passengerMeta: { ...typography.small, color: colors.textMuted },
   callButton: { width: 34, height: 34, borderRadius: 17, backgroundColor: colors.accentBg, alignItems: "center", justifyContent: "center" },
   button: {

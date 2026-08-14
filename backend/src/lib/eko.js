@@ -1,6 +1,11 @@
-// Thin client for Eko's Verification APIs (driving license + vehicle
-// RC) — https://developers.eko.in/reference/driving-license,
-// https://developers.eko.in/reference/vehicle-rc.
+// Thin client for Eko's Verification APIs (driving license, vehicle
+// RC, and Aadhaar) — https://developers.eko.in/reference/driving-license,
+// https://developers.eko.in/reference/vehicle-rc. Aadhaar's exact
+// reference page wasn't checked directly (same Postman-gated situation
+// as DL/RC) — modeled on the same request/response shape as those two
+// documented ones, since Eko's own API family is consistent about it.
+// Confirm against the real docs/Postman collection before flipping
+// EKO_MOCK_MODE off for this one specifically.
 //
 // AUTH (fully documented, implemented for real below — this part isn't
 // a guess): every request is signed per-call, not a static bearer
@@ -101,6 +106,24 @@ function mockLicenseResponse(dlNumber) {
   };
 }
 
+function mockAadhaarResponse(aadhaarNumber) {
+  const failed = aadhaarNumber.includes("0000") || aadhaarNumber.toUpperCase().includes("FAIL");
+  return {
+    verified: !failed,
+    raw: {
+      data: {
+        aadhaar_number: failed ? null : `XXXXXXXX${aadhaarNumber.slice(-4)}`,
+        status: failed ? "INVALID" : "ACTIVE",
+        name: failed ? null : "MOCK PASSENGER NAME",
+        dob: failed ? null : "1998-11-02",
+        gender: failed ? null : "M",
+        address: failed ? null : "45, MOCK LAYOUT, BENGALURU, KARNATAKA",
+        _mock: true,
+      },
+    },
+  };
+}
+
 // Derives the boolean pass/fail this app actually acts on from Eko's
 // much larger real response — kept as its own small, pure function so
 // the mock responses above and a real response later both go through
@@ -111,6 +134,10 @@ export function isRcVerified(raw) {
 }
 
 export function isLicenseVerified(raw) {
+  return raw?.data?.status === "ACTIVE";
+}
+
+export function isAadhaarVerified(raw) {
   return raw?.data?.status === "ACTIVE";
 }
 
@@ -150,4 +177,23 @@ export async function verifyLicense(dlNumber, dob) {
     throw new Error(`Eko license verify failed: ${res.status} ${JSON.stringify(raw)}`);
   }
   return { verified: isLicenseVerified(raw), raw };
+}
+
+export async function verifyAadhaar(aadhaarNumber) {
+  if (process.env.EKO_MOCK_MODE === "true") {
+    return mockAadhaarResponse(aadhaarNumber);
+  }
+  if (!process.env.EKO_AADHAAR_VERIFY_PATH) {
+    throw new Error("EKO_AADHAAR_VERIFY_PATH is not set — Eko's exact Aadhaar endpoint hasn't been confirmed yet. Set EKO_MOCK_MODE=true to test the rest of the flow in the meantime.");
+  }
+  const res = await fetch(`${EKO_BASE_URL}${process.env.EKO_AADHAAR_VERIFY_PATH}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...buildAuthHeaders() },
+    body: JSON.stringify({ aadhaar_number: aadhaarNumber }),
+  });
+  const raw = await res.json();
+  if (!res.ok) {
+    throw new Error(`Eko Aadhaar verify failed: ${res.status} ${JSON.stringify(raw)}`);
+  }
+  return { verified: isAadhaarVerified(raw), raw };
 }

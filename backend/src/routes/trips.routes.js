@@ -9,6 +9,7 @@ import { validate, isLat, isLng } from "../lib/validate.js";
 import { getIO } from "../lib/socket.js";
 import { proratedFarePerSeat } from "../lib/segments.js";
 import { photoViewUrl } from "../lib/photo.js";
+import { verifiedPassengerIdsBatch } from "../lib/verification.js";
 
 const router = Router();
 
@@ -53,6 +54,8 @@ router.get("/ride/:rideId/manifest", requireAuth, requireRole("DRIVER"), async (
     orderBy: [{ pickupProgressKm: "asc" }, { createdAt: "asc" }],
   });
 
+  const verifiedPassengerIds = await verifiedPassengerIdsBatch(bookings.map((b) => b.passenger.id));
+
   const stops = await Promise.all(
     bookings.map(async (b) => ({
       id: b.id,
@@ -67,6 +70,7 @@ router.get("/ride/:rideId/manifest", requireAuth, requireRole("DRIVER"), async (
         name: b.passenger.name,
         ratingAvg: b.passenger.ratingAvg,
         photoViewUrl: await photoViewUrl(b.passenger.photoR2Key),
+        passengerVerified: verifiedPassengerIds.has(b.passenger.id),
       },
     }))
   );

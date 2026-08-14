@@ -43,6 +43,10 @@ const DEFAULTS = {
   // first — there's no free/waived vehicle anymore (see verification.routes.js).
   licenseVerificationFeeInr: Number(process.env.LICENSE_VERIFICATION_FEE_INR || 4),
   vehicleRcFeeInr: Number(process.env.VEHICLE_RC_FEE_INR || 4),
+  // Passenger-side Aadhaar identity check — optional, purely a trust
+  // badge, same flat one-time-fee shape as license above (see
+  // verification.routes.js's /passenger/* routes).
+  aadhaarVerificationFeeInr: Number(process.env.AADHAAR_VERIFICATION_FEE_INR || 4),
 };
 
 export async function getAppConfig() {

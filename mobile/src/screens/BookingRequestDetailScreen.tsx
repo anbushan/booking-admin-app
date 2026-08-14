@@ -10,6 +10,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { BackHeader } from "../components/BackHeader";
 import { useScreenView } from "../lib/useScreenView";
 import Avatar from "../components/Avatar";
+import { VerifiedBadge } from "../components/VerifiedBadge";
 import { useTranslation } from "../lib/i18n/I18nContext";
 
 export default function BookingRequestDetailScreen({ route, navigation }: any) {
@@ -39,7 +40,10 @@ export default function BookingRequestDetailScreen({ route, navigation }: any) {
         <View style={styles.profileRow}>
           <Avatar uri={request.passenger?.photoViewUrl} name={request.passenger?.name} size={44} />
           <View>
-            <Text style={styles.name}>{request.passenger?.name || t("register.passenger")}</Text>
+            <View style={styles.nameRow}>
+              <Text style={styles.name}>{request.passenger?.name || t("register.passenger")}</Text>
+              <VerifiedBadge verified={!!request.passenger?.passengerVerified} size="sm" label={request.passenger?.passengerVerified ? t("verification.idVerifiedLabel") : t("verification.idUnverifiedLabel")} />
+            </View>
             <Text style={styles.meta}>
               <Ionicons name="star" size={11} color={colors.marigold} /> {t("publicProfile.rating", { rating: (request.passenger?.ratingAvg ?? 0).toFixed(1) })}
             </Text>
@@ -93,6 +97,7 @@ const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.bg },
   body: { padding: spacing.lg },
   profileRow: { flexDirection: "row", alignItems: "center", gap: spacing.md, paddingBottom: spacing.lg, borderBottomWidth: 1, borderBottomColor: colors.border },
+  nameRow: { flexDirection: "row", alignItems: "center", gap: 6 },
   name: { ...typography.title, fontSize: 15 },
   meta: { ...typography.small, color: colors.textMuted, marginTop: 2 },
   infoRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingVertical: spacing.sm, borderBottomWidth: 1, borderBottomColor: colors.border },

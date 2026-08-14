@@ -43,6 +43,7 @@ export default function PrivacyPage() {
           <Row what="Pickup/drop location, live GPS during a trip" why="To match rides going your way, and for live tracking and safety (SOS) while a trip is in progress." />
           <Row what="Vehicle details & documents (RC, licence, vehicle photo)" why="Optional — used only if you choose manual review as your verification path. Publishing rides never requires this." />
           <Row what="Driving licence & RC details (number, date of birth, address, vehicle registration data)" why="Only if you choose paid verification — sent to Eko, a third-party verification provider, to check your licence or a vehicle's registration. Never required to publish rides." />
+          <Row what="Aadhaar number & details (name, date of birth, gender, address)" why="Only if you, as a passenger, choose to verify your identity — sent to Eko to confirm it's valid, and only the last 4 digits are ever displayed back to you or anyone else. Entirely optional and never required to book a ride." />
           <Row what="Chat messages" why="Only visible between a driver and passenger with an active, confirmed booking — deleted once that booking ends." />
           <Row what="Payment metadata" why="The platform fee and any driver verification fees are processed by Razorpay; we never see or store your card, UPI PIN, or full payment details ourselves." />
           <Row what="Emergency contacts (optional)" why="So we can reach someone on your behalf if you use the SOS feature." />
@@ -74,9 +75,10 @@ export default function PrivacyPage() {
           <li><strong>Cloudflare R2</strong> — stores uploaded documents and photos in a private
             bucket; files are only ever accessible via a short-lived link generated when you or an
             authorised reviewer actually needs to view one.</li>
-          <li><strong>Eko</strong> — only if a driver chooses the paid, instant verification path:
-            checks a driving licence or vehicle RC against government records. Never used for the
-            free, manual-review path, and never for anything except that specific check.</li>
+          <li><strong>Eko</strong> — only if you choose a paid, instant verification path: checks a
+            driving licence, vehicle RC, or (for passengers) an Aadhaar number against government
+            records. Never used for the free, manual-review path (drivers/vehicles only), and
+            never for anything except that specific check.</li>
         </ul>
         <p style={{ marginTop: 10 }}>
           The other person in a booking sees your name, rating, and (if you added one) your
@@ -89,11 +91,11 @@ export default function PrivacyPage() {
       <Section title="How long we keep it">
         <p>
           Chat messages are deleted once a booking's active window ends. Verification records —
-          uploaded documents, and Eko's response for a paid licence or RC check — are kept while
-          your account and vehicle remain active, for compliance and dispute purposes. Trip and
-          booking records are retained after a trip completes to support ratings, safety
-          investigations, refunds, and legal/financial record-keeping — the same way most
-          transaction records are kept.
+          uploaded documents, and Eko's response for a paid licence, RC, or Aadhaar check — are
+          kept while your account and vehicle remain active, for compliance and dispute purposes,
+          and are removed if you delete your account (see below). Trip and booking records are
+          retained after a trip completes to support ratings, safety investigations, refunds, and
+          legal/financial record-keeping — the same way most transaction records are kept.
         </p>
       </Section>
 
@@ -105,6 +107,9 @@ export default function PrivacyPage() {
         </p>
         <ul style={{ marginTop: 8, paddingLeft: 20 }}>
           <li>Your name, email, profile photo, and push token are permanently removed.</li>
+          <li>Any driving licence, RC, or Aadhaar details and Eko verification responses tied to
+            your account are permanently removed too — nothing from a paid verification check
+            outlives the account it belonged to.</li>
           <li>Your account is deactivated and you can no longer log in with that number.</li>
           <li>
             Past trip and booking records tied to other users (fares, ratings, trip history) are

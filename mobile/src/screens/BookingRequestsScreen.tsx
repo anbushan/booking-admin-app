@@ -16,11 +16,12 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { groupByRide } from "../lib/groupByRide";
 import { useScreenView } from "../lib/useScreenView";
 import Avatar from "../components/Avatar";
+import { VerifiedBadge } from "../components/VerifiedBadge";
 import { useTranslation } from "../lib/i18n/I18nContext";
 
 type BookingRequest = {
   id: string;
-  passenger: { name: string; ratingAvg: number; photoViewUrl?: string | null };
+  passenger: { name: string; ratingAvg: number; photoViewUrl?: string | null; passengerVerified?: boolean };
   seatsBooked: number;
   isCustomPickup: boolean;
   pickupAddress: string;
@@ -123,7 +124,10 @@ export default function BookingRequestsScreen({ route, navigation }: any) {
               <View style={styles.cardTop}>
                 <Avatar uri={item.passenger?.photoViewUrl} name={item.passenger?.name} size={32} />
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.passengerName}>{item.passenger?.name || t("register.passenger")}</Text>
+                  <View style={styles.nameRow}>
+                    <Text style={styles.passengerName}>{item.passenger?.name || t("register.passenger")}</Text>
+                    <VerifiedBadge verified={!!item.passenger?.passengerVerified} size="sm" label={item.passenger?.passengerVerified ? t("verification.idVerifiedLabel") : t("verification.idUnverifiedLabel")} />
+                  </View>
                   <Text style={styles.meta}>
                     <Ionicons name="star" size={10} color={colors.marigold} /> {(item.passenger?.ratingAvg ?? 0).toFixed(1)} · {t("common.seatsCount", { count: item.seatsBooked })}
                   </Text>
@@ -183,6 +187,7 @@ const styles = StyleSheet.create({
   sectionTitle: { ...typography.title, fontSize: 13, color: colors.accentText },
   sectionSubtitle: { ...typography.small, color: colors.textMuted, marginTop: 1 },
   cardTop: { flexDirection: "row", gap: spacing.sm, alignItems: "center" },
+  nameRow: { flexDirection: "row", alignItems: "center", gap: 6 },
   passengerName: { ...typography.title, fontSize: 14 },
   meta: { ...typography.small, color: colors.textMuted },
   countdown: { flexDirection: "row", alignItems: "center", gap: 3, backgroundColor: colors.warningBg, paddingVertical: 3, paddingHorizontal: 7, borderRadius: 999 },
