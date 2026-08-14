@@ -32,7 +32,6 @@ export function MarketingShell({ children }: { children: React.ReactNode }) {
                 {link.label}
               </Link>
             ))}
-            <Link href="/login">Admin</Link>
           </nav>
         </div>
         <div className="mkt-footer-bottom">© {new Date().getFullYear()} {BRAND_NAME}. All rights reserved.</div>

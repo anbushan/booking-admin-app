@@ -2,9 +2,21 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { Menu, X } from "lucide-react";
 import { Logo } from "./Logo";
 import { NAV_LINKS, BRAND_NAME } from "../lib/siteContent";
+
+// "/" only matches the literal home page (every other href would also
+// satisfy a naive startsWith("/") check); every other link matches
+// itself and anything nested under it, so /blog stays active on
+// /blog/some-post — the two audiences here (desktop row, mobile panel)
+// both key off this same rule so they can't ever disagree with each
+// other about what's "active."
+function isActiveLink(href: string, pathname: string) {
+  if (href === "/") return pathname === "/";
+  return pathname === href || pathname.startsWith(`${href}/`);
+}
 
 // Replaces the horizontal-scroll-with-fade nav strip that used to sit
 // here directly in MarketingShell. That approach was technically
@@ -20,6 +32,7 @@ import { NAV_LINKS, BRAND_NAME } from "../lib/siteContent";
 // component.
 export function MarketingHeader() {
   const [open, setOpen] = useState(false);
+  const pathname = usePathname();
 
   return (
     <header className="mkt-header">
@@ -31,7 +44,12 @@ export function MarketingHeader() {
 
         <nav className="mkt-nav mkt-nav-desktop">
           {NAV_LINKS.map((link) => (
-            <Link key={link.href} href={link.href} className="mkt-nav-link">
+            <Link
+              key={link.href}
+              href={link.href}
+              className={`mkt-nav-link${isActiveLink(link.href, pathname) ? " mkt-nav-link-active" : ""}`}
+              aria-current={isActiveLink(link.href, pathname) ? "page" : undefined}
+            >
               {link.label}
             </Link>
           ))}
@@ -53,7 +71,13 @@ export function MarketingHeader() {
           <div className="mkt-nav-backdrop" onClick={() => setOpen(false)} />
           <nav className="mkt-nav-mobile-panel">
             {NAV_LINKS.map((link) => (
-              <Link key={link.href} href={link.href} className="mkt-nav-mobile-link" onClick={() => setOpen(false)}>
+              <Link
+                key={link.href}
+                href={link.href}
+                className={`mkt-nav-mobile-link${isActiveLink(link.href, pathname) ? " mkt-nav-mobile-link-active" : ""}`}
+                aria-current={isActiveLink(link.href, pathname) ? "page" : undefined}
+                onClick={() => setOpen(false)}
+              >
                 {link.label}
               </Link>
             ))}
