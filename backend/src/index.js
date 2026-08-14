@@ -32,6 +32,7 @@ import reviewsRoutes from "./routes/reviews.routes.js";
 import callsRoutes from "./routes/calls.routes.js";
 import i18nRoutes from "./routes/i18n.routes.js";
 import statusRoutes from "./routes/status.routes.js";
+import verificationRoutes from "./routes/verification.routes.js";
 import { expireStaleBookings } from "./cron/expireBookings.js";
 import { checkNoShows } from "./cron/checkNoShows.js";
 import { expireStaleRides } from "./cron/expireStaleRides.js";
@@ -60,6 +61,7 @@ app.use("/api/reviews", reviewsRoutes);
 app.use("/api/calls", callsRoutes);
 app.use("/api/i18n", i18nRoutes);
 app.use("/api/app-status", statusRoutes);
+app.use("/api/verification", verificationRoutes);
 
 const PORT = process.env.PORT || 4000;
 

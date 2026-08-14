@@ -37,6 +37,12 @@ const DEFAULTS = {
   strikeRollingWindowDays: 30,
   maintenanceMode: false,
   maintenanceMessage: null,
+  // Paid third-party (Eko) verification — licenseVerificationFeeInr is a
+  // flat, one-time charge for a driver's license check; vehicleRcFeeInr
+  // is charged separately for EVERY vehicle's RC check, including the
+  // first — there's no free/waived vehicle anymore (see verification.routes.js).
+  licenseVerificationFeeInr: Number(process.env.LICENSE_VERIFICATION_FEE_INR || 4),
+  vehicleRcFeeInr: Number(process.env.VEHICLE_RC_FEE_INR || 4),
 };
 
 export async function getAppConfig() {

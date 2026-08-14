@@ -7,6 +7,8 @@ import { api } from "../lib/api";
 import { appEvents } from "../lib/appEvents";
 import { navigationRef } from "../lib/navigationRef";
 import { resolveNotificationTarget } from "../lib/notificationTargets";
+import { useToast } from "./Toast";
+import { useTranslation } from "../lib/i18n/I18nContext";
 
 // Tapping an OS push notification used to just open the app to wherever
 // it happened to be, ignoring what the notification was actually about
@@ -36,6 +38,9 @@ function handleNotificationResponse(response: Notifications.NotificationResponse
 // it silently depended entirely on push notifications, and just as
 // silently did nothing when push wasn't configured.
 export function AppSocketBridge() {
+  const { showSuccess } = useToast();
+  const { t } = useTranslation();
+
   useEffect(() => {
     async function connect() {
       const token = await AsyncStorage.getItem("authToken");
@@ -56,6 +61,33 @@ export function AppSocketBridge() {
       socket.off("chat:new");
       socket.on("chat:new", () => {
         appEvents.emit("chat:new");
+      });
+
+      // Previously the only way to learn a platform-fee payment actually
+      // went through was PaymentScreen's own bounded poll (times out
+      // after ~20s) or stumbling onto a screen that happened to refetch
+      // — nothing told you the instant it cleared if you'd already
+      // navigated elsewhere. This reaches you wherever you are, same as
+      // trip:started/chat:new above. The toast is the point (immediate,
+      // unmissable feedback); the emit lets any currently-open screen
+      // showing this booking (MyRequests, History) refresh right away
+      // too, same convention chat:new already established.
+      socket.off("payment:confirmed");
+      socket.on("payment:confirmed", ({ bookingId }: { bookingId: string }) => {
+        showSuccess(t("payment.confirmedToast"));
+        appEvents.emit("payment:confirmed", bookingId);
+      });
+
+      // Same gap, same fix, for a driver/vehicle verification fee — a
+      // real Razorpay payment (or the mock button, which is actually
+      // the only path testable today) would otherwise only be reflected
+      // the next time VerifyDriverScreen happened to refocus, leaving
+      // the pay-check-confirm button hidden behind a stale "pay" state
+      // for however long that takes.
+      socket.off("verification:paymentConfirmed");
+      socket.on("verification:paymentConfirmed", () => {
+        showSuccess(t("verification.paymentConfirmedToast"));
+        appEvents.emit("verification:paymentConfirmed");
       });
     }
 

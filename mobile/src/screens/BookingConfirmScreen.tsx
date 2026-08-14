@@ -4,17 +4,18 @@ import { Pressable } from "../components/Pressable";
 import { useFocusEffect } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
 import { showAlert } from "../lib/alert";
-import { colors, spacing, radius, typography } from "../theme/theme";
+import { colors, spacing, radius, typography, FONT } from "../theme/theme";
 import { api } from "../lib/api";
 import { Analytics } from "../lib/analytics";
 import { CarLoader } from "../components/CarLoader";
 import { ErrorState } from "../components/ErrorState";
 import { RouteTimeline } from "../components/RouteTimeline";
 import { RouteStopsList } from "../components/RouteStopsList";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { BackHeader } from "../components/BackHeader";
 import { useScreenView } from "../lib/useScreenView";
 import Avatar from "../components/Avatar";
+import { VerifiedBadge } from "../components/VerifiedBadge";
 import { useTranslation } from "../lib/i18n/I18nContext";
 
 type RideDetails = {
@@ -23,6 +24,9 @@ type RideDetails = {
   destAddress: string;
   sourceLat: number;
   sourceLng: number;
+  destLat: number;
+  destLng: number;
+  routePolyline?: string | null;
   pricePerSeat: string;
   // What THIS passenger actually owes per seat for their own matched
   // pickup->drop, not the ride's full-route price — see
@@ -32,6 +36,9 @@ type RideDetails = {
   segmentPricePerSeat: number;
   seatsAvailable: number;
   driver?: { id: string; name: string; ratingAvg?: number; photoViewUrl?: string | null };
+  driverVerified?: boolean;
+  licenseVerified?: boolean;
+  rcVerified?: boolean;
   travelDate: string;
   estimatedArrivalAt: string;
   estimatedDurationMinutes: number;
@@ -41,6 +48,12 @@ type RideDetails = {
 export default function BookingConfirmScreen({ route, navigation }: any) {
   useScreenView("BookingConfirmScreen");
   const { t } = useTranslation();
+  // Explicit, on top of whatever SafeAreaView's own edges=["bottom"]
+  // already accounts for — this app runs edge-to-edge on Android
+  // (app.json), so the CTA in the sticky footer below needs to clear
+  // the gesture/button navigation bar with real room, not just
+  // technically not-underneath it.
+  const insets = useSafeAreaInsets();
   const {
     rideId,
     // The passenger's own searched/matched pickup & drop (see
@@ -129,8 +142,14 @@ export default function BookingConfirmScreen({ route, navigation }: any) {
     }
   }
 
+  // "bottom" deliberately left off SafeAreaView's edges below — the
+  // sticky footer applies the bottom inset itself (see insets.bottom in
+  // its own padding), since SafeAreaView would otherwise add it as
+  // blank space below the footer instead of as room above the system
+  // bar for the footer's own content. The loading/error states have
+  // nothing bottom-anchored to protect, so they don't need it either.
   return (
-    <SafeAreaView style={styles.screen} edges={["top", "bottom"]}>
+    <SafeAreaView style={styles.screen} edges={["top"]}>
       <BackHeader title={t("booking.confirmTitle")} onBack={() => navigation.goBack()} />
 
       {loading ? (
@@ -147,34 +166,143 @@ export default function BookingConfirmScreen({ route, navigation }: any) {
         // reach it, reading as "the button is overlapping/hidden behind
         // the bottom of the screen" rather than what was actually
         // happening (it was rendered off-screen, not merely obscured).
+        <>
         <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
-          <View style={styles.routeRow}>
-            <Ionicons name="navigate-outline" size={14} color={colors.textMuted} />
-            <Text style={styles.route}>{t("common.routeTo", { source: ride.sourceAddress, dest: ride.destAddress })}</Text>
+          {/* Hero — the one thing every screen like this leads with
+              (Zomato's restaurant header, Ola's route summary): where
+              you're going and when, before any of the finer detail. */}
+          <View style={styles.heroCard}>
+            <View style={styles.routeRow}>
+              <Ionicons name="navigate-outline" size={14} color={colors.textMuted} />
+              <Text style={styles.route}>{t("common.routeTo", { source: ride.sourceAddress, dest: ride.destAddress })}</Text>
+            </View>
+            {ride.driver?.name && (
+              <Pressable
+                style={styles.driverRow}
+                onPress={() => ride.driver?.id && navigation.navigate("PublicProfile", { userId: ride.driver.id })}
+              >
+                <Avatar uri={ride.driver.photoViewUrl} name={ride.driver.name} size={32} />
+                <View style={{ flex: 1 }}>
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: spacing.xs }}>
+                    <Text style={styles.driverName}>{ride.driver.name}</Text>
+                    {ride.driver.ratingAvg != null && (
+                      <View style={styles.driverRatingRow}>
+                        <Ionicons name="star" size={10} color={colors.marigold} />
+                        <Text style={styles.driverName}>{ride.driver.ratingAvg.toFixed(1)}</Text>
+                      </View>
+                    )}
+                  </View>
+                  {/* RC and license shown as two distinct badges — a
+                      driver can be one without the other (verified once
+                      covers every vehicle's license; each vehicle's RC
+                      is its own separate check), so one merged pill
+                      would hide exactly the distinction that matters. */}
+                  <View style={styles.badgeRow}>
+                    <VerifiedBadge
+                      verified={!!ride.licenseVerified}
+                      size="sm"
+                      label={ride.licenseVerified ? t("badge.licenseVerified") : t("badge.licenseUnverified")}
+                    />
+                    <VerifiedBadge
+                      verified={!!ride.rcVerified}
+                      size="sm"
+                      label={ride.rcVerified ? t("badge.rcVerified") : t("badge.rcUnverified")}
+                    />
+                  </View>
+                </View>
+                <Ionicons name="chevron-forward" size={14} color={colors.textMuted} />
+              </Pressable>
+            )}
           </View>
-          {ride.driver?.name && (
+
+          <View style={styles.timelineCard}>
+            {ride.routeStops && ride.routeStops.length > 0 ? (
+              // The full step-by-step route (like a train app's stop
+              // list) — only available once a route's been computed for
+              // this ride (see lib/directions.js on the backend).
+              <RouteStopsList stops={ride.routeStops} departAt={ride.travelDate} />
+            ) : (
+              <RouteTimeline
+                departAt={ride.travelDate}
+                arriveAt={ride.estimatedArrivalAt}
+                durationMinutes={ride.estimatedDurationMinutes}
+                sourceAddress={ride.sourceAddress}
+                destAddress={ride.destAddress}
+              />
+            )}
             <Pressable
-              style={styles.driverRow}
-              onPress={() => ride.driver?.id && navigation.navigate("PublicProfile", { userId: ride.driver.id })}
+              style={styles.mapLinkButton}
+              onPress={() => navigation.navigate("RouteMap", {
+                sourceLat: ride.sourceLat, sourceLng: ride.sourceLng, sourceAddress: ride.sourceAddress,
+                destLat: ride.destLat, destLng: ride.destLng, destAddress: ride.destAddress,
+                routePolyline: ride.routePolyline,
+              })}
             >
-              <Avatar uri={ride.driver.photoViewUrl} name={ride.driver.name} size={24} />
-              <Text style={styles.driverName}>{ride.driver.name}</Text>
-              {ride.driver.ratingAvg != null && (
-                <View style={styles.driverRatingRow}>
-                  <Ionicons name="star" size={10} color={colors.marigold} />
-                  <Text style={styles.driverName}>{ride.driver.ratingAvg.toFixed(1)}</Text>
+              <Ionicons name="map-outline" size={14} color={colors.accentText} />
+              <Text style={styles.mapLinkText}>{t("routeMap.viewInMap")}</Text>
+            </Pressable>
+          </View>
+
+          <View style={styles.sectionCard}>
+            <View style={styles.row}>
+              <View style={styles.labelRow}>
+                <Ionicons name="people-outline" size={15} color={colors.textSecondary} />
+                <Text style={styles.label}>{t("searchOptions.seats")}</Text>
+              </View>
+              {full ? (
+                <Text style={[styles.value, { color: colors.danger }]}>{t("search.full")}</Text>
+              ) : (
+                <View style={styles.stepper}>
+                  <Pressable
+                    style={[styles.stepperButton, seats <= 1 && styles.stepperButtonDisabled]}
+                    disabled={seats <= 1}
+                    onPress={() => adjustSeats(-1)}
+                  >
+                    <Ionicons name="remove" size={16} color={colors.textPrimary} />
+                  </Pressable>
+                  <Text style={styles.value}>{seats}</Text>
+                  <Pressable
+                    style={[
+                      styles.stepperButton,
+                      seats >= Math.min(ride.seatsAvailable, 8) && styles.stepperButtonDisabled,
+                    ]}
+                    disabled={seats >= Math.min(ride.seatsAvailable, 8)}
+                    onPress={() => adjustSeats(1)}
+                  >
+                    <Ionicons name="add" size={16} color={colors.textPrimary} />
+                  </Pressable>
                 </View>
               )}
-              <View style={{ flex: 1 }} />
-              <Ionicons name="chevron-forward" size={13} color={colors.textMuted} />
-            </Pressable>
-          )}
+            </View>
+            <Text style={styles.availabilityHint}>
+              {full ? t("booking.noSeatsLeft") : t("booking.seatsAvailable", { count: ride.seatsAvailable })}
+            </Text>
+          </View>
 
-          {/* What other passengers have said about this driver — see
-              driverReviews fetch in load(). Only the first two, so this
-              stays a quick "here's what people say" glance rather than
-              turning the confirm screen into the full profile page;
-              "See all" is right there for anyone who wants more. */}
+          {/* Receipt-style breakdown — per-seat rate × count, a dashed
+              rule, then the bold total, same visual grammar as a food
+              app's bill summary rather than a single flat "Fare" row. */}
+          <View style={styles.billCard}>
+            <Text style={styles.billTitle}>{t("booking.billTitle")}</Text>
+            <View style={styles.billRow}>
+              <Text style={styles.billLabel}>{t("booking.farePerSeat", { amount: Number(ride.segmentPricePerSeat ?? ride.pricePerSeat) })}</Text>
+              <Text style={styles.billValue}>× {seats}</Text>
+            </View>
+            <View style={styles.billDashedRule} />
+            <View style={styles.billRow}>
+              <Text style={styles.billTotalLabel}>{t("booking.toPayDriver")}</Text>
+              <Text style={styles.billTotalValue}>Rs {fare}</Text>
+            </View>
+            <View style={styles.notice}>
+              <Ionicons name="information-circle-outline" size={16} color={colors.accentText} />
+              <Text style={styles.noticeText}>{t("booking.feeNotice")}</Text>
+            </View>
+          </View>
+
+          {/* What other passengers have said — moved to the bottom,
+              below the actual booking decision (route/seats/price),
+              since it's supporting context for that decision rather
+              than the first thing to lead with. */}
           {driverReviews.length > 0 && (
             <View style={styles.reviewsWrap}>
               <View style={styles.reviewsHeaderRow}>
@@ -194,71 +322,17 @@ export default function BookingConfirmScreen({ route, navigation }: any) {
               ))}
             </View>
           )}
+        </ScrollView>
 
-          <View style={styles.timelineCard}>
-            {ride.routeStops && ride.routeStops.length > 0 ? (
-              // The full step-by-step route (like a train app's stop
-              // list) — only available once a route's been computed for
-              // this ride (see lib/directions.js on the backend).
-              <RouteStopsList stops={ride.routeStops} departAt={ride.travelDate} />
-            ) : (
-              <RouteTimeline
-                departAt={ride.travelDate}
-                arriveAt={ride.estimatedArrivalAt}
-                durationMinutes={ride.estimatedDurationMinutes}
-                sourceAddress={ride.sourceAddress}
-                destAddress={ride.destAddress}
-              />
-            )}
+        {/* Sticky bottom bar — total + CTA stay reachable regardless of
+            scroll position, same convention a checkout screen like this
+            usually uses instead of burying the action at the end of a
+            long scroll. */}
+        <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, spacing.md) }]}>
+          <View>
+            <Text style={styles.footerLabel}>{t("booking.toPayDriver")}</Text>
+            <Text style={styles.footerAmount}>Rs {fare}</Text>
           </View>
-
-          <View style={styles.row}>
-            <View style={styles.labelRow}>
-              <Ionicons name="people-outline" size={15} color={colors.textSecondary} />
-              <Text style={styles.label}>{t("searchOptions.seats")}</Text>
-            </View>
-            {full ? (
-              <Text style={[styles.value, { color: colors.danger }]}>{t("search.full")}</Text>
-            ) : (
-              <View style={styles.stepper}>
-                <Pressable
-                  style={[styles.stepperButton, seats <= 1 && styles.stepperButtonDisabled]}
-                  disabled={seats <= 1}
-                  onPress={() => adjustSeats(-1)}
-                >
-                  <Ionicons name="remove" size={16} color={colors.textPrimary} />
-                </Pressable>
-                <Text style={styles.value}>{seats}</Text>
-                <Pressable
-                  style={[
-                    styles.stepperButton,
-                    seats >= Math.min(ride.seatsAvailable, 8) && styles.stepperButtonDisabled,
-                  ]}
-                  disabled={seats >= Math.min(ride.seatsAvailable, 8)}
-                  onPress={() => adjustSeats(1)}
-                >
-                  <Ionicons name="add" size={16} color={colors.textPrimary} />
-                </Pressable>
-              </View>
-            )}
-          </View>
-          <Text style={styles.availabilityHint}>
-            {full ? t("booking.noSeatsLeft") : t("booking.seatsAvailable", { count: ride.seatsAvailable })}
-          </Text>
-
-          <View style={styles.row}>
-            <View style={styles.labelRow}>
-              <Ionicons name="cash-outline" size={15} color={colors.textSecondary} />
-              <Text style={styles.label}>{t("booking.fare")}</Text>
-            </View>
-            <Text style={styles.value}>Rs {fare}</Text>
-          </View>
-
-          <View style={styles.notice}>
-            <Ionicons name="information-circle-outline" size={16} color={colors.accentText} />
-            <Text style={styles.noticeText}>{t("booking.feeNotice")}</Text>
-          </View>
-
           <Pressable
             style={[styles.button, (submitting || full) && { opacity: 0.6 }]}
             onPress={handleRequestBooking}
@@ -269,7 +343,8 @@ export default function BookingConfirmScreen({ route, navigation }: any) {
               {full ? t("booking.rideIsFull") : submitting ? t("booking.sendingRequest") : t("booking.requestBooking")}
             </Text>
           </Pressable>
-        </ScrollView>
+        </View>
+        </>
       )}
     </SafeAreaView>
   );
@@ -277,29 +352,30 @@ export default function BookingConfirmScreen({ route, navigation }: any) {
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.bg },
-  body: { padding: spacing.lg },
+  body: { padding: spacing.lg, paddingBottom: spacing.xl, gap: spacing.md },
+  heroCard: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: radius.md, padding: spacing.md },
   routeRow: { flexDirection: "row", alignItems: "center", gap: spacing.xs },
   route: { ...typography.title, fontSize: 15 },
-  driverRow: { flexDirection: "row", alignItems: "center", gap: spacing.xs, marginTop: spacing.sm },
-  driverName: { ...typography.caption, color: colors.textSecondary },
-  driverRatingRow: { flexDirection: "row", alignItems: "center", gap: 3, marginLeft: spacing.xs },
-  reviewsWrap: { marginTop: spacing.md },
+  driverRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm, marginTop: spacing.md, paddingTop: spacing.md, borderTopWidth: 1, borderTopColor: colors.border },
+  driverName: { ...typography.caption, color: colors.textSecondary, fontWeight: "700", fontFamily: FONT.bold },
+  driverRatingRow: { flexDirection: "row", alignItems: "center", gap: 3 },
+  badgeRow: { flexDirection: "row", gap: 6, marginTop: 4 },
+  reviewsWrap: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: radius.md, padding: spacing.md },
   reviewsHeaderRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   reviewsTitle: { ...typography.caption, color: colors.textSecondary, fontWeight: "700" },
   reviewsSeeAll: { ...typography.small, color: colors.accentText, fontWeight: "700" },
-  reviewCard: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: radius.sm, padding: spacing.sm, marginTop: spacing.xs },
+  reviewCard: { backgroundColor: colors.bg, borderWidth: 1, borderColor: colors.border, borderRadius: radius.sm, padding: spacing.sm, marginTop: spacing.xs },
   reviewStars: { color: colors.marigold, fontSize: 12 },
   reviewComment: { ...typography.caption, marginTop: 3, color: colors.textPrimary },
   reviewFrom: { ...typography.small, color: colors.textMuted, marginTop: 3 },
-  timelineCard: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: radius.md, padding: spacing.md, marginTop: spacing.md },
+  timelineCard: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: radius.md, padding: spacing.md },
+  sectionCard: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: radius.md, padding: spacing.md },
+  mapLinkButton: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, borderWidth: 1, borderColor: colors.border, height: 38, borderRadius: radius.sm, marginTop: spacing.sm },
+  mapLinkText: { ...typography.caption, color: colors.accentText, fontWeight: "700", fontFamily: FONT.bold },
   row: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    paddingVertical: spacing.sm,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-    marginTop: spacing.md,
   },
   labelRow: { flexDirection: "row", alignItems: "center", gap: 6 },
   label: { ...typography.caption, color: colors.textSecondary },
@@ -316,6 +392,17 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   stepperButtonDisabled: { opacity: 0.4 },
+  // Receipt-style bill card — a dashed rule ahead of the bold total is
+  // the same visual grammar a food-delivery checkout screen uses to
+  // separate "line items" from "what you actually owe."
+  billCard: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: radius.md, padding: spacing.md },
+  billTitle: { ...typography.caption, color: colors.textSecondary, fontWeight: "700", fontFamily: FONT.bold, marginBottom: spacing.sm },
+  billRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingVertical: 3 },
+  billLabel: { ...typography.caption, color: colors.textSecondary },
+  billValue: { ...typography.caption, color: colors.textSecondary, fontVariant: ["tabular-nums"] },
+  billDashedRule: { borderStyle: "dashed", borderBottomWidth: 1, borderBottomColor: colors.border, marginVertical: spacing.sm },
+  billTotalLabel: { ...typography.body, fontWeight: "700", fontFamily: FONT.bold },
+  billTotalValue: { ...typography.title, fontVariant: ["tabular-nums"] },
   notice: {
     flexDirection: "row",
     gap: spacing.sm,
@@ -325,6 +412,13 @@ const styles = StyleSheet.create({
     marginTop: spacing.md,
   },
   noticeText: { ...typography.small, color: colors.accentText, flex: 1 },
+  footer: {
+    flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: spacing.md,
+    backgroundColor: colors.surface, borderTopWidth: 1, borderTopColor: colors.border,
+    paddingHorizontal: spacing.lg, paddingTop: spacing.sm, paddingBottom: spacing.md,
+  },
+  footerLabel: { ...typography.small, color: colors.textMuted },
+  footerAmount: { ...typography.title, fontSize: 18, fontVariant: ["tabular-nums"] },
   button: {
     flexDirection: "row",
     gap: spacing.xs,
@@ -333,7 +427,7 @@ const styles = StyleSheet.create({
     borderRadius: radius.sm,
     alignItems: "center",
     justifyContent: "center",
-    marginTop: spacing.lg,
+    paddingHorizontal: spacing.lg,
   },
   buttonText: { ...typography.title, color: "#FFFFFF" },
 });

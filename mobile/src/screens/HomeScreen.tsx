@@ -96,6 +96,7 @@ function HomeScreenContent({ navigation }: any) {
   // null while unknown (don't flash the banner before the first fetch
   // resolves); [] once confirmed empty is what actually shows it.
   const [emergencyContactCount, setEmergencyContactCount] = useState<number | null>(null);
+  const [licenseStatus, setLicenseStatus] = useState<string | null>(null);
 
   useEffect(() => {
     api.getMyProfile().then(setProfile).catch(() => {});
@@ -186,6 +187,19 @@ function HomeScreenContent({ navigation }: any) {
     useCallback(() => {
       if (profile?.role !== "DRIVER") return;
       api.getDriverPendingRequests().then((list: any[]) => setPendingRequestCount(list.length)).catch(() => {});
+    }, [profile?.role])
+  );
+
+  // Drives the "why get verified" banner below — only fetched for
+  // drivers, and only ever used to decide whether to show it (once
+  // verified, it disappears; VehicleListScreen's own banner + the
+  // badges everywhere else are the ongoing reminder from then on).
+  useFocusEffect(
+    useCallback(() => {
+      if (profile?.role !== "DRIVER") return;
+      api.getVerificationStatus()
+        .then((data: any) => setLicenseStatus(data.driverVerification?.licenseStatus || "UNVERIFIED"))
+        .catch(() => {});
     }, [profile?.role])
   );
 
@@ -343,6 +357,24 @@ function HomeScreenContent({ navigation }: any) {
             </CopilotView>
           </CopilotStep>
           <Text style={styles.driverHint}>{t("home.driverHint")}</Text>
+
+          {/* Advertises the paid Eko verification badge right on Home,
+              not just tucked away in the vehicle list — visible the
+              moment an unverified driver opens the app, gone once
+              they've actually verified (VehicleListScreen's own banner
+              + the badge everywhere else carry it from there). */}
+          {licenseStatus != null && licenseStatus !== "VERIFIED" && (
+            <Pressable style={styles.verifyBanner} onPress={() => navigation.navigate("VerifyDriver")}>
+              <View style={styles.verifyBannerIconWrap}>
+                <Ionicons name="shield-checkmark" size={16} color={colors.accentText} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.verifyBannerTitle}>{t("verification.homeBannerTitle")}</Text>
+                <Text style={styles.verifyBannerBody}>{t("verification.homeBannerBody")}</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={16} color={colors.accentText} />
+            </Pressable>
+          )}
 
           {/* A static preview of the whole flow, not tied to any one
               ride — new drivers land here with zero context for what
@@ -632,6 +664,14 @@ const styles = StyleSheet.create({
   },
   badgeText: { color: "#FFFFFF", fontSize: 10, fontWeight: "700", fontFamily: FONT.bold },
   driverHint: { ...typography.small, color: colors.textMuted, marginTop: spacing.lg, lineHeight: 18 },
+  verifyBanner: {
+    flexDirection: "row", alignItems: "center", gap: spacing.sm,
+    backgroundColor: colors.accentBg, borderRadius: radius.md,
+    marginTop: spacing.md, padding: spacing.md,
+  },
+  verifyBannerIconWrap: { width: 32, height: 32, borderRadius: 16, backgroundColor: colors.surface, alignItems: "center", justifyContent: "center" },
+  verifyBannerTitle: { ...typography.caption, color: colors.accentText, fontWeight: "700", fontFamily: FONT.bold },
+  verifyBannerBody: { ...typography.small, color: colors.textSecondary, marginTop: 1, lineHeight: 15 },
   howItWorksCard: {
     flexDirection: "row",
     backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border,

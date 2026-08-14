@@ -29,6 +29,8 @@ const NUMERIC_KEYS = [
   "strikeBlockThreshold",
   "strikeBlockDays",
   "strikeRollingWindowDays",
+  "licenseVerificationFeeInr",
+  "vehicleRcFeeInr",
 ] as const;
 
 async function saveConfig(formData: FormData) {
@@ -103,6 +105,13 @@ export default async function AppConfigPage() {
         { key: "strikeBlockThreshold", label: "Block at (strikes)", hint: "Rolling-window strike count that triggers a temporary account block" },
         { key: "strikeBlockDays", label: "Block length (days)", hint: "How long the account block lasts — lifts automatically" },
         { key: "strikeRollingWindowDays", label: "Rolling window (days)", hint: "How far back strikes (late cancels, no-shows) are counted for the thresholds above" },
+      ],
+    },
+    {
+      heading: "Verification",
+      fields: [
+        { key: "licenseVerificationFeeInr", label: "License verification fee (Rs)", hint: "One-time charge for a driver's licence check (paid, self-serve Eko verification)" },
+        { key: "vehicleRcFeeInr", label: "Vehicle RC verification fee (Rs)", hint: "Charged per vehicle for its RC check — every vehicle pays this, including the first" },
       ],
     },
     {

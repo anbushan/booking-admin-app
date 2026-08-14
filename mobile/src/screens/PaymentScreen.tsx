@@ -37,6 +37,16 @@ export default function PaymentScreen({ route, navigation }: any) {
     try {
       const order = await (retry ? api.retryPayment(bookingId) : api.chargeBooking(bookingId));
 
+      // Same flow either way — the backend already confirmed the
+      // booking outright (see payments.routes.js) when the platform fee
+      // computes to zero, since Razorpay won't even accept a ₹0 order.
+      // Nothing left to check out; just reflect that it's done.
+      if (order.free) {
+        Analytics.paymentSuccess(bookingId, 0);
+        navigation.replace("History", { role: "PASSENGER" });
+        return;
+      }
+
       const result = await RazorpayCheckout.open({
         key: order.keyId,
         amount: order.amount * 100,
@@ -119,11 +129,11 @@ export default function PaymentScreen({ route, navigation }: any) {
         <View style={styles.summary}>
           <View style={styles.row}>
             <Text style={styles.label}>{description}</Text>
-            <Text style={styles.value}>Rs {amount}</Text>
+            <Text style={[styles.value, amount === 0 && styles.freeValue]}>{amount === 0 ? t("payment.free") : `Rs ${amount}`}</Text>
           </View>
           <View style={[styles.row, { borderBottomWidth: 0 }]}>
             <Text style={styles.totalLabel}>{t("payment.totalDue")}</Text>
-            <Text style={styles.totalValue}>Rs {amount}</Text>
+            <Text style={[styles.totalValue, amount === 0 && styles.freeValue]}>{amount === 0 ? t("payment.free") : `Rs ${amount}`}</Text>
           </View>
         </View>
 
@@ -131,6 +141,8 @@ export default function PaymentScreen({ route, navigation }: any) {
           <Text style={styles.payButtonText}>
             {paying
               ? t("payment.processing")
+              : amount === 0
+              ? t("payment.confirmFree")
               : retry
               ? t("payment.retryPaymentAmount", { amount })
               : t("payment.payAmount", { amount })}
@@ -172,6 +184,7 @@ const styles = StyleSheet.create({
   value: typography.body,
   totalLabel: { ...typography.title, fontSize: 14 },
   totalValue: { ...typography.title, fontSize: 14 },
+  freeValue: { color: colors.success },
   payButton: {
     backgroundColor: colors.textPrimary,
     height: 46,

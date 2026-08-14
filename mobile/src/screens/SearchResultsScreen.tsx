@@ -14,6 +14,7 @@ import SearchOptionsModal, { formatSearchDate } from "../components/SearchOption
 import { RouteTimeline } from "../components/RouteTimeline";
 import { useScreenView } from "../lib/useScreenView";
 import Avatar from "../components/Avatar";
+import { VerifiedBadge } from "../components/VerifiedBadge";
 import { useTranslation } from "../lib/i18n/I18nContext";
 
 type RideResult = {
@@ -34,6 +35,11 @@ type RideResult = {
   travelDate: string;
   sourceAddress: string;
   destAddress: string;
+  sourceLat: number;
+  sourceLng: number;
+  destLat: number;
+  destLng: number;
+  routePolyline?: string | null;
   estimatedArrivalAt: string;
   estimatedDurationMinutes: number;
 };
@@ -172,12 +178,7 @@ export default function SearchResultsScreen({ navigation, route }: any) {
                 <View style={{ flex: 1 }}>
                   <View style={styles.nameRow}>
                     <Text style={styles.driverName}>{item.driver?.name || t("common.driverFallback")}</Text>
-                    {item.driverVerified && (
-                      <View style={styles.verifiedBadge}>
-                        <Ionicons name="checkmark-circle" size={11} color={colors.success} />
-                        <Text style={styles.verifiedBadgeText}>{t("common.verified")}</Text>
-                      </View>
-                    )}
+                    <VerifiedBadge verified={!!item.driverVerified} size="sm" />
                   </View>
                   <Text style={styles.meta}>
                     <Ionicons name="star" size={11} color={colors.marigold} /> {(item.driver?.ratingAvg ?? 0).toFixed(1)}
@@ -213,6 +214,21 @@ export default function SearchResultsScreen({ navigation, route }: any) {
                   sourceAddress={item.sourceAddress}
                   destAddress={item.destAddress}
                 />
+                {/* Nested inside the card's own Pressable — same pattern
+                    MyRequestsScreen already uses for its per-status action
+                    button, so this doesn't also trigger the card's own
+                    navigate-to-BookingConfirm handler. */}
+                <Pressable
+                  style={styles.mapLinkButton}
+                  onPress={() => navigation.navigate("RouteMap", {
+                    sourceLat: item.sourceLat, sourceLng: item.sourceLng, sourceAddress: item.sourceAddress,
+                    destLat: item.destLat, destLng: item.destLng, destAddress: item.destAddress,
+                    routePolyline: item.routePolyline,
+                  })}
+                >
+                  <Ionicons name="map-outline" size={13} color={colors.accentText} />
+                  <Text style={styles.mapLinkText}>{t("routeMap.viewInMap")}</Text>
+                </Pressable>
               </View>
             </Pressable>
           )}
@@ -261,6 +277,8 @@ const styles = StyleSheet.create({
   cardFull: { opacity: 0.55 },
   cardTop: { flexDirection: "row", gap: spacing.sm, alignItems: "flex-start" },
   timelineWrap: { marginTop: spacing.md, paddingTop: spacing.md, borderTopWidth: 1, borderTopColor: colors.border },
+  mapLinkButton: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, borderWidth: 1, borderColor: colors.border, height: 34, borderRadius: radius.sm, marginTop: spacing.sm },
+  mapLinkText: { ...typography.small, color: colors.accentText, fontWeight: "700", fontFamily: FONT.bold },
   nameRow: { flexDirection: "row", alignItems: "center", gap: spacing.xs },
   driverName: { ...typography.title, fontSize: 14 },
   verifiedBadge: { flexDirection: "row", alignItems: "center", gap: 2, backgroundColor: colors.successBg, borderRadius: 4, paddingVertical: 1, paddingHorizontal: 5 },

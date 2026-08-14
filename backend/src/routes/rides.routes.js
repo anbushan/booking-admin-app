@@ -11,6 +11,7 @@ import { getRouteAlternatives, decodePolyline, pointToPolylineDistanceKm, progre
 import { peakOccupancy, recomputeRideSeatsAvailable, proratedFarePerSeat } from "../lib/segments.js";
 import { validate, isLat, isLng, isNonEmptyString, isFutureDate, isPositiveInt, isPositiveNumber } from "../lib/validate.js";
 import { photoViewUrl, photoViewUrlsByUser } from "../lib/photo.js";
+import { verifiedDriverIdsBatch, isVehicleRcVerified } from "../lib/verification.js";
 
 const router = Router();
 
@@ -141,16 +142,15 @@ router.post("/", requireAuth, requireRole("DRIVER"), async (req, res) => {
   // nothing for the passenger to be picked up in. If they own more than
   // one, they have to say which this ride uses (search shows the real
   // vehicle per ride, not a guess); with exactly one, it's auto-picked.
-  // Only APPROVED vehicles count here — a vehicle sits PENDING until an
-  // admin reviews it (see vehicles.routes.js POST /), so a driver who
-  // just added one can't immediately publish with it.
-  const allVehicles = await prisma.vehicle.findMany({ where: { driverId: req.user.id } });
-  if (!allVehicles.length) {
-    return res.status(400).json({ error: "Add a vehicle before publishing a ride." });
-  }
-  const vehicles = allVehicles.filter((v) => v.status === "APPROVED");
+  //
+  // Used to also require the vehicle be admin-APPROVED — verification
+  // is a trust badge now (see lib/verification.js isDriverVerified),
+  // not a publish gate: a driver can always publish, verified or not,
+  // and passengers see which is which on every ride/booking card
+  // instead of unverified drivers being blocked outright.
+  const vehicles = await prisma.vehicle.findMany({ where: { driverId: req.user.id } });
   if (!vehicles.length) {
-    return res.status(400).json({ error: "Your vehicle hasn't been approved yet — you can publish once it's reviewed." });
+    return res.status(400).json({ error: "Add a vehicle before publishing a ride." });
   }
   let vehicle;
   if (vehicles.length === 1) {
@@ -374,22 +374,12 @@ router.get("/search", requireAuth, async (req, res) => {
     return true;
   });
 
-  // Batch the "is this driver verified" check (docs uploaded, all
-  // APPROVED) across every unique driver in the result set instead of
-  // querying per-ride — same definition used in the admin driver page.
+  // Batch the "is this driver verified" check across every unique
+  // driver in the result set instead of querying per-ride — see
+  // lib/verification.js for the definition (paid Eko check OR the
+  // pre-existing admin-manual-review path, either counts).
   const driverIds = [...new Set(inRadius.map((r) => r.driverId))];
-  const docs = await prisma.document.findMany({ where: { userId: { in: driverIds } } });
-  const docsByDriver = new Map();
-  for (const doc of docs) {
-    if (!docsByDriver.has(doc.userId)) docsByDriver.set(doc.userId, []);
-    docsByDriver.get(doc.userId).push(doc);
-  }
-  const verifiedDriverIds = new Set(
-    driverIds.filter((id) => {
-      const list = docsByDriver.get(id) || [];
-      return list.length > 0 && list.every((d) => d.status === "APPROVED");
-    })
-  );
+  const verifiedDriverIds = await verifiedDriverIdsBatch(driverIds);
 
   // Same batch-per-unique-driver approach as verifiedDriverIds above —
   // resolves each driver's signed photo URL once even if they have
@@ -463,11 +453,22 @@ router.get("/:id/details", requireAuth, async (req, res) => {
     }
   }
 
+  // driverVerified stays as the combined "either counts" signal (used
+  // everywhere else — search, my requests, etc.); licenseVerified is
+  // just an alias for it here so BookingConfirmScreen can show it next
+  // to the separate, vehicle-specific rcVerified rather than one merged
+  // badge that can't tell a passenger which part is actually verified.
+  const licenseVerified = (await verifiedDriverIdsBatch([ride.driverId])).has(ride.driverId);
+  const rcVerified = await isVehicleRcVerified(ride.vehicle);
+
   res.json({
     ...ride,
     driver: { ...ride.driver, photoViewUrl: await photoViewUrl(ride.driver.photoR2Key) },
     ...estimateArrival(ride),
     segmentPricePerSeat,
+    driverVerified: licenseVerified,
+    licenseVerified,
+    rcVerified,
   });
 });
 

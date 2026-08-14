@@ -1,0 +1,312 @@
+import { Router } from "express";
+import { prisma } from "../lib/prisma.js";
+import { requireAuth, requireRole } from "../middleware/auth.js";
+import { razorpay } from "../lib/razorpay.js";
+import { getAppConfig } from "../lib/appConfig.js";
+import { verifyRC, verifyLicense, isRcVerified, isLicenseVerified } from "../lib/eko.js";
+import { confirmDriverVerificationPayment, confirmVehicleVerificationPayment } from "../lib/verification.js";
+import { validate, isNonEmptyString, isValidDate, isFutureDate } from "../lib/validate.js";
+import { getIO } from "../lib/socket.js";
+
+const router = Router();
+
+// Loose but real format check — Indian DL numbers vary by state (e.g.
+// "TN0120230012345", "MH12 20110012345") so this isn't a strict pattern
+// match, just alphanumeric-with-separators of a plausible length.
+const DL_NUMBER_PATTERN = /^[A-Za-z0-9][A-Za-z0-9\-/ ]{5,19}$/;
+
+function isValidDob(value) {
+  if (!isNonEmptyString(value, 30) || !isValidDate(value) || isFutureDate(value)) return false;
+  const ageYears = (Date.now() - new Date(value).getTime()) / (365.25 * 24 * 60 * 60 * 1000);
+  return ageYears >= 18 && ageYears <= 100;
+}
+
+// Shapes the fields worth showing a driver for review out of Eko's much
+// larger raw response — same subset regardless of whether it just came
+// back from a live check or (later) a re-display of an already-PENDING
+// row, so the preview UI only needs one shape to render.
+function buildLicensePreview(raw, dlNumber, wouldPass) {
+  const d = raw?.data || {};
+  const details = d.details_of_driving_licence || {};
+  const validity = d.dl_validity || {};
+  const covs = Array.isArray(d.cov_details) ? d.cov_details.map((c) => c.cov).filter(Boolean) : [];
+  return {
+    dlNumber,
+    name: details.name ?? null,
+    status: d.status ?? null,
+    dob: d.dob ?? null,
+    address: details.address ?? null,
+    issueDate: details.issue_date ?? null,
+    nonTransportValidUpto: validity.non_transport_valid_upto ?? null,
+    transportValidUpto: validity.transport_valid_upto ?? null,
+    vehicleClasses: covs,
+    wouldPass,
+  };
+}
+
+function buildRcPreview(raw, regNumber, wouldPass) {
+  const d = raw?.data || {};
+  return {
+    regNumber,
+    owner: d.owner ?? null,
+    status: d.rc_status ?? null,
+    expiryDate: d.rc_expiry_date ?? null,
+    registrationDate: d.registration_date ?? null,
+    vehicleClass: d.vehicle_class ?? null,
+    makerModel: d.maker_model ?? null,
+    fuelType: d.fuel_type ?? null,
+    chassisNumber: d.chassis_number ?? null,
+    engineNumber: d.engine_number ?? null,
+    insuranceUpto: d.vehicle_insurance_upto ?? null,
+    insuranceCompany: d.vehicle_insurance_company_name ?? null,
+    puccUpto: d.pucc_upto ?? null,
+    wouldPass,
+  };
+}
+
+// GET /api/verification/status — everything the app needs to decide
+// what UI to show: has this driver paid/verified their license, and
+// what's the state of each of their vehicles' RC checks. Every vehicle
+// is priced and checked identically now — no free/first-vehicle case.
+router.get("/status", requireAuth, requireRole("DRIVER"), async (req, res) => {
+  const driverVerification = await prisma.driverVerification.findUnique({ where: { driverId: req.user.id } });
+  const vehicles = await prisma.vehicle.findMany({
+    where: { driverId: req.user.id },
+    include: { verification: true },
+    orderBy: { createdAt: "asc" },
+  });
+
+  // Once VERIFIED, the app shouldn't need to re-run a paid Eko check
+  // just to display what was already confirmed — reshape the stored raw
+  // response into the same preview shape the check step returns, so the
+  // "already verified" screen can render it directly.
+  const driverOut = driverVerification && driverVerification.licenseStatus === "VERIFIED"
+    ? { ...driverVerification, confirmedPreview: buildLicensePreview(driverVerification.licenseEkoResponse, driverVerification.licenseEkoResponse?.data?.dl_number ?? null, true) }
+    : driverVerification;
+
+  const vehiclesOut = vehicles.map((v) => {
+    if (v.verification?.rcStatus !== "VERIFIED") return v;
+    return { ...v, verification: { ...v.verification, confirmedPreview: buildRcPreview(v.verification.rcEkoResponse, v.regNumber, true) } };
+  });
+
+  res.json({ driverVerification: driverOut, vehicles: vehiclesOut });
+});
+
+// POST /api/verification/driver/charge — flat, one-time license fee.
+router.post("/driver/charge", requireAuth, requireRole("DRIVER"), async (req, res) => {
+  let dv = await prisma.driverVerification.findUnique({ where: { driverId: req.user.id } });
+  if (dv?.paymentStatus === "PAID") {
+    return res.status(400).json({ error: "You're already verified." });
+  }
+  if (!dv) {
+    dv = await prisma.driverVerification.create({ data: { driverId: req.user.id } });
+  }
+
+  const { licenseVerificationFeeInr } = await getAppConfig();
+  const order = await razorpay.orders.create({
+    amount: Math.round(licenseVerificationFeeInr * 100),
+    currency: "INR",
+    receipt: dv.id,
+    notes: { driverVerificationId: dv.id },
+  });
+  await prisma.driverVerification.update({
+    where: { id: dv.id },
+    data: { paymentStatus: "CHARGE_ATTEMPTED", razorpayOrderId: order.id },
+  });
+
+  res.json({ orderId: order.id, amount: licenseVerificationFeeInr, keyId: process.env.RAZORPAY_KEY_ID });
+});
+
+// POST /api/verification/vehicle/:vehicleId/charge — RC-only, for ANY
+// vehicle, including the first — every vehicle pays its own RC fee now.
+router.post("/vehicle/:vehicleId/charge", requireAuth, requireRole("DRIVER"), async (req, res) => {
+  const vehicle = await prisma.vehicle.findUnique({ where: { id: req.params.vehicleId } });
+  if (!vehicle || vehicle.driverId !== req.user.id) {
+    return res.status(404).json({ error: "Vehicle not found." });
+  }
+
+  let vv = await prisma.vehicleVerification.findUnique({ where: { vehicleId: vehicle.id } });
+  if (vv?.paymentStatus === "PAID") {
+    return res.status(400).json({ error: "This vehicle is already verified." });
+  }
+  if (!vv) {
+    vv = await prisma.vehicleVerification.create({ data: { vehicleId: vehicle.id } });
+  }
+
+  const { vehicleRcFeeInr } = await getAppConfig();
+  const order = await razorpay.orders.create({
+    amount: Math.round(vehicleRcFeeInr * 100),
+    currency: "INR",
+    receipt: vv.id,
+    notes: { vehicleVerificationId: vv.id },
+  });
+  await prisma.vehicleVerification.update({
+    where: { id: vv.id },
+    data: { paymentStatus: "CHARGE_ATTEMPTED", razorpayOrderId: order.id },
+  });
+
+  res.json({ orderId: order.id, amount: vehicleRcFeeInr, keyId: process.env.RAZORPAY_KEY_ID });
+});
+
+// POST /api/verification/driver/mock-confirm-payment,
+// POST /api/verification/vehicle/:vehicleId/mock-confirm-payment —
+// same dev-only stand-in as payments.routes.js's own mock-confirm, same
+// gate (ALLOW_MOCK_PAYMENT_CONFIRM), so the whole pay -> preview -> confirm
+// -> badge flow is testable without a real Razorpay Checkout or webhook.
+router.post("/driver/mock-confirm-payment", requireAuth, requireRole("DRIVER"), async (req, res) => {
+  if (process.env.ALLOW_MOCK_PAYMENT_CONFIRM !== "true") {
+    return res.status(404).json({ error: "Not found." });
+  }
+  // Unlike a booking (which always exists before its payment screen can
+  // even open), a DriverVerification row normally only gets created by
+  // /driver/charge's real Razorpay order call — which this mock path
+  // deliberately skips entirely. Self-create it here so "simulate
+  // payment" works standalone, without requiring a real charge first.
+  let dv = await prisma.driverVerification.findUnique({ where: { driverId: req.user.id } });
+  if (!dv) dv = await prisma.driverVerification.create({ data: { driverId: req.user.id } });
+  const { licenseVerificationFeeInr } = await getAppConfig();
+  await confirmDriverVerificationPayment(dv.id, `mock_${dv.id}`, licenseVerificationFeeInr);
+  // Mirrors the real webhook's own emit (payments.routes.js) — this is
+  // actually the only path testable today without RAZORPAY_WEBHOOK_SECRET
+  // set, so the live-update behavior has to work here too, not just there.
+  getIO()?.to(`user:${req.user.id}`).emit("verification:paymentConfirmed", { kind: "driver" });
+  res.json({ success: true });
+});
+
+router.post("/vehicle/:vehicleId/mock-confirm-payment", requireAuth, requireRole("DRIVER"), async (req, res) => {
+  if (process.env.ALLOW_MOCK_PAYMENT_CONFIRM !== "true") {
+    return res.status(404).json({ error: "Not found." });
+  }
+  const vehicle = await prisma.vehicle.findUnique({ where: { id: req.params.vehicleId } });
+  if (!vehicle || vehicle.driverId !== req.user.id) return res.status(404).json({ error: "Vehicle not found." });
+  let vv = await prisma.vehicleVerification.findUnique({ where: { vehicleId: vehicle.id } });
+  if (!vv) vv = await prisma.vehicleVerification.create({ data: { vehicleId: vehicle.id } });
+  const { vehicleRcFeeInr } = await getAppConfig();
+  await confirmVehicleVerificationPayment(vv.id, `mock_${vv.id}`, vehicleRcFeeInr);
+  getIO()?.to(`user:${req.user.id}`).emit("verification:paymentConfirmed", { kind: "vehicle", vehicleId: vehicle.id });
+  res.json({ success: true });
+});
+
+// POST /api/verification/driver/verify — the "check" step. Calls Eko
+// once, stores the raw response, and leaves licenseStatus at PENDING
+// rather than committing straight to VERIFIED/FAILED — the driver
+// reviews what Eko actually returned (name, status, etc.) before it's
+// treated as their official record. Requires payment already PAID.
+router.post("/driver/verify", requireAuth, requireRole("DRIVER"), async (req, res) => {
+  const { dlNumber, dob } = req.body;
+  const errors = validate(req.body, [
+    { field: "dlNumber", check: (v) => typeof v === "string" && DL_NUMBER_PATTERN.test(v.trim()), message: "Enter a valid driving licence number." },
+    { field: "dob", check: isValidDob, message: "Enter a valid date of birth (YYYY-MM-DD, must be 18 or older)." },
+  ]);
+  if (errors.length) return res.status(400).json({ errors });
+
+  const dv = await prisma.driverVerification.findUnique({ where: { driverId: req.user.id } });
+  if (!dv || dv.paymentStatus !== "PAID") {
+    return res.status(400).json({ error: "Payment required before verification." });
+  }
+  if (dv.licenseStatus === "VERIFIED") {
+    return res.json({ driverVerification: dv, preview: null });
+  }
+
+  const result = await verifyLicense(dlNumber, dob).catch((err) => ({ verified: false, raw: { error: err.message } }));
+  const updatedDv = await prisma.driverVerification.update({
+    where: { id: dv.id },
+    data: { licenseStatus: "PENDING", licenseEkoResponse: result.raw },
+  });
+
+  res.json({
+    driverVerification: updatedDv,
+    preview: buildLicensePreview(result.raw, dlNumber, result.verified),
+  });
+});
+
+// POST /api/verification/driver/verify/confirm — the driver has seen
+// the preview above and is confirming it's them; this just commits the
+// already-fetched Eko response to a final status. No second Eko call —
+// avoids double-charging a paid-per-lookup vendor for one check.
+router.post("/driver/verify/confirm", requireAuth, requireRole("DRIVER"), async (req, res) => {
+  const dv = await prisma.driverVerification.findUnique({ where: { driverId: req.user.id } });
+  if (!dv || dv.licenseStatus !== "PENDING" || !dv.licenseEkoResponse) {
+    return res.status(400).json({ error: "Nothing to confirm — run the check first." });
+  }
+  const updatedDv = await prisma.driverVerification.update({
+    where: { id: dv.id },
+    data: {
+      licenseStatus: isLicenseVerified(dv.licenseEkoResponse) ? "VERIFIED" : "FAILED",
+      licenseVerifiedAt: new Date(),
+    },
+  });
+  res.json({ driverVerification: updatedDv });
+});
+
+// POST /api/verification/driver/reset — an already-VERIFIED (or FAILED)
+// driver explicitly asking to redo their license check starts over from
+// UNPAID, same as if they'd never paid — this is the "edit" affordance
+// for license info once verified: nothing about it can be changed
+// without a fresh paid Eko check, so "edit" really means "pay again."
+router.post("/driver/reset", requireAuth, requireRole("DRIVER"), async (req, res) => {
+  const dv = await prisma.driverVerification.findUnique({ where: { driverId: req.user.id } });
+  if (!dv || dv.licenseStatus === "UNVERIFIED") {
+    return res.status(400).json({ error: "Nothing to reset." });
+  }
+  const updatedDv = await prisma.driverVerification.update({
+    where: { id: dv.id },
+    data: {
+      paymentStatus: "UNPAID", razorpayOrderId: null, razorpayPaymentId: null, amountPaidInr: null, paidAt: null,
+      licenseStatus: "UNVERIFIED", licenseEkoResponse: null, licenseVerifiedAt: null,
+    },
+  });
+  res.json({ driverVerification: updatedDv });
+});
+
+// POST /api/verification/vehicle/:vehicleId/verify — RC "check" step,
+// same preview-then-confirm shape as the license flow above. Requires
+// this vehicle's own RC payment to be PAID — every vehicle, including
+// the first, pays and checks independently now.
+router.post("/vehicle/:vehicleId/verify", requireAuth, requireRole("DRIVER"), async (req, res) => {
+  const vehicle = await prisma.vehicle.findUnique({ where: { id: req.params.vehicleId } });
+  if (!vehicle || vehicle.driverId !== req.user.id) {
+    return res.status(404).json({ error: "Vehicle not found." });
+  }
+  const vv = await prisma.vehicleVerification.findUnique({ where: { vehicleId: vehicle.id } });
+  if (!vv || !["PAID", "WAIVED"].includes(vv.paymentStatus)) {
+    return res.status(400).json({ error: "Payment required before verification." });
+  }
+  if (vv.rcStatus === "VERIFIED") {
+    return res.json({ vehicleVerification: vv, preview: null });
+  }
+
+  const result = await verifyRC(vehicle.regNumber).catch((err) => ({ verified: false, raw: { error: err.message } }));
+  const updated = await prisma.vehicleVerification.update({
+    where: { id: vv.id },
+    data: { rcStatus: "PENDING", rcEkoResponse: result.raw },
+  });
+
+  res.json({
+    vehicleVerification: updated,
+    preview: buildRcPreview(result.raw, vehicle.regNumber, result.verified),
+  });
+});
+
+// POST /api/verification/vehicle/:vehicleId/verify/confirm — commits
+// the already-fetched RC response, no second Eko call.
+router.post("/vehicle/:vehicleId/verify/confirm", requireAuth, requireRole("DRIVER"), async (req, res) => {
+  const vehicle = await prisma.vehicle.findUnique({ where: { id: req.params.vehicleId } });
+  if (!vehicle || vehicle.driverId !== req.user.id) {
+    return res.status(404).json({ error: "Vehicle not found." });
+  }
+  const vv = await prisma.vehicleVerification.findUnique({ where: { vehicleId: vehicle.id } });
+  if (!vv || vv.rcStatus !== "PENDING" || !vv.rcEkoResponse) {
+    return res.status(400).json({ error: "Nothing to confirm — run the check first." });
+  }
+  const updated = await prisma.vehicleVerification.update({
+    where: { id: vv.id },
+    data: {
+      rcStatus: isRcVerified(vv.rcEkoResponse) ? "VERIFIED" : "FAILED",
+      rcVerifiedAt: new Date(),
+    },
+  });
+  res.json({ vehicleVerification: updated });
+});
+
+export default router;

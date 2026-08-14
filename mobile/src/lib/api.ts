@@ -88,7 +88,7 @@ export const api = {
 
   addVehicle: (payload: {
     make: string; model: string; regNumber: string; color?: string; seatCapacity?: number;
-    photoR2Key?: string; rcR2Key: string; dlR2Key?: string;
+    photoR2Key?: string; rcR2Key?: string; dlR2Key?: string;
   }) =>
     request("/api/vehicles", { method: "POST", body: JSON.stringify(payload) }),
 
@@ -98,6 +98,37 @@ export const api = {
 
   getVehicleViewUrls: (vehicleId: string) =>
     request(`/api/vehicles/${vehicleId}/view-urls`),
+
+  // Paid, self-serve, third-party (Eko) verification — see
+  // backend/src/routes/verification.routes.js. License (driver-level,
+  // one-time) and RC (per-vehicle, every vehicle pays its own) are
+  // separate charge/verify pairs. "verify" is a check-only preview —
+  // Eko's response is fetched and shown, then "confirm" commits it as
+  // the final record without calling Eko again.
+  getVerificationStatus: () => request("/api/verification/status"),
+
+  chargeDriverVerification: () =>
+    request("/api/verification/driver/charge", { method: "POST" }),
+  mockConfirmDriverVerificationPayment: () =>
+    request("/api/verification/driver/mock-confirm-payment", { method: "POST" }),
+  verifyDriverLicense: (dlNumber: string, dob: string) =>
+    request("/api/verification/driver/verify", { method: "POST", body: JSON.stringify({ dlNumber, dob }) }),
+  confirmDriverLicense: () =>
+    request("/api/verification/driver/verify/confirm", { method: "POST" }),
+  // "Edit" a verified license really means "start over" — nothing about
+  // an already-confirmed Eko record can change without a fresh paid
+  // check, so this resets back to UNPAID rather than allowing an edit.
+  resetDriverVerification: () =>
+    request("/api/verification/driver/reset", { method: "POST" }),
+
+  chargeVehicleVerification: (vehicleId: string) =>
+    request(`/api/verification/vehicle/${vehicleId}/charge`, { method: "POST" }),
+  mockConfirmVehicleVerificationPayment: (vehicleId: string) =>
+    request(`/api/verification/vehicle/${vehicleId}/mock-confirm-payment`, { method: "POST" }),
+  verifyVehicleRC: (vehicleId: string) =>
+    request(`/api/verification/vehicle/${vehicleId}/verify`, { method: "POST" }),
+  confirmVehicleRC: (vehicleId: string) =>
+    request(`/api/verification/vehicle/${vehicleId}/verify/confirm`, { method: "POST" }),
 
   getProfilePhotoUploadUrl: () =>
     request("/api/users/me/photo-upload-url", { method: "POST" }),

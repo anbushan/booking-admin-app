@@ -82,4 +82,6 @@ export const Analytics = {
   languageChanged: (locale: string) => logEvent("language_changed", { locale }),
   roleSwitched: (role: string) => logEvent("role_switched", { role }),
   appShared: () => logEvent("app_shared"),
+  driverVerificationPaid: () => logEvent("driver_verification_paid"),
+  driverVerificationChecked: () => logEvent("driver_verification_checked"),
 };

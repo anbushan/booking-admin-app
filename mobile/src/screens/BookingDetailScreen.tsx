@@ -7,6 +7,7 @@ import { colors, spacing, radius, typography, FONT } from "../theme/theme";
 import { api } from "../lib/api";
 import { CarLoader } from "../components/CarLoader";
 import { StatusBadge } from "../components/StatusBadge";
+import { VerifiedBadge } from "../components/VerifiedBadge";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { BackHeader } from "../components/BackHeader";
 import { useScreenView } from "../lib/useScreenView";
@@ -72,6 +73,7 @@ export default function BookingDetailScreen({ route, navigation }: any) {
             <Text style={styles.label}>{t("register.driver")}</Text>
             <View style={styles.valueRow}>
               <Text style={styles.value}>{booking.ride.driver.name || booking.ride.driver.phone}</Text>
+              <VerifiedBadge verified={!!booking.ride.driverVerified} size="sm" />
               {!!booking.ride.driver.id && <Ionicons name="chevron-forward" size={14} color={colors.textMuted} />}
             </View>
           </Pressable>

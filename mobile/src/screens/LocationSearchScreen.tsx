@@ -1,8 +1,12 @@
 import React, { useState } from "react";
-import { View, TextInput, FlatList, Text, StyleSheet, ActivityIndicator } from "react-native";
+import { View, TextInput, FlatList, Text, StyleSheet, ActivityIndicator, Platform } from "react-native";
 import { Pressable } from "../components/Pressable";
 import { useFocusEffect } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
+import {
+  ExpoSpeechRecognitionModule,
+  useSpeechRecognitionEvent,
+} from "expo-speech-recognition";
 import { colors, spacing, radius, typography, FONT } from "../theme/theme";
 import { api } from "../lib/api";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -39,6 +43,7 @@ export default function LocationSearchScreen({ navigation, route }: any) {
   const [locating, setLocating] = useState(false);
   const [recent, setRecent] = useState<RecentLocation[]>([]);
   const [popular, setPopular] = useState<PopularLocation[]>([]);
+  const [listening, setListening] = useState(false);
   const { showError } = useToast();
 
   // Recent searches are re-read on every focus (a pick made elsewhere
@@ -101,6 +106,45 @@ export default function LocationSearchScreen({ navigation, route }: any) {
     finishSelection(loc);
   }
 
+  // Mic icon lives inside the search field itself (same spot Google
+  // Maps puts it), not a separate button elsewhere — tap to start,
+  // speak an address, and the transcript drives the exact same
+  // autocomplete path a typed query would (handleChangeText), so
+  // there's nothing different downstream to keep in sync.
+  useSpeechRecognitionEvent("start", () => setListening(true));
+  useSpeechRecognitionEvent("end", () => setListening(false));
+  useSpeechRecognitionEvent("result", (event) => {
+    const transcript = event.results[0]?.transcript;
+    if (transcript) handleChangeText(transcript);
+  });
+  useSpeechRecognitionEvent("error", (event) => {
+    setListening(false);
+    // "no-speech"/"aborted" are just "nothing was said" or "tapped stop"
+    // — not worth an error toast, same as RazorpayCheckout's own
+    // cancel-isn't-a-failure distinction elsewhere in this app.
+    if (event.error === "no-speech" || event.error === "aborted") return;
+    if (event.error === "not-allowed") {
+      showError(t("locationSearch.micPermissionDenied"));
+      return;
+    }
+    showError(t("locationSearch.voiceSearchFailed"));
+  });
+
+  async function handleVoiceSearch() {
+    if (listening) {
+      ExpoSpeechRecognitionModule.stop();
+      return;
+    }
+    const result = await ExpoSpeechRecognitionModule.requestPermissionsAsync();
+    if (!result.granted) {
+      showError(t("locationSearch.micPermissionDenied"));
+      return;
+    }
+    setQuery("");
+    setSuggestions([]);
+    ExpoSpeechRecognitionModule.start({ lang: "en-IN", interimResults: true, continuous: false });
+  }
+
   async function handleUseCurrentLocation() {
     if (locating) return;
     setLocating(true);
@@ -123,16 +167,26 @@ export default function LocationSearchScreen({ navigation, route }: any) {
     <SafeAreaView style={styles.screen} edges={["top", "bottom"]}>
       <KeyboardAvoider>
       <View style={styles.header}>
+        <Pressable style={styles.backButton} onPress={() => navigation.goBack()} hitSlop={8}>
+          <Ionicons name="arrow-back" size={20} color={colors.textPrimary} />
+        </Pressable>
         <View style={styles.inputWrap}>
           <Ionicons name="search-outline" size={16} color={colors.textMuted} />
           <TextInput
             style={styles.input}
-            placeholder={t("locationSearch.searchPlaceholder")}
+            placeholder={listening ? t("locationSearch.listening") : t("locationSearch.searchPlaceholder")}
             placeholderTextColor={colors.textMuted}
             value={query}
             onChangeText={handleChangeText}
             autoFocus
           />
+          <Pressable onPress={handleVoiceSearch} hitSlop={8}>
+            <Ionicons
+              name={listening ? "mic" : "mic-outline"}
+              size={18}
+              color={listening ? colors.danger : colors.textMuted}
+            />
+          </Pressable>
         </View>
       </View>
 
@@ -212,6 +266,7 @@ const styles = StyleSheet.create({
     borderBottomColor: colors.border,
     backgroundColor: colors.surface,
   },
+  backButton: { width: 28, height: 28, alignItems: "center", justifyContent: "center" },
   inputWrap: {
     flex: 1, flexDirection: "row", alignItems: "center", gap: spacing.sm,
     backgroundColor: colors.bg, borderRadius: radius.sm, paddingHorizontal: spacing.sm, height: 40,

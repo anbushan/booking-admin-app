@@ -6,6 +6,8 @@ import { notify } from "../lib/notify.js";
 import { razorpay } from "../lib/razorpay.js";
 import { getAppConfig } from "../lib/appConfig.js";
 import { isPositiveNumber } from "../lib/validate.js";
+import { confirmDriverVerificationPayment, confirmVehicleVerificationPayment } from "../lib/verification.js";
+import { getIO } from "../lib/socket.js";
 
 const router = Router();
 
@@ -36,6 +38,15 @@ async function confirmPlatformFeePayment(booking, paymentId) {
     "Your platform fee payment went through — your seat is locked in.", booking.id);
   await notify(booking.ride.driverId, "BOOKING_CONFIRMED", "Booking confirmed",
     "The passenger paid the platform fee — booking is locked in.", booking.id);
+
+  // Previously the passenger only found out via the push notification
+  // above (easy to miss/delayed) or by happening to still be sitting on
+  // PaymentScreen's own bounded poll (times out after ~20s) — nothing
+  // told them the instant it actually cleared if they'd already
+  // navigated elsewhere. Same live-event pattern trips.routes.js
+  // already uses for "trip:started" — reaches the passenger wherever
+  // they currently are in the app, not just this one screen.
+  getIO()?.to(`user:${booking.passengerId}`).emit("payment:confirmed", { bookingId: booking.id });
 }
 
 // POST /api/payments/:bookingId/charge — called by the passenger right
@@ -56,6 +67,18 @@ router.post("/:bookingId/charge", requireAuth, async (req, res) => {
   }
 
   const amount = Number(booking.platformFeeAmount);
+
+  // Razorpay rejects an order below ₹1 (100 paise) outright — an admin
+  // dropping platformFeePercent to 0, or a fare small enough that the
+  // computed fee rounds to nothing, would otherwise leave the passenger
+  // stuck on a "Pay" button that 500s the moment it's tapped, with no
+  // way to ever confirm the booking. Same flow either way (still goes
+  // through this same charge call from the same screen) — just skips
+  // straight to confirmed instead of opening a Razorpay order for ₹0.
+  if (amount <= 0) {
+    await confirmPlatformFeePayment(booking, `free_${booking.id}`);
+    return res.json({ free: true, amount: 0, status: "CONFIRMED" });
+  }
 
   const order = await razorpay.orders.create({
     amount: Math.round(amount * 100), // paise
@@ -109,6 +132,13 @@ router.post("/:bookingId/mock-confirm", requireAuth, async (req, res) => {
 
 // POST /api/payments/webhook/razorpay — MUST be idempotent, since Razorpay
 // can redeliver webhooks. We check current status before crediting again.
+//
+// One webhook covers three unrelated payment kinds now, told apart by
+// which `notes` key the order was created with: a booking's platform
+// fee (notes.bookingId, the original/only kind until now), a driver's
+// verification fee (notes.driverVerificationId), or an additional
+// vehicle's RC-only fee (notes.vehicleVerificationId) — see
+// verification.routes.js's charge endpoints for where each is set.
 router.post("/webhook/razorpay", async (req, res) => {
   const signature = req.headers["x-razorpay-signature"];
   const expected = crypto
@@ -121,23 +151,56 @@ router.post("/webhook/razorpay", async (req, res) => {
   }
 
   const { event, payload } = req.body;
-  const bookingId = payload?.payment?.entity?.notes?.bookingId;
-  if (!bookingId) return res.status(400).json({ error: "Missing booking reference." });
+  const notes = payload?.payment?.entity?.notes || {};
+  const paymentId = payload?.payment?.entity?.id;
+  const amountInr = payload?.payment?.entity?.amount != null ? payload.payment.entity.amount / 100 : null;
 
-  const booking = await prisma.booking.findUnique({ where: { id: bookingId }, include: { ride: true } });
-  if (!booking) return res.status(404).json({ error: "Booking not found." });
+  if (notes.bookingId) {
+    const bookingId = notes.bookingId;
+    const booking = await prisma.booking.findUnique({ where: { id: bookingId }, include: { ride: true } });
+    if (!booking) return res.status(404).json({ error: "Booking not found." });
 
-  // Idempotency guard — a redelivered webhook must not double-process.
-  if (booking.platformFeePaidAt) {
-    return res.json({ success: true, alreadyProcessed: true });
-  }
+    // Idempotency guard — a redelivered webhook must not double-process.
+    if (booking.platformFeePaidAt) {
+      return res.json({ success: true, alreadyProcessed: true });
+    }
 
-  if (event === "payment.captured") {
-    await confirmPlatformFeePayment(booking, payload.payment.entity.id);
-  } else if (event === "payment.failed") {
-    await prisma.booking.update({ where: { id: bookingId }, data: { status: "PAYMENT_PENDING" } });
-    await notify(booking.passengerId, "PAYMENT_FAILED", "Payment failed",
-      "We couldn't process your payment. Please retry from your booking.", booking.id);
+    if (event === "payment.captured") {
+      await confirmPlatformFeePayment(booking, paymentId);
+    } else if (event === "payment.failed") {
+      await prisma.booking.update({ where: { id: bookingId }, data: { status: "PAYMENT_PENDING" } });
+      await notify(booking.passengerId, "PAYMENT_FAILED", "Payment failed",
+        "We couldn't process your payment. Please retry from your booking.", booking.id);
+    }
+  } else if (notes.driverVerificationId) {
+    const dv = await prisma.driverVerification.findUnique({ where: { id: notes.driverVerificationId } });
+    if (!dv) return res.status(404).json({ error: "Driver verification not found." });
+    if (dv.paymentStatus === "PAID") return res.json({ success: true, alreadyProcessed: true });
+
+    if (event === "payment.captured") {
+      await confirmDriverVerificationPayment(dv.id, paymentId, amountInr);
+      // Same live-push pattern as a booking's platform fee above — a
+      // real Razorpay payment otherwise only shows up the next time
+      // VerifyDriverScreen happens to refetch (on refocus), which for a
+      // driver sitting right there waiting is the same "did it even go
+      // through?" gap the booking-fee push was already built to close.
+      getIO()?.to(`user:${dv.driverId}`).emit("verification:paymentConfirmed", { kind: "driver" });
+    }
+    // payment.failed here just leaves paymentStatus at CHARGE_ATTEMPTED —
+    // the driver can retry from the same screen, same as a booking's
+    // PAYMENT_PENDING retry path but without a separate status name
+    // needed (there's no "seat" waiting to be released on a failure here).
+  } else if (notes.vehicleVerificationId) {
+    const vv = await prisma.vehicleVerification.findUnique({ where: { id: notes.vehicleVerificationId }, include: { vehicle: true } });
+    if (!vv) return res.status(404).json({ error: "Vehicle verification not found." });
+    if (vv.paymentStatus === "PAID") return res.json({ success: true, alreadyProcessed: true });
+
+    if (event === "payment.captured") {
+      await confirmVehicleVerificationPayment(vv.id, paymentId, amountInr);
+      getIO()?.to(`user:${vv.vehicle.driverId}`).emit("verification:paymentConfirmed", { kind: "vehicle", vehicleId: vv.vehicleId });
+    }
+  } else {
+    return res.status(400).json({ error: "Missing payment reference." });
   }
 
   res.json({ success: true });
@@ -243,6 +306,16 @@ router.post("/:bookingId/retry", requireAuth, async (req, res) => {
   }
 
   const amount = Number(booking.platformFeeAmount);
+
+  // Same free-fee guard as /charge above — a retry can only exist because
+  // an earlier attempt actually failed, but if the fee's since been
+  // dropped to free (or was always going to round to 0) there's nothing
+  // left to retry against a payment gateway that won't accept it.
+  if (amount <= 0) {
+    await confirmPlatformFeePayment(booking, `free_${booking.id}`);
+    return res.json({ free: true, amount: 0, status: "CONFIRMED" });
+  }
+
   await prisma.booking.update({ where: { id: booking.id }, data: { status: "CHARGE_ATTEMPTED" } });
 
   const order = await razorpay.orders.create({

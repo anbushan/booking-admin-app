@@ -11,6 +11,7 @@ import { BackHeader } from "../components/BackHeader";
 import { dialProxyNumber } from "../lib/callHelper";
 import { useScreenView } from "../lib/useScreenView";
 import Avatar from "../components/Avatar";
+import { VerifiedBadge } from "../components/VerifiedBadge";
 import { useTranslation } from "../lib/i18n/I18nContext";
 
 const OTP_LENGTH = 4;
@@ -23,6 +24,8 @@ export default function TripOtpScreen({ route, navigation }: any) {
   const [driverName, setDriverName] = useState(t("tripOtp.driverFallback"));
   const [driverPhoto, setDriverPhoto] = useState<string | null>(null);
   const [driverRating, setDriverRating] = useState<number | null>(null);
+  const [driverVerified, setDriverVerified] = useState(false);
+  const [vehicle, setVehicle] = useState<{ regNumber: string; make: string; model: string; color: string | null } | null>(null);
   const [routeLabel, setRouteLabel] = useState<string | null>(null);
   const [calling, setCalling] = useState(false);
   const navigatedAway = useRef(false);
@@ -39,6 +42,8 @@ export default function TripOtpScreen({ route, navigation }: any) {
         if (booking.ride?.driver?.name) setDriverName(booking.ride.driver.name);
         if (booking.ride?.driver?.photoViewUrl) setDriverPhoto(booking.ride.driver.photoViewUrl);
         if (booking.ride?.driver?.ratingAvg != null) setDriverRating(booking.ride.driver.ratingAvg);
+        setDriverVerified(!!booking.ride?.driverVerified);
+        if (booking.ride?.vehicle) setVehicle(booking.ride.vehicle);
         if (booking.ride) setRouteLabel(t("common.routeTo", { source: booking.ride.sourceAddress, dest: booking.ride.destAddress }));
       })
       .catch(() => {});
@@ -96,6 +101,22 @@ export default function TripOtpScreen({ route, navigation }: any) {
           </View>
         </View>
 
+        {/* The actual thing a passenger checks before getting in — the
+            OTP alone doesn't help them tell this car apart from any
+            other one idling nearby. Styled like a real plate (letter
+            spacing, bordered) so it reads instantly, not just as
+            another line of text. */}
+        {vehicle && (
+          <View style={styles.plateCard}>
+            <Ionicons name="car-sport" size={15} color={colors.textSecondary} />
+            <View>
+              <Text style={styles.plateNumber}>{vehicle.regNumber}</Text>
+              <Text style={styles.plateModel}>
+                {vehicle.color ? `${vehicle.color} ` : ""}{vehicle.make} {vehicle.model}
+              </Text>
+            </View>
+          </View>
+        )}
         <View style={styles.infoRow}>
           <Ionicons name="shield-checkmark-outline" size={15} color={colors.textMuted} />
           <Text style={styles.hint}>{t("tripOtp.confirmsRide")}</Text>
@@ -115,7 +136,10 @@ export default function TripOtpScreen({ route, navigation }: any) {
       <View style={styles.driverBar}>
         <Avatar uri={driverPhoto} name={driverName} size={44} />
         <View style={{ flex: 1 }}>
-          <Text style={styles.driverName}>{driverName}</Text>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+            <Text style={styles.driverName}>{driverName}</Text>
+            <VerifiedBadge verified={driverVerified} size="sm" />
+          </View>
           {driverRating != null && (
             <View style={styles.ratingRow}>
               <Ionicons name="star" size={11} color={colors.warning} />
@@ -175,6 +199,14 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   otpDigit: { fontSize: 28, fontWeight: "700", fontFamily: FONT.bold, color: colors.accentText },
+  plateCard: {
+    flexDirection: "row", alignItems: "center", gap: spacing.sm,
+    backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border,
+    borderRadius: radius.sm, paddingVertical: spacing.sm, paddingHorizontal: spacing.md,
+    marginTop: spacing.lg,
+  },
+  plateNumber: { fontSize: 16, fontWeight: "700", fontFamily: FONT.bold, color: colors.textPrimary, letterSpacing: 1.5 },
+  plateModel: { ...typography.small, color: colors.textMuted, marginTop: 1 },
   infoRow: { flexDirection: "row", alignItems: "flex-start", gap: 6, marginTop: spacing.md, maxWidth: 300 },
   hint: { ...typography.small, color: colors.textMuted, flex: 1 },
   altHint: { ...typography.small, color: colors.textMuted, flex: 1 },

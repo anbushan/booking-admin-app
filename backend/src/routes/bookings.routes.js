@@ -12,6 +12,7 @@ import { decodePolyline, progressAlongRouteKm, MATCH_RADIUS_KM } from "../lib/di
 import { availableSeatsForInterval, recomputeRideSeatsAvailable, releaseSeatHold, proratedFarePerSeat } from "../lib/segments.js";
 import { validate, isNonEmptyString, isLat, isLng, isPositiveInt } from "../lib/validate.js";
 import { photoViewUrl, photoViewUrlsByUser } from "../lib/photo.js";
+import { verifiedDriverIdsBatch, isVehicleRcVerified } from "../lib/verification.js";
 
 const router = Router();
 
@@ -383,6 +384,7 @@ router.get("/my", requireAuth, requireRole("PASSENGER"), async (req, res) => {
     orderBy: { createdAt: "desc" },
   });
   const withPhotos = await attachUnreadCounts(await attachDriverPhotos(bookings), req.user.id, "passengerLastReadAt");
+  const verifiedDriverIds = await verifiedDriverIdsBatch(withPhotos.map((b) => b.ride.driverId));
   // What this passenger actually owes per seat for their own matched
   // segment — the "total fare" shown before a driver has even accepted
   // (and so before platformFeeAmount exists yet) previously showed the
@@ -390,7 +392,11 @@ router.get("/my", requireAuth, requireRole("PASSENGER"), async (req, res) => {
   // actually covers (HistoryScreen.tsx). Falls back to the full ride
   // price server-side for a legacy/no-route ride, same as everywhere
   // else this is computed.
-  res.json(withPhotos.map((b) => ({ ...b, segmentPricePerSeat: proratedFarePerSeat(b.ride, b.pickupProgressKm, b.dropProgressKm) })));
+  res.json(withPhotos.map((b) => ({
+    ...b,
+    segmentPricePerSeat: proratedFarePerSeat(b.ride, b.pickupProgressKm, b.dropProgressKm),
+    ride: { ...b.ride, driverVerified: verifiedDriverIds.has(b.ride.driverId) },
+  })));
 });
 
 // GET /api/bookings/driver-pending — every pending (BOOKED, awaiting
@@ -467,7 +473,7 @@ router.get("/:id", requireAuth, async (req, res) => {
   const booking = await prisma.booking.findUnique({
     where: { id: req.params.id },
     include: {
-      ride: { include: { driver: { select: { id: true, name: true, phone: true, ratingAvg: true, photoR2Key: true } } } },
+      ride: { include: { driver: { select: { id: true, name: true, phone: true, ratingAvg: true, photoR2Key: true } }, vehicle: true } },
       passenger: { select: { id: true, name: true, phone: true, ratingAvg: true, photoR2Key: true } },
       refund: true,
     },
@@ -491,9 +497,18 @@ router.get("/:id", requireAuth, async (req, res) => {
     include: { fromUser: { select: { name: true } } },
   });
 
+  const licenseVerified = (await verifiedDriverIdsBatch([booking.ride.driverId])).has(booking.ride.driverId);
+  const rcVerified = await isVehicleRcVerified(booking.ride.vehicle);
+
   res.json({
     ...booking,
-    ride: { ...booking.ride, driver: { ...booking.ride.driver, photoViewUrl: await photoViewUrl(booking.ride.driver.photoR2Key) } },
+    ride: {
+      ...booking.ride,
+      driver: { ...booking.ride.driver, photoViewUrl: await photoViewUrl(booking.ride.driver.photoR2Key) },
+      driverVerified: licenseVerified,
+      licenseVerified,
+      rcVerified,
+    },
     passenger: { ...booking.passenger, photoViewUrl: await photoViewUrl(booking.passenger.photoR2Key) },
     // What this specific booking's passenger owes per seat for their own
     // matched segment — see rides.routes.js GET /:id/details for the

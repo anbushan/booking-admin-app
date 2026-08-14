@@ -44,20 +44,25 @@ router.post("/", requireAuth, requireRole("DRIVER"), async (req, res) => {
     { field: "regNumber", check: (v) => typeof v === "string" && REG_NUMBER_PATTERN.test(v.toUpperCase()), message: "Enter a valid registration number." },
     { field: "color", check: (v) => isNonEmptyString(v, 30), message: "Invalid color.", optional: true },
     { field: "seatCapacity", check: (v) => isPositiveInt(v) && v <= 10, message: "Seats must be between 1 and 10.", optional: true },
-    // RC required, DL and a car photo are not — matches the mobile
-    // form's own required/optional labeling.
-    { field: "rcR2Key", check: (v) => isNonEmptyString(v, 300), message: "Upload your vehicle's RC book before saving." },
+    // Used to require rcR2Key here — a vehicle can no longer publish
+    // rides without one being admin-approved (see rides.routes.js POST
+    // /), so forcing a document upload before the row even exists
+    // stopped making sense. Uploading RC/DL/photo for the old manual-
+    // review path is still fully optional and supported; the new paid
+    // Eko flow (lib/verification.js) doesn't need any of these at all.
+    { field: "rcR2Key", check: (v) => isNonEmptyString(v, 300), message: "Invalid RC upload.", optional: true },
   ]);
   if (errors.length) return res.status(400).json({ errors });
 
   const vehicle = await prisma.vehicle.create({
     data: {
       driverId: req.user.id, make, model, regNumber: regNumber.toUpperCase(), color, seatCapacity,
-      photoR2Key, rcR2Key,
+      ...(photoR2Key ? { photoR2Key } : {}),
+      ...(rcR2Key ? { rcR2Key } : {}),
       ...(dlR2Key ? { dlR2Key } : {}),
-      // status defaults to PENDING — can't be used to publish a ride
-      // (see rides.routes.js's create-ride check) until an admin
-      // reviews and approves it from the vehicle verification queue.
+      // status defaults to PENDING — no longer gates ride publishing
+      // (see rides.routes.js POST /), just still feeds the old manual
+      // admin-review path as one way to earn the verified badge.
     },
   });
   res.status(201).json(vehicle);
@@ -113,6 +118,26 @@ router.put("/:id", requireAuth, requireRole("DRIVER"), async (req, res) => {
   // rejectionReason cleared since it no longer describes what's here now.
   const resubmitting = photoR2Key !== undefined || rcR2Key !== undefined || dlR2Key !== undefined;
 
+  // A paid RC verification is tied to the exact reg number Eko checked —
+  // changing it invalidates that check entirely, so the driver has to
+  // pay and verify again for whatever's there now. Otherwise the
+  // verified badge would keep showing for a vehicle whose RC was never
+  // actually looked up. Only reset when the number is genuinely
+  // different (re-saving the same value shouldn't cost anyone anything).
+  const regNumberChanged = regNumber !== undefined && regNumber.toUpperCase() !== vehicle.regNumber;
+  if (regNumberChanged) {
+    const vv = await prisma.vehicleVerification.findUnique({ where: { vehicleId: vehicle.id } });
+    if (vv && vv.paymentStatus !== "UNPAID") {
+      await prisma.vehicleVerification.update({
+        where: { id: vv.id },
+        data: {
+          paymentStatus: "UNPAID", razorpayOrderId: null, razorpayPaymentId: null, amountPaidInr: null, paidAt: null,
+          rcStatus: "UNVERIFIED", rcEkoResponse: null, rcVerifiedAt: null,
+        },
+      });
+    }
+  }
+
   // Whitelisted fields only — never spread req.body directly into
   // Prisma's update data, since that would let a caller set arbitrary
   // columns (mass-assignment).
@@ -130,7 +155,7 @@ router.put("/:id", requireAuth, requireRole("DRIVER"), async (req, res) => {
       ...(resubmitting && { status: "PENDING", rejectionReason: null, reviewedAt: null, reviewedBy: null }),
     },
   });
-  res.json(updated);
+  res.json({ ...updated, rcVerificationReset: regNumberChanged });
 });
 
 router.delete("/:id", requireAuth, requireRole("DRIVER"), async (req, res) => {
@@ -150,6 +175,12 @@ router.delete("/:id", requireAuth, requireRole("DRIVER"), async (req, res) => {
     return res.status(400).json({ error: "Can't delete a vehicle that's assigned to an active ride." });
   }
 
+  // VehicleVerification has no ON DELETE CASCADE (a paid record is worth
+  // keeping intentionally-restrictive) — deleting the vehicle first would
+  // just throw an FK violation. Removing this row is exactly the "you'll
+  // need to pay again" outcome anyway: re-adding the same reg number
+  // later creates a fresh, unverified vehicle from scratch.
+  await prisma.vehicleVerification.deleteMany({ where: { vehicleId: req.params.id } });
   await prisma.vehicle.delete({ where: { id: req.params.id } });
   res.json({ success: true });
 });

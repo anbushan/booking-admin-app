@@ -15,6 +15,7 @@ import { dialProxyNumber } from "../lib/callHelper";
 import { useScreenView } from "../lib/useScreenView";
 import { CarLoader } from "../components/CarLoader";
 import Avatar from "../components/Avatar";
+import { VerifiedBadge } from "../components/VerifiedBadge";
 import { useTranslation } from "../lib/i18n/I18nContext";
 
 const STALE_THRESHOLD_MS = 90 * 1000;
@@ -82,6 +83,7 @@ export default function LiveTrackingScreen({ route, navigation }: any) {
   const [position, setPosition] = useState<{ lat: number; lng: number } | null>(null);
   const [driverName, setDriverName] = useState<string | null>(null);
   const [driverPhoto, setDriverPhoto] = useState<string | null>(null);
+  const [driverVerified, setDriverVerified] = useState(false);
   const [ride, setRide] = useState<{
     id: string;
     sourceLat: number; sourceLng: number; destLat: number; destLng: number;
@@ -114,6 +116,7 @@ export default function LiveTrackingScreen({ route, navigation }: any) {
   useEffect(() => {
     api.getBookingDetail(bookingId).then((booking) => {
       if (booking.ride?.driver?.photoViewUrl) setDriverPhoto(booking.ride.driver.photoViewUrl);
+      setDriverVerified(!!booking.ride?.driverVerified);
       if (booking.ride) {
         setRide({
           id: booking.ride.id,
@@ -441,7 +444,10 @@ export default function LiveTrackingScreen({ route, navigation }: any) {
           <View style={styles.driverRow}>
             <Avatar uri={driverPhoto} name={driverName || "D"} size={40} />
             <View style={{ flex: 1 }}>
-              <Text style={styles.driverName}>{driverName || t("liveTracking.driverFallback")}</Text>
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+                <Text style={styles.driverName}>{driverName || t("liveTracking.driverFallback")}</Text>
+                <VerifiedBadge verified={driverVerified} size="sm" />
+              </View>
               <Text style={styles.driverSub}>{isStale ? t("liveTracking.lastKnownAMomentAgo") : t("liveTracking.enRouteToDestination")}</Text>
             </View>
             <Pressable style={styles.callButton} onPress={handleCall} disabled={calling}>

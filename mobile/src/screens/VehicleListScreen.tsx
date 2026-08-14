@@ -12,60 +12,35 @@ import { ErrorState } from "../components/ErrorState";
 import { useToast } from "../components/Toast";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { AppBottomNav } from "../components/AppBottomNav";
+import { VerifiedBadge } from "../components/VerifiedBadge";
+import { VerificationBanner } from "../components/VerificationBanner";
 import { useScreenView } from "../lib/useScreenView";
-import { VEHICLE_REVIEW_SLA_MESSAGE_KEY } from "./EditVehicleScreen";
 import { useTranslation } from "../lib/i18n/I18nContext";
 
-// Same PENDING/APPROVED/REJECTED wording and warning/success/danger
-// coloring DocumentUploadScreen's own "Pending review" tag already
-// established — a vehicle can't be used to publish a ride (see
-// rides.routes.js) until it's APPROVED, so this is the one thing
-// worth surfacing on every card, not buried in an edit screen.
-function VehicleStatusTag({ item, onNavigate }: { item: any; onNavigate: () => void }) {
-  const { t } = useTranslation();
-  const { status, rejectionReason } = item;
-  if (status === "APPROVED") {
-    return (
-      <View style={[styles.statusTag, styles.statusApproved]}>
-        <Ionicons name="checkmark-circle" size={11} color={colors.success} />
-        <Text style={[styles.statusTagText, { color: colors.success }]}>{t("vehicle.approved")}</Text>
-      </View>
-    );
-  }
-  if (status === "REJECTED") {
-    return (
-      <Pressable
-        style={[styles.statusTag, styles.statusRejected]}
-        onPress={() => showAlert(t("vehicle.notApproved"), rejectionReason || t("vehicle.noReasonGiven"), [
-          { text: t("vehicle.later"), style: "cancel" },
-          { text: t("vehicle.fixAndResubmit"), onPress: onNavigate },
-        ])}
-      >
-        <Ionicons name="close-circle" size={11} color={colors.danger} />
-        <Text style={[styles.statusTagText, { color: colors.danger }]}>{t("vehicle.rejectedWhy")}</Text>
-      </Pressable>
-    );
-  }
-  return (
-    <Pressable
-      style={[styles.statusTag, styles.statusPending]}
-      onPress={() => showAlert(t("vehicle.pendingReview"), t(VEHICLE_REVIEW_SLA_MESSAGE_KEY))}
-    >
-      <Ionicons name="time-outline" size={11} color={colors.warning} />
-      <Text style={[styles.statusTagText, { color: colors.warning }]}>{t("vehicle.pendingReview")}</Text>
-      <Ionicons name="information-circle-outline" size={12} color={colors.warning} />
-    </Pressable>
-  );
-}
+type VehicleRow = {
+  id: string;
+  make: string;
+  model: string;
+  regNumber: string;
+  color: string | null;
+  seatCapacity: number;
+  status: string;
+  rejectionReason: string | null;
+  verification: { rcStatus: string } | null;
+};
 
 export default function VehicleListScreen({ navigation }: any) {
   useScreenView("VehicleListScreen");
   const { t } = useTranslation();
-  const [vehicles, setVehicles] = useState<any[]>([]);
+  const [vehicles, setVehicles] = useState<VehicleRow[]>([]);
   const [profile, setProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(false);
+  // Driver-level Eko verification (license) — separate from each
+  // vehicle's own RC verification shown per-card below. null while
+  // unknown, so the banner doesn't flash before the first fetch resolves.
+  const [licenseStatus, setLicenseStatus] = useState<string | null>(null);
   const { showSuccess, showError } = useToast();
 
   useEffect(() => {
@@ -76,7 +51,17 @@ export default function VehicleListScreen({ navigation }: any) {
     if (isRefresh) setRefreshing(true);
     else setLoading(true);
     setError(false);
-    api.getVehicles().then(setVehicles).catch(() => setError(true)).finally(() => { setLoading(false); setRefreshing(false); });
+    // One call covers both this screen's needs — the same endpoint
+    // VerifyDriverScreen uses already returns every vehicle with its
+    // RC verification state attached, so there's no separate plain
+    // vehicle-list fetch to keep in sync with it.
+    api.getVerificationStatus()
+      .then((data: any) => {
+        setVehicles(data.vehicles);
+        setLicenseStatus(data.driverVerification?.licenseStatus || "UNVERIFIED");
+      })
+      .catch(() => setError(true))
+      .finally(() => { setLoading(false); setRefreshing(false); });
   }
 
   useFocusEffect(useCallback(() => { load(); }, []));
@@ -104,6 +89,16 @@ export default function VehicleListScreen({ navigation }: any) {
     <SafeAreaView style={styles.screen} edges={["top"]}>
       <Text style={{ ...typography.title, padding: spacing.lg, paddingBottom: spacing.sm }}>{t("vehicle.yourVehicles")}</Text>
 
+      {/* Driver-level Eko verification — separate from (and faster than)
+          the per-vehicle RC badges below. Verified once, this reads the
+          same regardless of which vehicle is currently focused, since a
+          license isn't tied to any one of them. */}
+      {licenseStatus != null && (
+        <View style={{ marginHorizontal: spacing.lg, marginBottom: spacing.sm }}>
+          <VerificationBanner verified={licenseStatus === "VERIFIED"} onPress={() => navigation.navigate("VerifyDriver")} />
+        </View>
+      )}
+
       {loading ? (
         <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
           <CarLoader size="lg" />
@@ -120,26 +115,48 @@ export default function VehicleListScreen({ navigation }: any) {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => load(true)} colors={[colors.accent]} tintColor={colors.accent} />}
         keyExtractor={(item) => item.id}
         contentContainerStyle={{ padding: spacing.md, gap: spacing.sm, flexGrow: 1 }}
-        renderItem={({ item }) => (
-          <View style={styles.card}>
-            <View style={styles.iconWrap}>
-              <Ionicons name="car-sport-outline" size={18} color={colors.accentText} />
+        renderItem={({ item }) => {
+          // Either path counts — a vehicle already APPROVED by an admin
+          // under the old manual-review flow reads as verified too, same
+          // OR-logic as the driver-level badge (lib/verification.js).
+          const rcVerified = item.verification?.rcStatus === "VERIFIED" || item.status === "APPROVED";
+          return (
+            <View style={styles.card}>
+              <View style={styles.iconWrap}>
+                <Ionicons name="car-sport-outline" size={20} color={colors.accentText} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.name}>{item.make} {item.model}</Text>
+                <Text style={styles.meta}>
+                  {item.regNumber}{item.color ? ` · ${item.color}` : ""} · {t("common.seatsCount", { count: item.seatCapacity })}
+                </Text>
+                <View style={styles.badgeRow}>
+                  {item.status === "REJECTED" ? (
+                    <Pressable
+                      style={styles.rejectedTag}
+                      onPress={() => showAlert(t("vehicle.notApproved"), item.rejectionReason || t("vehicle.noReasonGiven"))}
+                    >
+                      <Ionicons name="close-circle" size={11} color={colors.danger} />
+                      <Text style={styles.rejectedTagText}>{t("vehicle.rejectedWhy")}</Text>
+                    </Pressable>
+                  ) : (
+                    <Pressable disabled={rcVerified} onPress={() => navigation.navigate("VerifyDriver")}>
+                      <VerifiedBadge verified={rcVerified} size="sm" />
+                    </Pressable>
+                  )}
+                </View>
+              </View>
+              <View style={{ flexDirection: "row", gap: spacing.sm }}>
+                <Pressable style={styles.iconButton} onPress={() => navigation.navigate("EditVehicle", { vehicle: item })} hitSlop={4}>
+                  <Ionicons name="pencil-outline" size={16} color={colors.accentText} />
+                </Pressable>
+                <Pressable style={styles.iconButton} onPress={() => handleDelete(item.id)} hitSlop={4}>
+                  <Ionicons name="trash-outline" size={16} color={colors.danger} />
+                </Pressable>
+              </View>
             </View>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.name}>{item.make} {item.model}</Text>
-              <Text style={styles.meta}>{item.regNumber} {item.color ? `· ${item.color}` : ""}</Text>
-              <VehicleStatusTag item={item} onNavigate={() => navigation.navigate("EditVehicle", { vehicle: item })} />
-            </View>
-            <View style={{ flexDirection: "row", gap: spacing.sm }}>
-              <Pressable style={styles.iconButton} onPress={() => navigation.navigate("EditVehicle", { vehicle: item })} hitSlop={4}>
-                <Ionicons name="pencil-outline" size={16} color={colors.accentText} />
-              </Pressable>
-              <Pressable style={styles.iconButton} onPress={() => handleDelete(item.id)} hitSlop={4}>
-                <Ionicons name="trash-outline" size={16} color={colors.danger} />
-              </Pressable>
-            </View>
-          </View>
-        )}
+          );
+        }}
         ListEmptyComponent={<EmptyState icon="car-sport-outline" title={t("vehicle.noVehiclesYet")} />}
       />
       )}
@@ -155,16 +172,17 @@ export default function VehicleListScreen({ navigation }: any) {
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.bg },
-  card: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: radius.md, padding: spacing.md, flexDirection: "row", gap: spacing.sm, alignItems: "center" },
-  iconWrap: { width: 36, height: 36, borderRadius: 12, backgroundColor: colors.accentBg, alignItems: "center", justifyContent: "center" },
+  card: {
+    backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: radius.md,
+    padding: spacing.md, flexDirection: "row", gap: spacing.sm, alignItems: "center",
+  },
+  iconWrap: { width: 40, height: 40, borderRadius: 13, backgroundColor: colors.accentBg, alignItems: "center", justifyContent: "center" },
   iconButton: { width: 30, height: 30, borderRadius: 15, backgroundColor: colors.bg, alignItems: "center", justifyContent: "center" },
   name: { ...typography.title, fontSize: 14 },
   meta: { ...typography.small, color: colors.textMuted, marginTop: 2 },
-  statusTag: { flexDirection: "row", alignItems: "center", gap: 4, alignSelf: "flex-start", marginTop: 4, paddingVertical: 2, paddingHorizontal: 7, borderRadius: 999 },
-  statusTagText: { ...typography.small, fontWeight: "700", fontFamily: FONT.bold },
-  statusPending: { backgroundColor: colors.warningBg },
-  statusApproved: { backgroundColor: colors.successBg },
-  statusRejected: { backgroundColor: colors.dangerBg },
+  badgeRow: { flexDirection: "row", marginTop: spacing.xs },
+  rejectedTag: { flexDirection: "row", alignItems: "center", gap: 4, alignSelf: "flex-start", backgroundColor: colors.dangerBg, paddingVertical: 2, paddingHorizontal: 7, borderRadius: 999 },
+  rejectedTagText: { ...typography.small, color: colors.danger, fontWeight: "700", fontFamily: FONT.bold },
   addButton: { flexDirection: "row", gap: spacing.xs, backgroundColor: colors.textPrimary, height: 46, borderRadius: radius.sm, alignItems: "center", justifyContent: "center", margin: spacing.lg },
   addButtonText: { ...typography.title, color: "#FFFFFF" },
 });

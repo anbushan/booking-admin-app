@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { View, Text, FlatList, StyleSheet } from "react-native";
 import { Pressable } from "../components/Pressable";
+import { Ionicons } from "@expo/vector-icons";
 import { showAlert } from "../lib/alert";
 import { colors, spacing, radius, typography, FONT } from "../theme/theme";
 import { api } from "../lib/api";
@@ -100,6 +101,17 @@ export default function RouteOptionsScreen({ route, navigation }: any) {
               <Text style={styles.summary}>{item.summary}</Text>
               <Text style={styles.meta}>{t("routeOptions.distanceDuration", { km: item.distanceKm, min: item.durationMinutes })}</Text>
               <RouteStopsList stops={item.stops} departAt={rideForm.travelDate} />
+              <Pressable
+                style={styles.mapLinkButton}
+                onPress={() => navigation.navigate("RouteMap", {
+                  sourceLat: rideForm.sourceLat, sourceLng: rideForm.sourceLng, sourceAddress: rideForm.sourceAddress,
+                  destLat: rideForm.destLat, destLng: rideForm.destLng, destAddress: rideForm.destAddress,
+                  routePolyline: item.polyline,
+                })}
+              >
+                <Ionicons name="map-outline" size={14} color={colors.accentText} />
+                <Text style={styles.mapLinkText}>{t("routeMap.viewInMap")}</Text>
+              </Pressable>
               <Pressable style={styles.button} onPress={() => selectRoute(item)} disabled={publishing}>
                 <Text style={styles.buttonText}>{publishing ? t("routeOptions.publishing") : t("routeOptions.publishThisRoute")}</Text>
               </Pressable>
@@ -124,4 +136,6 @@ const styles = StyleSheet.create({
   meta: { ...typography.small, color: colors.textMuted },
   button: { backgroundColor: colors.textPrimary, height: 44, borderRadius: radius.sm, alignItems: "center", justifyContent: "center", marginTop: spacing.xs },
   buttonText: { ...typography.body, color: "#FFFFFF", fontWeight: "700", fontFamily: FONT.bold },
+  mapLinkButton: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, borderWidth: 1, borderColor: colors.border, height: 38, borderRadius: radius.sm },
+  mapLinkText: { ...typography.caption, color: colors.accentText, fontWeight: "700", fontFamily: FONT.bold },
 });

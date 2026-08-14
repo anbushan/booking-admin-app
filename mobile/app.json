@@ -71,7 +71,8 @@
           "backgroundColor": "#F1EFE8"
         }
       ],
-      "./plugins/withDisableForceDark"
+      "./plugins/withDisableForceDark",
+      "expo-speech-recognition"
     ],
     "extra": {
       "eas": {

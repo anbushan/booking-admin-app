@@ -10,7 +10,9 @@ import { ErrorState } from "../components/ErrorState";
 import { primeLocationIfNeeded } from "../lib/locationPriming";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { AppBottomNav } from "../components/AppBottomNav";
+import { VerifiedBadge } from "../components/VerifiedBadge";
 import { useScreenView } from "../lib/useScreenView";
+import { appEvents } from "../lib/appEvents";
 import { useTranslation } from "../lib/i18n/I18nContext";
 
 // A passenger's own view of where each of their outstanding requests
@@ -40,7 +42,7 @@ type RequestItem = {
   seatsBooked: number;
   expiresAt: string | null;
   platformFeeAmount: string | number | null;
-  ride?: { sourceAddress: string; destAddress: string; driver?: { name: string } };
+  ride?: { sourceAddress: string; destAddress: string; driver?: { name: string }; driverVerified?: boolean };
 };
 
 function minutesLeft(expiresAt: string | null) {
@@ -75,6 +77,12 @@ export default function MyRequestsScreen({ navigation }: any) {
 
   useFocusEffect(useCallback(load, []));
 
+  // Refresh immediately on a live payment:confirmed push (see
+  // AppSocketBridge) rather than waiting for this screen to lose and
+  // regain focus — someone sitting right here watching "Awaiting
+  // payment" shouldn't need to leave and come back to see it clear.
+  useEffect(() => appEvents.on("payment:confirmed", () => load()), []);
+
   return (
     <SafeAreaView style={styles.screen} edges={["top"]}>
       <Text style={{ ...typography.title, padding: spacing.lg, paddingBottom: spacing.sm }}>{t("myRequests.title")}</Text>
@@ -104,9 +112,12 @@ export default function MyRequestsScreen({ navigation }: any) {
               <Pressable style={styles.card} onPress={() => navigation.navigate("BookingDetail", { bookingId: item.id })}>
                 <Text style={styles.route}>{t("common.routeTo", { source: item.ride?.sourceAddress, dest: item.ride?.destAddress })}</Text>
                 <View style={styles.rowBetween}>
-                  <Text style={styles.meta}>
-                    {item.ride?.driver?.name || t("register.driver")} · {t("common.seatsCount", { count: item.seatsBooked })}
-                  </Text>
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 4, flexShrink: 1 }}>
+                    <Text style={styles.meta} numberOfLines={1}>
+                      {item.ride?.driver?.name || t("register.driver")} · {t("common.seatsCount", { count: item.seatsBooked })}
+                    </Text>
+                    <VerifiedBadge verified={!!item.ride?.driverVerified} size="sm" />
+                  </View>
                   {mins != null && <Text style={styles.countdown}>{t("common.minutesLeft", { mins })}</Text>}
                 </View>
                 <Text style={styles.status}>{STATUS_LABEL_KEYS[item.status] ? t(STATUS_LABEL_KEYS[item.status]) : item.status}</Text>

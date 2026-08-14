@@ -69,12 +69,14 @@ import StartTripScreen from "./src/screens/StartTripScreen";
 import UpcomingTripsScreen from "./src/screens/UpcomingTripsScreen";
 import VehicleListScreen from "./src/screens/VehicleListScreen";
 import EditVehicleScreen from "./src/screens/EditVehicleScreen";
+import VerifyDriverScreen from "./src/screens/VerifyDriverScreen";
 import EarningsScreen from "./src/screens/EarningsScreen";
 import EditRideScreen from "./src/screens/EditRideScreen";
 
 import PaymentScreen from "./src/screens/PaymentScreen";
 import LocationSearchScreen from "./src/screens/LocationSearchScreen";
 import MapPinConfirmScreen from "./src/screens/MapPinConfirmScreen";
+import RouteMapScreen from "./src/screens/RouteMapScreen";
 import LocationPermissionPrimingScreen from "./src/screens/LocationPermissionPrimingScreen";
 import { EmergencyContactsScreen, AddEmergencyContactScreen } from "./src/screens/EmergencyContactScreens";
 
@@ -198,6 +200,7 @@ function App() {
         <Stack.Screen name="UpcomingTrips" component={UpcomingTripsScreen} />
         <Stack.Screen name="ActiveTrip" component={LiveTrackingScreen} />
         <Stack.Screen name="VehicleList" component={VehicleListScreen} />
+        <Stack.Screen name="VerifyDriver" component={VerifyDriverScreen} />
         <Stack.Screen name="EditVehicle" component={EditVehicleScreen} />
         <Stack.Screen name="Earnings" component={EarningsScreen} />
         <Stack.Screen name="EditRide" component={EditRideScreen} />
@@ -210,6 +213,7 @@ function App() {
         {/* Location picker + permission priming */}
         <Stack.Screen name="LocationSearch" component={LocationSearchScreen} />
         <Stack.Screen name="MapPinConfirm" component={MapPinConfirmScreen} />
+        <Stack.Screen name="RouteMap" component={RouteMapScreen} />
         <Stack.Screen name="LocationPermissionPriming" component={LocationPermissionPrimingScreen} />
 
         {/* Safety */}

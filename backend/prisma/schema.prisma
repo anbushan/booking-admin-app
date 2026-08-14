@@ -77,6 +77,7 @@ model User {
   reviewsGiven       Review[] @relation("ReviewsGiven")
   reviewsReceived    Review[] @relation("ReviewsReceived")
   driverStrikes      DriverStrike[]
+  driverVerification DriverVerification?
 }
 
 model Vehicle {
@@ -116,6 +117,7 @@ model Vehicle {
   rejectionReason String?
 
   rides         Ride[]
+  verification  VehicleVerification?
 
   @@index([driverId])
   @@index([status])
@@ -432,6 +434,11 @@ model AppConfig {
   maintenanceMode    Boolean @default(false)
   maintenanceMessage String?
 
+  // Paid third-party (Eko) verification — flat, one-time license fee;
+  // RC fee charged per vehicle (every vehicle, including the first).
+  licenseVerificationFeeInr Float @default(4)
+  vehicleRcFeeInr           Float @default(4)
+
   updatedAt           DateTime @updatedAt
 }
 
@@ -485,5 +492,62 @@ model AdminUser {
   passwordHash       String
   resetToken         String?
   resetTokenExpiresAt DateTime?
+  createdAt          DateTime  @default(now())
+}
+
+// Paid, self-serve, third-party (Eko) driver verification — replaces
+// "must be admin-approved to publish" with "verified is a trust badge,
+// publishing is always allowed" (see rides.routes.js POST / and the
+// isDriverVerified helper in lib/verification.js). One row per driver:
+// license is a driver-level fact, not tied to any one vehicle — verify
+// it once and it covers every vehicle that driver ever adds. Existing
+// Vehicle.status/Document.status (admin manual review) are untouched
+// and still count toward "verified" (see isDriverVerified) — this is
+// an additional, faster path to the same badge, not a replacement.
+model DriverVerification {
+  id                 String    @id @default(cuid())
+  driverId           String    @unique
+  driver             User      @relation(fields: [driverId], references: [id])
+
+  // Covers this driver's license check AND their first vehicle's RC
+  // check together (see VehicleVerification below for the 2nd+ vehicle
+  // case, which is its own separate, smaller charge).
+  paymentStatus      String    @default("UNPAID") // UNPAID, CHARGE_ATTEMPTED, PAID
+  razorpayOrderId    String?
+  razorpayPaymentId  String?
+  amountPaidInr      Decimal?
+  paidAt             DateTime?
+
+  licenseStatus      String    @default("UNVERIFIED") // UNVERIFIED, PENDING, VERIFIED, FAILED
+  // Eko's full raw response, stored as-is (see lib/eko.js) — only a
+  // small derived subset of this actually drives licenseStatus, but the
+  // whole thing is kept for support/dispute lookups without needing to
+  // re-call Eko.
+  licenseEkoResponse Json?
+  licenseVerifiedAt  DateTime?
+
+  createdAt          DateTime  @default(now())
+}
+
+// One row per vehicle — RC is vehicle-level (each vehicle has its own
+// registration). A driver's *first* vehicle is covered by
+// DriverVerification's payment above (paymentStatus here stays UNPAID/
+// free for it); every vehicle after that needs its own paid RC-only
+// check, tracked here independently.
+model VehicleVerification {
+  id                 String    @id @default(cuid())
+  vehicleId          String    @unique
+  vehicle            Vehicle   @relation(fields: [vehicleId], references: [id])
+
+  paymentStatus      String    @default("UNPAID") // UNPAID (free — 1st vehicle), CHARGE_ATTEMPTED, PAID, WAIVED
+  razorpayOrderId    String?
+  razorpayPaymentId  String?
+  amountPaidInr      Decimal?
+  paidAt             DateTime?
+
+  rcStatus           String    @default("UNVERIFIED") // UNVERIFIED, PENDING, VERIFIED, FAILED
+  rcEkoResponse      Json?
+  rcVerifiedAt       DateTime?
+
   createdAt          DateTime  @default(now())
 }
