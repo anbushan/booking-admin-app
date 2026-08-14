@@ -3,7 +3,7 @@ export const metadata = {
   description: "What NanbaGO collects, why, and how to control or delete it.",
 };
 
-const LAST_UPDATED = "11 August 2026";
+const LAST_UPDATED = "14 August 2026";
 const CONTACT_EMAIL = "anbushanthi001@gmail.com";
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
@@ -41,11 +41,13 @@ export default function PrivacyPage() {
           <Row what="Name, email (optional)" why="Shown to the other side of a booking so they know who they're meeting." />
           <Row what="Profile photo (optional)" why="Shown to the other side of a booking for a face to match on pickup." />
           <Row what="Pickup/drop location, live GPS during a trip" why="To match rides going your way, and for live tracking and safety (SOS) while a trip is in progress." />
-          <Row what="Vehicle details & documents (RC, licence, vehicle photo)" why="Required for a driver's vehicle to be verified before it can be used to publish rides." />
+          <Row what="Vehicle details & documents (RC, licence, vehicle photo)" why="Optional — used only if you choose manual review as your verification path. Publishing rides never requires this." />
+          <Row what="Driving licence & RC details (number, date of birth, address, vehicle registration data)" why="Only if you choose paid verification — sent to Eko, a third-party verification provider, to check your licence or a vehicle's registration. Never required to publish rides." />
           <Row what="Chat messages" why="Only visible between a driver and passenger with an active, confirmed booking — deleted once that booking ends." />
-          <Row what="Payment metadata" why="The platform fee is processed by Razorpay; we never see or store your card, UPI PIN, or full payment details ourselves." />
+          <Row what="Payment metadata" why="The platform fee and any driver verification fees are processed by Razorpay; we never see or store your card, UPI PIN, or full payment details ourselves." />
           <Row what="Emergency contacts (optional)" why="So we can reach someone on your behalf if you use the SOS feature." />
           <Row what="Device push token" why="To deliver booking, payment, and trip notifications." />
+          <Row what="Voice input (optional)" why="If you use voice search to enter a location, your speech is processed to text by your device or its speech-recognition service — we don't store the audio itself." />
           <Row what="App usage events" why="Which screens are used and how often, to find and fix problems and improve the app." />
         </div>
       </Section>
@@ -65,12 +67,16 @@ export default function PrivacyPage() {
           Only the service providers that make the app work, each only for that specific purpose:
         </p>
         <ul style={{ marginTop: 8, paddingLeft: 20 }}>
-          <li><strong>Razorpay</strong> — processes the in-app platform-fee payment.</li>
+          <li><strong>Razorpay</strong> — processes the in-app platform-fee payment and any driver
+            verification fees.</li>
           <li><strong>Google / Firebase</strong> — delivers push notifications and powers in-app
             analytics, and Google Maps/Places resolves addresses and routes.</li>
           <li><strong>Cloudflare R2</strong> — stores uploaded documents and photos in a private
             bucket; files are only ever accessible via a short-lived link generated when you or an
             authorised reviewer actually needs to view one.</li>
+          <li><strong>Eko</strong> — only if a driver chooses the paid, instant verification path:
+            checks a driving licence or vehicle RC against government records. Never used for the
+            free, manual-review path, and never for anything except that specific check.</li>
         </ul>
         <p style={{ marginTop: 10 }}>
           The other person in a booking sees your name, rating, and (if you added one) your
@@ -82,11 +88,12 @@ export default function PrivacyPage() {
 
       <Section title="How long we keep it">
         <p>
-          Chat messages are deleted once a booking's active window ends. Verification documents
-          are kept while your account and vehicle remain active, for compliance and dispute
-          purposes. Trip and booking records are retained after a trip completes to support
-          ratings, safety investigations, refunds, and legal/financial record-keeping — the same
-          way most transaction records are kept.
+          Chat messages are deleted once a booking's active window ends. Verification records —
+          uploaded documents, and Eko's response for a paid licence or RC check — are kept while
+          your account and vehicle remain active, for compliance and dispute purposes. Trip and
+          booking records are retained after a trip completes to support ratings, safety
+          investigations, refunds, and legal/financial record-keeping — the same way most
+          transaction records are kept.
         </p>
       </Section>
 

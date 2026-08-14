@@ -27,8 +27,8 @@ const DEEP_FEATURES = [
   },
   {
     icon: Car,
-    title: "Per-vehicle driver verification",
-    body: "A driver's registration certificate (and optionally a licence and vehicle photo) is reviewed before that specific vehicle can be used to publish a single ride — this isn't a one-time account check from months ago, it's tied to the actual car showing up.",
+    title: "Two separate verification badges, not one",
+    body: "A licence badge (once per driver, covers every vehicle) and an RC badge (once per vehicle — the registration is tied to that specific car, not the driver). Either is earned instantly with a small paid automated check, or free via manual admin review — look for both badges before you ride, not just one.",
   },
   {
     icon: Star,

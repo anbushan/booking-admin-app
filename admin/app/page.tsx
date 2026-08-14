@@ -74,7 +74,7 @@ const FEATURES = [
 const SAFETY_FEATURES = [
   { icon: KeyRound, title: "Pickup verification", body: "A one-time code the passenger reads aloud — the trip can't start without it." },
   { icon: ShieldCheck, title: "Live SOS", body: "One tap shares your real-time location with emergency contacts you've already set up." },
-  { icon: Car, title: "Verified vehicles", body: "Registration documents reviewed before a vehicle can publish a single ride." },
+  { icon: Car, title: "Verified drivers & vehicles", body: "A separate licence badge and RC badge per vehicle — earned instantly with a small paid check, or free via manual review. Either way, publishing itself never requires it." },
   { icon: Star, title: "Ratings that stick", body: "Every completed ride can be rated — visible on a profile before you ever share a car." },
   { icon: MessageCircle, title: "In-app chat", body: "Coordinate pickup details directly, without sharing a real phone number." },
   { icon: Wallet, title: "Fair, capped fares", body: "A per-km cap keeps this cost-sharing, not a taxi fare in disguise." },
@@ -101,7 +101,7 @@ const PASSENGER_JOURNEY: { title: string; body: string; mockup: MockupKind }[] =
 
 const DRIVER_JOURNEY: { title: string; body: string; mockup: MockupKind }[] = [
   { title: "Log in", body: "Verify your phone number with an OTP, then switch into driver mode from the side menu.", mockup: "otp" },
-  { title: "Add & verify your vehicle", body: "Upload your registration certificate — reviewed and typically approved within an hour.", mockup: "vehicle" },
+  { title: "Add your vehicle", body: "Just make, model, and registration number — you can publish immediately. Get verified anytime after: an instant paid check, or free manual review.", mockup: "vehicle" },
   { title: "Publish a ride & accept requests", body: "Set your route, seats, and detour tolerance, then accept the requests that work for you.", mockup: "requests" },
   { title: "Start the trip", body: "Enter the pickup code your passenger reads aloud — the trip can't start without it.", mockup: "otpVerify" },
   { title: "Complete & collect payment", body: "Mark the trip done, then confirm the remaining fare was collected in cash or UPI.", mockup: "collectPayment" },
@@ -281,13 +281,14 @@ export default function LandingPage() {
             <span className="mkt-eyebrow" style={{ background: "rgba(217,127,10,0.18)", color: "#FBECD4" }}>For drivers</span>
             <h2 className="mkt-h2" style={{ marginTop: 12 }}>Already making the trip? Take someone with you.</h2>
             <p className="mkt-lede" style={{ color: "#C7C4B8" }}>
-              Add your vehicle, get it reviewed — typically within an hour — and start publishing rides.
+              Add your vehicle and start publishing immediately — no review required. Get verified
+              whenever you want the trust badge: an instant paid check, or free manual review.
               Set your own detour tolerance and seats; riders come to you.
             </p>
           </div>
           <div>
-            <Link href="/faq" className="mkt-btn mkt-btn-primary" style={{ background: "#D97F0A", boxShadow: "0 8px 20px rgba(217,127,10,0.3)" }}>
-              How verification works
+            <Link href="/pricing" className="mkt-btn mkt-btn-primary" style={{ background: "#D97F0A", boxShadow: "0 8px 20px rgba(217,127,10,0.3)" }}>
+              See verification pricing
             </Link>
           </div>
         </div>

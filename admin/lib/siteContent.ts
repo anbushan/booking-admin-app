@@ -45,6 +45,7 @@ export const NAV_LINKS = [
   { href: "/", label: "Home" },
   { href: "/about", label: "About" },
   { href: "/safety", label: "Safety" },
+  { href: "/pricing", label: "Pricing" },
   { href: "/download", label: "Download" },
   { href: "/faq", label: "FAQ" },
   { href: "/blog", label: "Blog" },
@@ -53,6 +54,7 @@ export const NAV_LINKS = [
 export const FOOTER_LINKS = [
   { href: "/about", label: "About" },
   { href: "/safety", label: "Safety" },
+  { href: "/pricing", label: "Pricing" },
   { href: "/download", label: "Download" },
   { href: "/faq", label: "FAQ" },
   { href: "/blog", label: "Blog" },
@@ -136,7 +138,7 @@ export const FAQ_GROUPS: FaqGroup[] = [
       {
         question: "Are drivers verified?",
         answer:
-          "Every driver's vehicle documents (registration certificate, and optionally a driving licence and vehicle photo) go through review before that vehicle can be used to publish a single ride — not a one-time account check, a per-vehicle one.",
+          "Verification is a visible trust badge, not a requirement to publish — so look for it rather than assuming every driver has it. A verified driver's licence and each of their vehicles' registration certificates have been checked, either instantly (a small paid automated check) or by an admin reviewing uploaded documents. Both show the same badge on a driver's profile and booking screens before you ever share a car.",
       },
       {
         question: "Can I see who I'm riding with before the trip?",
@@ -169,11 +171,22 @@ export const FAQ_GROUPS: FaqGroup[] = [
       {
         question: "What do I need to start offering rides?",
         answer:
-          "A vehicle with a valid registration certificate you can photograph and upload. Add your car's details and documents from the app, and you can publish your first ride as soon as it's reviewed and approved.",
+          "Just a vehicle — add its make, model, and registration number from the app. No documents are required to publish your very first ride; verification (below) is what earns you a visible trust badge, not a requirement to get started.",
       },
       {
-        question: "How long does vehicle approval take?",
-        answer: "Typically within an hour. You'll get a notification either way, and if it's rejected you'll see exactly why and can fix and resubmit.",
+        question: "What does the \"Verified\" badge on a driver actually mean?",
+        answer:
+          "It's two separate checks, shown as two separate badges: a licence check (once per driver, covers every vehicle you ever add) and an RC check (once per vehicle — every vehicle needs its own, since the registration is tied to that specific car). Either one can be earned two ways: pay a small fee for an instant automated check, or skip payment and have an admin manually review your uploaded documents instead — both lead to the same visible badge, and neither is required to publish rides.",
+      },
+      {
+        question: "How much does verification cost, and how fast is it?",
+        answer:
+          "The paid path is instant — a small fee (currently a few rupees each) for your licence and for each vehicle's RC, checked automatically the moment you pay. The free path is the manual one: upload your documents and an admin reviews them, typically within an hour. Use whichever suits you; both result in the same badge.",
+      },
+      {
+        question: "I already added a vehicle without documents — can I still get verified?",
+        answer:
+          "Yes, any time — open \"Get verified\" from your vehicle list. If you later edit a vehicle's registration number, that vehicle's RC badge resets (the paid check was tied to the exact number that was verified), so it'll need checking again — the same isn't true for your licence, which stays verified regardless of how many vehicles you add afterward.",
       },
       {
         question: "What happens if I repeatedly cancel or don't show up?",
@@ -196,6 +209,20 @@ export type BlogPost = {
 // Static on purpose (per the ask) — plain data, not a CMS. Every post
 // below describes real app behavior, same accuracy bar as the FAQ.
 export const BLOG_POSTS: BlogPost[] = [
+  {
+    slug: "what-verified-badges-actually-mean",
+    title: "What NanbaGO's verified badges actually mean",
+    excerpt:
+      "\"Verified\" driver badges usually mean nothing you can check. Here's exactly what's behind the two you'll see on NanbaGO, and why they're separate.",
+    date: "2026-08-14",
+    readMinutes: 3,
+    body: [
+      "A lot of apps put a green checkmark next to a driver's name and leave it at that — verified how, verified when, verified by whom, all left to your imagination. NanbaGO shows two separate badges instead of one vague one, on purpose: a licence badge and an RC (vehicle registration) badge.",
+      "They're separate because they check different things. The licence badge means this specific person's driving licence has been checked — once, and it stays valid no matter which of their vehicles they're driving that day. The RC badge means this specific vehicle's registration certificate has been checked — separately, per vehicle, because a licence doesn't tell you anything about whether the car itself is legitimately registered.",
+      "Both badges get there one of two ways, and the app doesn't distinguish which once it's shown: either the driver paid a small fee for an instant automated check, or an admin manually reviewed their uploaded document. Either path lands on the same badge — what matters to you as a passenger is that the check happened, not which route got them there.",
+      "What it doesn't mean: an unverified driver isn't necessarily untrustworthy — verification is opt-in, not a requirement to publish rides, so plenty of legitimate drivers simply haven't gone through it yet. What it does mean, when you see it: a real check against a real government-issued document actually happened for that licence, that vehicle, or both. Look for both badges, not just one — a verified licence with an unverified RC (or the reverse) is a genuinely different situation than both being verified, and now you can actually tell the difference.",
+    ],
+  },
   {
     slug: "how-the-platform-fee-works",
     title: "How NanbaGO's platform fee actually works",
@@ -230,14 +257,16 @@ export const BLOG_POSTS: BlogPost[] = [
   {
     slug: "becoming-a-verified-driver",
     title: "How to become a verified NanbaGO driver",
-    excerpt: "What you actually need, what gets checked, and how long it takes to go from signup to your first published ride.",
-    date: "2026-07-10",
-    readMinutes: 3,
+    excerpt: "Publishing needs nothing at all — here's what actually earns you the verified badge, and the two different ways to get there.",
+    date: "2026-08-14",
+    readMinutes: 4,
     body: [
       "Offering rides on NanbaGO starts the same way riding does — verify your phone number, then choose driver mode from the side menu (or add it to an existing passenger account any time).",
-      "From there, add your vehicle: make, model, registration number, and a photo of your registration certificate — a driving licence and a car photo are optional but help your listing and speed up trust from riders. Every field is reviewed against the actual document, not just recorded as text.",
-      "That review typically finishes within an hour. You'll get a notification either way — approved, and you can publish rides on that vehicle immediately; not approved, and you'll see exactly why, with the option to fix the issue and resubmit rather than starting over.",
-      "One thing worth knowing upfront: honoring accepted bookings matters. Repeated late cancellations or no-shows escalate through a warning system before any account action is taken — the bar is just showing up for rides you've committed to.",
+      "From there, add your vehicle: make, model, and registration number. That's genuinely it — no documents, no waiting, no review. You can publish your first ride immediately. Verification is a separate, optional step that earns you a visible trust badge; it was never a requirement to get started, and isn't now either.",
+      "When you do want the badge, there are two checks behind it, kept deliberately separate: your driving licence (once, and it covers every vehicle you ever add) and each vehicle's registration certificate (every vehicle needs its own — the RC is tied to that specific car, not to you as a driver).",
+      "Each of those two checks has two ways to pass. The fast path: pay a small fee (a few rupees each) and it's checked automatically, instantly — you'll see exactly what came back before it's saved, so nothing gets recorded without you reviewing it first. The free path: upload the actual document and an admin reviews it by hand, typically within an hour. Both lead to the exact same badge on your profile; use whichever suits you, and mix and match if you like — pay for a fast licence check now, let a vehicle's RC go through manual review later.",
+      "One thing worth knowing: if you ever edit a vehicle's registration number after it's been verified, that vehicle's RC badge resets — the check was tied to the exact number that was actually looked up, so a changed number needs checking again. Your licence badge doesn't reset when this happens; it's yours regardless of which vehicle you're driving.",
+      "And separately from all of this: honoring accepted bookings still matters. Repeated late cancellations or no-shows escalate through a warning system before any account action is taken — the bar is just showing up for rides you've committed to.",
     ],
   },
   {
