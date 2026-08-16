@@ -13,6 +13,7 @@ import { PermissionModal } from "../components/PermissionModal";
 import { useScreenView } from "../lib/useScreenView";
 import { getRecentSearches, addRecentSearch, RecentLocation } from "../lib/recentSearches";
 import { useTranslation } from "../lib/i18n/I18nContext";
+import { appEvents } from "../lib/appEvents";
 
 type Suggestion = { placeId: string; description: string };
 type PopularLocation = { address: string; lat: number; lng: number; count: number };
@@ -57,7 +58,14 @@ export default function LocationSearchScreen({ navigation, route }: any) {
   // react-native-maps, a native module Expo Go can't load) for callers that
   // only need an approximate point — e.g. Home's ride search — rather than
   // the exact-pin-drop precision a booking's pickup point needs.
-  const { onSelect, skipMapConfirm } = route.params || {};
+  // selectFor (a plain string, e.g. "home-source") replaces what used to
+  // be an `onSelect` callback passed straight through navigation params —
+  // React Navigation warns the moment a function ends up in route params
+  // ("non-serializable values were found in the navigation state"), since
+  // that state is meant to be persistable/restorable. The caller
+  // (HomeScreen/OfferRideScreen) listens for appEvents' "location:selected"
+  // instead — see finishSelection below.
+  const { selectFor, skipMapConfirm } = route.params || {};
   const [query, setQuery] = useState("");
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
   const [sessionToken] = useState(newSessionToken);
@@ -84,14 +92,24 @@ export default function LocationSearchScreen({ navigation, route }: any) {
     api.getPopularLocations().then(setPopular).catch(() => setPopular([]));
   }, []);
 
-  function finishSelection(loc: { lat: number; lng: number; address: string }) {
-    addRecentSearch(loc);
+  // Shared by every path that resolves a final point (a tapped
+  // suggestion, a tapped recent/popular entry, "use current location")
+  // — reports the pick back the same way regardless of source. Kept
+  // separate from finishSelection below so "use current location" can
+  // reuse this without also (redundantly) adding itself to recent
+  // searches, matching its original behavior.
+  function emitSelection(loc: { lat: number; lng: number; address: string }) {
     if (skipMapConfirm) {
-      onSelect?.(loc);
+      appEvents.emit("location:selected", { selectFor, location: loc });
       navigation.goBack();
       return;
     }
-    navigation.navigate("MapPinConfirm", { ...loc, onSelect });
+    navigation.navigate("MapPinConfirm", { ...loc, selectFor });
+  }
+
+  function finishSelection(loc: { lat: number; lng: number; address: string }) {
+    addRecentSearch(loc);
+    emitSelection(loc);
   }
 
   async function handleChangeText(text: string) {
@@ -224,12 +242,7 @@ export default function LocationSearchScreen({ navigation, route }: any) {
     setLocating(true);
     try {
       const loc = await api.getCurrentLocation();
-      if (skipMapConfirm) {
-        onSelect?.(loc);
-        navigation.goBack();
-        return;
-      }
-      navigation.navigate("MapPinConfirm", { ...loc, onSelect });
+      emitSelection(loc);
     } catch (err: any) {
       showError(err?.message || t("locationSearch.couldntGetLocation"));
     } finally {

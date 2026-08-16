@@ -15,12 +15,41 @@ import { AppBottomNav } from "../components/AppBottomNav";
 import { KeyboardAvoider } from "../components/KeyboardAvoider";
 import { useScreenView } from "../lib/useScreenView";
 import { useTranslation } from "../lib/i18n/I18nContext";
+import { PREFERENCE_OPTIONS } from "../lib/ridePreferences";
+import { appEvents } from "../lib/appEvents";
 
-const PREFERENCE_OPTIONS = [
-  { key: "music", labelKey: "offerRide.musicOk" },
-  { key: "pets", labelKey: "offerRide.petsOk" },
-  { key: "smoking", labelKey: "offerRide.noSmoking", inverted: true },
+// 0=Sun..6=Sat, matching the backend's daysOfWeek exactly. Mon-Fri —
+// the "Weekdays" quick-preset most commute-recurring rides actually want.
+const WEEKDAY_KEYS = [1, 2, 3, 4, 5];
+const DAY_LABEL_KEYS = ["searchOptions.day0", "searchOptions.day1", "searchOptions.day2", "searchOptions.day3", "searchOptions.day4", "searchOptions.day5", "searchOptions.day6"];
+
+type EndOption = "2w" | "1m" | "3m" | "none";
+// Literal key per option (not constructed via template string) — this
+// app's i18n never builds a key dynamically, always a direct t("...")
+// reference, so cross-checking every real usage against en.json (the
+// workflow every screen's i18n pass has followed all session) stays
+// possible with a plain grep instead of having to reason about string
+// interpolation.
+const END_OPTIONS: { key: EndOption; labelKey: string }[] = [
+  { key: "2w", labelKey: "offerRide.repeatUntilTwoWeeks" },
+  { key: "1m", labelKey: "offerRide.repeatUntilOneMonth" },
+  { key: "3m", labelKey: "offerRide.repeatUntilThreeMonths" },
+  { key: "none", labelKey: "offerRide.repeatUntilNoEnd" },
 ];
+function endDateFor(option: EndOption, from: Date): Date | null {
+  if (option === "none") return null;
+  const d = new Date(from);
+  if (option === "2w") d.setDate(d.getDate() + 14);
+  if (option === "1m") d.setMonth(d.getMonth() + 1);
+  if (option === "3m") d.setMonth(d.getMonth() + 3);
+  return d;
+}
+
+// See lib/ridePreferences.ts for why this lives there instead of here —
+// RidePreferences.tsx (the read-only passenger-facing display in
+// SearchResultsScreen/BookingConfirmScreen) needs this same list too,
+// and a component reaching into a screen file for a constant is the
+// wrong dependency direction.
 
 type Point = { lat: number; lng: number; address: string };
 
@@ -53,6 +82,22 @@ export default function OfferRideScreen({ navigation }: any) {
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
 
+  // "Repeat this ride" — publishes a RecurringRideTemplate instead of a
+  // single Ride when on (see RouteOptionsScreen's branch on `recurrence`
+  // params). Start date is always "today" for v1 (not its own picker —
+  // one fewer decision for the common case, "starting now"); the
+  // existing `travelDate` chip above still supplies the time-of-day,
+  // just reinterpreted as a daily departure time instead of one date.
+  const [repeatEnabled, setRepeatEnabled] = useState(false);
+  const [repeatDays, setRepeatDays] = useState<number[]>(WEEKDAY_KEYS);
+  const [endOption, setEndOption] = useState<EndOption>("none");
+  const [repeatDaysError, setRepeatDaysError] = useState("");
+
+  function toggleRepeatDay(day: number) {
+    setRepeatDays((prev) => (prev.includes(day) ? prev.filter((d) => d !== day) : [...prev, day].sort()));
+    setRepeatDaysError("");
+  }
+
   const [vehicles, setVehicles] = useState<any[] | null>(null); // null = still loading
   const [vehiclesError, setVehiclesError] = useState(false);
   const [vehicleId, setVehicleId] = useState<string | null>(null);
@@ -83,6 +128,18 @@ export default function OfferRideScreen({ navigation }: any) {
     api.getMyProfile().then(setProfile).catch(() => {});
   }, []);
 
+  // See HomeScreen.tsx's identical listener for why this is an event
+  // instead of a callback threaded through navigation params — React
+  // Navigation warns on function values in route params (they break
+  // state persistence/restoration). "offerRide-source"/
+  // "offerRide-destination" scope this to picks meant for this screen.
+  useEffect(() => {
+    return appEvents.on("location:selected", (payload: { selectFor: string; location: Point }) => {
+      if (payload.selectFor === "offerRide-source") setSource(payload.location);
+      else if (payload.selectFor === "offerRide-destination") setDestination(payload.location);
+    });
+  }, []);
+
   // The backend rejects pricePerSeat above a per-km cap (cost-sharing vs.
   // commercial-fare rule) — computed here too so the driver sees the real
   // constraint for their actual route up front, instead of only finding
@@ -97,8 +154,8 @@ export default function OfferRideScreen({ navigation }: any) {
     setPreferences((prev) => ({ ...prev, [key]: !prev[key] }));
   }
 
-  function openLocationSearch(onSelect: (loc: Point) => void) {
-    navigation.navigate("LocationSearch", { onSelect, skipMapConfirm: true });
+  function openLocationSearch(selectFor: "offerRide-source" | "offerRide-destination") {
+    navigation.navigate("LocationSearch", { selectFor, skipMapConfirm: true });
   }
 
   // Doesn't publish directly — hands off to RouteOptionsScreen, which
@@ -119,16 +176,35 @@ export default function OfferRideScreen({ navigation }: any) {
       validationErrors.price = t("offerRide.priceCapError", { cap: fareCap });
     }
     setErrors(validationErrors);
-    if (Object.keys(validationErrors).length > 0) return;
+    if (repeatEnabled && repeatDays.length === 0) {
+      setRepeatDaysError(t("offerRide.pickAtLeastOneDay"));
+    }
+    if (Object.keys(validationErrors).length > 0 || (repeatEnabled && repeatDays.length === 0)) return;
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const departureTime = `${String(travelDate.getHours()).padStart(2, "0")}:${String(travelDate.getMinutes()).padStart(2, "0")}`;
+    const endDate = endDateFor(endOption, today);
 
     navigation.navigate("RouteOptions", {
       sourceLat: source.lat, sourceLng: source.lng, sourceAddress: source.address,
       destLat: destination.lat, destLng: destination.lng, destAddress: destination.address,
+      // Still sent even in recurrence mode — RouteOptionsScreen's route-
+      // alternatives fetch doesn't care which mode this is, only the
+      // final create call (createRide vs createRecurringRide) branches.
       travelDate: travelDate.toISOString(),
       seatsAvailable: seats,
       pricePerSeat: Number(price),
       preferences,
       ...(vehicleId ? { vehicleId } : {}),
+      ...(repeatEnabled ? {
+        recurrence: {
+          daysOfWeek: repeatDays,
+          departureTime,
+          startDate: today.toISOString(),
+          ...(endDate ? { endDate: endDate.toISOString() } : {}),
+        },
+      } : {}),
     });
   }
 
@@ -174,13 +250,13 @@ export default function OfferRideScreen({ navigation }: any) {
         )}
 
         <View style={styles.routeCard}>
-          <Pressable style={styles.field} onPress={() => openLocationSearch(setSource)}>
+          <Pressable style={styles.field} onPress={() => openLocationSearch("offerRide-source")}>
             <View style={[styles.dot, { backgroundColor: colors.accent }]} />
             <Text style={styles.fieldText}>{source.address}</Text>
           </Pressable>
           <Pressable
             style={[styles.field, { borderBottomWidth: 0 }]}
-            onPress={() => openLocationSearch(setDestination)}
+            onPress={() => openLocationSearch("offerRide-destination")}
           >
             <View style={[styles.dot, { backgroundColor: colors.danger }]} />
             <Text style={[styles.fieldText, !destination && { color: colors.textMuted }]}>
@@ -190,11 +266,76 @@ export default function OfferRideScreen({ navigation }: any) {
         </View>
 
         <View style={styles.row}>
-          <Text style={styles.label}>{t("offerRide.departure")}</Text>
+          <Text style={styles.label}>{repeatEnabled ? t("offerRide.departureTime") : t("offerRide.departure")}</Text>
           <Pressable style={styles.chip} onPress={() => setOptionsVisible(true)}>
-            <Text style={styles.chipText}>{formatSearchDate(travelDate, t)}</Text>
+            <Text style={styles.chipText}>
+              {repeatEnabled ? formatSearchDate(travelDate, t).split(",").pop()!.trim() : formatSearchDate(travelDate, t)}
+            </Text>
           </Pressable>
         </View>
+
+        {/* "Repeat this ride" — publishes a recurring series instead of
+            a single ride (see handleContinue's `recurrence` param and
+            RouteOptionsScreen's branch on it). Same checkbox visual
+            language as everywhere else this app has one (WhatsApp
+            opt-in on OtpScreens, "Set as primary" on Add Emergency
+            Contact). */}
+        <Pressable
+          style={styles.repeatToggleRow}
+          onPress={() => setRepeatEnabled((v) => !v)}
+          accessibilityRole="checkbox"
+          accessibilityState={{ checked: repeatEnabled }}
+          accessibilityLabel={t("offerRide.repeatThisRide")}
+        >
+          <View style={[styles.checkbox, repeatEnabled && styles.checkboxActive]}>
+            {repeatEnabled && <Ionicons name="checkmark" size={13} color="#FFFFFF" />}
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.repeatToggleLabel}>{t("offerRide.repeatThisRide")}</Text>
+            <Text style={styles.repeatToggleHint}>{t("offerRide.repeatThisRideHint")}</Text>
+          </View>
+        </Pressable>
+
+        {repeatEnabled && (
+          <View style={styles.repeatSection}>
+            <View style={styles.repeatDaysHeaderRow}>
+              <Text style={styles.label}>{t("offerRide.repeatsOn")}</Text>
+              <Pressable onPress={() => { setRepeatDays(WEEKDAY_KEYS); setRepeatDaysError(""); }}>
+                <Text style={styles.weekdaysPresetLink}>{t("offerRide.weekdaysPreset")}</Text>
+              </Pressable>
+            </View>
+            <View style={styles.chipRow}>
+              {DAY_LABEL_KEYS.map((key, day) => {
+                const active = repeatDays.includes(day);
+                return (
+                  <Pressable
+                    key={day}
+                    style={[styles.dayChip, active && styles.chipActive]}
+                    onPress={() => toggleRepeatDay(day)}
+                  >
+                    <Text style={[styles.chipText, active && styles.chipTextActive]}>{t(key)}</Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+            <FieldError message={repeatDaysError} />
+
+            <Text style={[styles.label, { marginTop: spacing.md }]}>{t("offerRide.repeatUntil")}</Text>
+            <View style={styles.chipRow}>
+              {END_OPTIONS.map((opt) => (
+                <Pressable
+                  key={opt.key}
+                  style={[styles.chip, endOption === opt.key && styles.chipActive]}
+                  onPress={() => setEndOption(opt.key)}
+                >
+                  <Text style={[styles.chipText, endOption === opt.key && styles.chipTextActive]}>
+                    {t(opt.labelKey)}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+          </View>
+        )}
 
         <View style={styles.row}>
           <Text style={styles.label}>{t("offerRide.seatsAvailable")}</Text>
@@ -324,6 +465,24 @@ const styles = StyleSheet.create({
   chipActive: { backgroundColor: colors.successBg, borderColor: colors.success },
   chipText: { ...typography.caption, color: colors.textSecondary },
   chipTextActive: { color: colors.success },
+  dayChip: {
+    backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: radius.sm,
+    width: 42, height: 36, alignItems: "center", justifyContent: "center",
+  },
+  repeatToggleRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm, marginTop: spacing.md },
+  checkbox: {
+    width: 20, height: 20, borderRadius: 5, borderWidth: 1.5, borderColor: colors.border,
+    backgroundColor: colors.surface, alignItems: "center", justifyContent: "center",
+  },
+  checkboxActive: { backgroundColor: colors.accent, borderColor: colors.accent },
+  repeatToggleLabel: { ...typography.body, fontWeight: "700", fontFamily: FONT.bold },
+  repeatToggleHint: { ...typography.small, color: colors.textMuted, marginTop: 1 },
+  repeatSection: {
+    marginTop: spacing.sm, padding: spacing.md, backgroundColor: colors.surface,
+    borderWidth: 1, borderColor: colors.border, borderRadius: radius.md,
+  },
+  repeatDaysHeaderRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  weekdaysPresetLink: { ...typography.small, color: colors.accentText, fontWeight: "700", fontFamily: FONT.bold, textDecorationLine: "underline" },
   button: {
     backgroundColor: colors.textPrimary,
     height: 46,

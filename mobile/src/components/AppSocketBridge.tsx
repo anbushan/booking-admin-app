@@ -2,11 +2,14 @@ import { useEffect } from "react";
 import { AppState, Platform } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Notifications from "expo-notifications";
+import { useQuickActionCallback } from "expo-quick-actions/hooks";
 import { getSocket, disconnectSocket } from "../lib/socket";
 import { api } from "../lib/api";
 import { appEvents } from "../lib/appEvents";
 import { navigationRef } from "../lib/navigationRef";
 import { resolveNotificationTarget } from "../lib/notificationTargets";
+import { resolveQuickActionTarget } from "../lib/quickActions";
+import { syncBadgeCount } from "../lib/pushNotifications";
 import { useToast } from "./Toast";
 import { useTranslation } from "../lib/i18n/I18nContext";
 
@@ -40,6 +43,21 @@ function handleNotificationResponse(response: Notifications.NotificationResponse
 export function AppSocketBridge() {
   const { showSuccess } = useToast();
   const { t } = useTranslation();
+
+  // Routes a long-press-app-icon shortcut tap the same way a push
+  // notification tap already does above (resolveQuickActionTarget,
+  // same navigationRef.isReady() guard against the cold-start race
+  // where this fires before NavigationContainer has mounted) — the
+  // hook itself handles both cold-start (app launched BY the shortcut)
+  // and a tap while already running in one place, unlike the
+  // notification path which needs the separate getLastNotificationResponse
+  // read for cold start.
+  useQuickActionCallback((action) => {
+    const target = resolveQuickActionTarget(action.id);
+    if (target && navigationRef.isReady()) {
+      (navigationRef as any).navigate(target.screen, target.params);
+    }
+  });
 
   useEffect(() => {
     async function connect() {
@@ -101,7 +119,13 @@ export function AppSocketBridge() {
       if (state === "active") connect();
     });
     const loginSub = appEvents.on("auth:login", connect);
-    const logoutSub = appEvents.on("auth:logout", () => disconnectSocket());
+    const logoutSub = appEvents.on("auth:logout", () => {
+      disconnectSocket();
+      // A signed-out device shouldn't keep showing a stale unread count
+      // on the app icon — same reasoning as clearing the quick-action
+      // shortcuts right above this in logout() itself.
+      syncBadgeCount(0);
+    });
 
     // expo-notifications' response APIs (last-response, the response
     // listener) throw UnavailabilityError on web — this app's web

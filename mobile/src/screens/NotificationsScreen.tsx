@@ -1,16 +1,17 @@
-import React, { useState, useCallback, useMemo } from "react";
+import React, { useState, useCallback, useEffect, useMemo } from "react";
 import { View, Text, SectionList, StyleSheet, RefreshControl } from "react-native";
 import { Pressable } from "../components/Pressable";
 import { useFocusEffect } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
 import { colors, spacing, radius, typography, FONT } from "../theme/theme";
 import { api } from "../lib/api";
-import { CarLoader } from "../components/CarLoader";
+import { SkeletonSectionHeader, SkeletonAvatarRow } from "../components/Skeleton";
 import { EmptyState } from "../components/EmptyState";
 import { ErrorState } from "../components/ErrorState";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { AppBottomNav } from "../components/AppBottomNav";
 import { resolveNotificationTarget } from "../lib/notificationTargets";
+import { syncBadgeCount } from "../lib/pushNotifications";
 import { useScreenView } from "../lib/useScreenView";
 import { useTranslation } from "../lib/i18n/I18nContext";
 
@@ -89,6 +90,16 @@ export default function NotificationsScreen({ navigation }: any) {
   const unreadCount = notifications.filter((n) => !n.read).length;
   const sections = useMemo(() => groupByDate(notifications, t), [notifications, t]);
 
+  // Reading a notification (or "mark all read") doesn't leave this
+  // screen, so AppBottomNav's own focus-triggered refresh — the usual
+  // place the OS icon badge gets kept in sync — never re-fires here.
+  // This mirrors that same sync onto every unreadCount change instead,
+  // so marking things read updates the app icon the instant it happens
+  // rather than waiting for the next screen focus.
+  useEffect(() => {
+    syncBadgeCount(unreadCount);
+  }, [unreadCount]);
+
   async function markRead(id: string) {
     await api.markNotificationRead(id);
     setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, read: true } : n)));
@@ -127,8 +138,17 @@ export default function NotificationsScreen({ navigation }: any) {
         )}
       </View>
       {loading ? (
-        <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
-          <CarLoader size="lg" />
+        <View style={{ flex: 1, paddingBottom: spacing.md }}>
+          <SkeletonSectionHeader />
+          <View style={{ paddingHorizontal: spacing.md, gap: spacing.sm }}>
+            <SkeletonAvatarRow />
+            <SkeletonAvatarRow />
+          </View>
+          <SkeletonSectionHeader />
+          <View style={{ paddingHorizontal: spacing.md, gap: spacing.sm }}>
+            <SkeletonAvatarRow />
+            <SkeletonAvatarRow />
+          </View>
         </View>
       ) : error ? (
         <ErrorState message={t("notifications.couldntLoad")} onRetry={load} />

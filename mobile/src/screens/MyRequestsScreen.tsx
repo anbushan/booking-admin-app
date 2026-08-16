@@ -4,7 +4,7 @@ import { Pressable } from "../components/Pressable";
 import { useFocusEffect } from "@react-navigation/native";
 import { colors, spacing, radius, typography, FONT } from "../theme/theme";
 import { api } from "../lib/api";
-import { CarLoader } from "../components/CarLoader";
+import { SkeletonCardList } from "../components/Skeleton";
 import { EmptyState } from "../components/EmptyState";
 import { ErrorState } from "../components/ErrorState";
 import { primeLocationIfNeeded } from "../lib/locationPriming";
@@ -88,9 +88,7 @@ export default function MyRequestsScreen({ navigation }: any) {
       <Text style={{ ...typography.title, padding: spacing.lg, paddingBottom: spacing.sm }}>{t("myRequests.title")}</Text>
 
       {loading ? (
-        <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
-          <CarLoader size="lg" />
-        </View>
+        <SkeletonCardList />
       ) : error ? (
         <ErrorState message={t("myRequests.couldntLoad")} onRetry={load} />
       ) : (

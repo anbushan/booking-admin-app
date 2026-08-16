@@ -4,6 +4,7 @@ import SideMenu from "./SideMenu";
 import { BottomNavBar } from "./BottomNavBar";
 import { api } from "../lib/api";
 import { appEvents } from "../lib/appEvents";
+import { syncBadgeCount } from "../lib/pushNotifications";
 import { useTranslation } from "../lib/i18n/I18nContext";
 
 // The persistent chrome for every "hub" screen (Home, My bookings,
@@ -52,7 +53,15 @@ export function AppBottomNav({ navigation, profile, active = "", unreadCountOver
         .then((list: any[]) => setMyRequestsCount(list.filter((b) => ["BOOKED", "AWAITING_PAYMENT", "PAYMENT_PENDING"].includes(b.status)).length))
         .catch(() => {});
     }
-    api.getNotifications().then((list: any[]) => setUnreadCount(list.filter((n) => !n.read).length)).catch(() => {});
+    api.getNotifications().then((list: any[]) => {
+      const count = list.filter((n) => !n.read).length;
+      setUnreadCount(count);
+      // Keeps the OS app-icon badge (the numbered dot on the home
+      // screen, same as WhatsApp/LinkedIn) honestly in sync — this is
+      // the one place that count is recomputed on every hub-screen
+      // focus, so it's the natural place to also push it to the icon.
+      syncBadgeCount(count);
+    }).catch(() => {});
   }, [profile?.role, isDriver]);
 
   // Refetch every time a hub screen regains focus, not just once on

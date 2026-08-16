@@ -9,11 +9,16 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { BackHeader } from "../components/BackHeader";
 import { useScreenView } from "../lib/useScreenView";
 import { useTranslation } from "../lib/i18n/I18nContext";
+import { appEvents } from "../lib/appEvents";
 
 export default function MapPinConfirmScreen({ route, navigation }: any) {
   useScreenView("MapPinConfirmScreen");
   const { t } = useTranslation();
-  const { lat, lng, address, onSelect } = route.params;
+  // selectFor replaces what used to be an onSelect callback forwarded
+  // through from LocationSearchScreen — see that screen's identical
+  // comment for why (function values in route params break React
+  // Navigation's state persistence).
+  const { lat, lng, address, selectFor } = route.params;
   const [position, setPosition] = useState({ lat, lng });
   const [currentAddress, setCurrentAddress] = useState(address);
   const [confirming, setConfirming] = useState(false);
@@ -35,7 +40,7 @@ export default function MapPinConfirmScreen({ route, navigation }: any) {
 
   function handleConfirm() {
     setConfirming(true);
-    onSelect?.({ lat: position.lat, lng: position.lng, address: currentAddress });
+    appEvents.emit("location:selected", { selectFor, location: { lat: position.lat, lng: position.lng, address: currentAddress } });
     navigation.goBack();
   }
 

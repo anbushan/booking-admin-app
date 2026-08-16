@@ -33,9 +33,12 @@ import callsRoutes from "./routes/calls.routes.js";
 import i18nRoutes from "./routes/i18n.routes.js";
 import statusRoutes from "./routes/status.routes.js";
 import verificationRoutes from "./routes/verification.routes.js";
+import recurringRidesRoutes from "./routes/recurringRides.routes.js";
+import weatherRoutes from "./routes/weather.routes.js";
 import { expireStaleBookings } from "./cron/expireBookings.js";
 import { checkNoShows } from "./cron/checkNoShows.js";
 import { expireStaleRides } from "./cron/expireStaleRides.js";
+import { generateRecurringRides } from "./cron/generateRecurringRides.js";
 import { attachSocketServer } from "./lib/socket.js";
 
 const app = express();
@@ -62,6 +65,8 @@ app.use("/api/calls", callsRoutes);
 app.use("/api/i18n", i18nRoutes);
 app.use("/api/app-status", statusRoutes);
 app.use("/api/verification", verificationRoutes);
+app.use("/api/recurring-rides", recurringRidesRoutes);
+app.use("/api/weather", weatherRoutes);
 
 const PORT = process.env.PORT || 4000;
 
@@ -87,3 +92,10 @@ setInterval(checkNoShows, 60 * 1000);
 // so anything still PUBLISHED past its departure time genuinely never
 // got used.
 setInterval(expireStaleRides, 60 * 1000);
+
+// Keeps every active recurring-ride series' rolling 14-day window
+// topped up — see lib/recurringRides.js. Hourly is plenty (a new/resumed
+// template already generates its own first batch synchronously, see
+// recurringRides.routes.js), this is just the ongoing top-up as today's
+// date moves forward.
+setInterval(generateRecurringRides, 60 * 60 * 1000);

@@ -11,11 +11,13 @@ import { CarLoader } from "../components/CarLoader";
 import { ErrorState } from "../components/ErrorState";
 import { RouteTimeline } from "../components/RouteTimeline";
 import { RouteStopsList } from "../components/RouteStopsList";
+import { RouteMiniMap } from "../components/RouteMiniMap";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { BackHeader } from "../components/BackHeader";
 import { useScreenView } from "../lib/useScreenView";
 import Avatar from "../components/Avatar";
 import { VerifiedBadge } from "../components/VerifiedBadge";
+import { RidePreferences } from "../components/RidePreferences";
 import { useTranslation } from "../lib/i18n/I18nContext";
 
 type RideDetails = {
@@ -43,6 +45,7 @@ type RideDetails = {
   estimatedArrivalAt: string;
   estimatedDurationMinutes: number;
   routeStops?: { lat: number; lng: number; placeName: string; distanceKm: number; durationMinutes: number }[] | null;
+  preferences?: Record<string, boolean> | null;
 };
 
 export default function BookingConfirmScreen({ route, navigation }: any) {
@@ -213,9 +216,24 @@ export default function BookingConfirmScreen({ route, navigation }: any) {
                 <Ionicons name="chevron-forward" size={14} color={colors.textMuted} />
               </Pressable>
             )}
+            {ride.preferences && (
+              <View style={styles.preferencesRow}>
+                <RidePreferences preferences={ride.preferences} />
+              </View>
+            )}
           </View>
 
           <View style={styles.timelineCard}>
+            <View style={styles.miniMapWrap}>
+              <RouteMiniMap
+                sourceLat={ride.sourceLat}
+                sourceLng={ride.sourceLng}
+                destLat={ride.destLat}
+                destLng={ride.destLng}
+                routePolyline={ride.routePolyline}
+                height={170}
+              />
+            </View>
             {ride.routeStops && ride.routeStops.length > 0 ? (
               // The full step-by-step route (like a train app's stop
               // list) — only available once a route's been computed for
@@ -257,6 +275,9 @@ export default function BookingConfirmScreen({ route, navigation }: any) {
                     style={[styles.stepperButton, seats <= 1 && styles.stepperButtonDisabled]}
                     disabled={seats <= 1}
                     onPress={() => adjustSeats(-1)}
+                    hitSlop={8}
+                    accessibilityRole="button"
+                    accessibilityLabel={t("booking.decreaseSeats")}
                   >
                     <Ionicons name="remove" size={16} color={colors.textPrimary} />
                   </Pressable>
@@ -268,6 +289,9 @@ export default function BookingConfirmScreen({ route, navigation }: any) {
                     ]}
                     disabled={seats >= Math.min(ride.seatsAvailable, 8)}
                     onPress={() => adjustSeats(1)}
+                    hitSlop={8}
+                    accessibilityRole="button"
+                    accessibilityLabel={t("booking.increaseSeats")}
                   >
                     <Ionicons name="add" size={16} color={colors.textPrimary} />
                   </Pressable>
@@ -360,6 +384,7 @@ const styles = StyleSheet.create({
   driverName: { ...typography.caption, color: colors.textSecondary, fontWeight: "700", fontFamily: FONT.bold },
   driverRatingRow: { flexDirection: "row", alignItems: "center", gap: 3 },
   badgeRow: { flexDirection: "row", gap: 6, marginTop: 4 },
+  preferencesRow: { marginTop: spacing.sm, paddingTop: spacing.sm, borderTopWidth: 1, borderTopColor: colors.border },
   reviewsWrap: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: radius.md, padding: spacing.md },
   reviewsHeaderRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   reviewsTitle: { ...typography.caption, color: colors.textSecondary, fontWeight: "700" },
@@ -370,6 +395,7 @@ const styles = StyleSheet.create({
   reviewFrom: { ...typography.small, color: colors.textMuted, marginTop: 3 },
   timelineCard: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: radius.md, padding: spacing.md },
   sectionCard: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: radius.md, padding: spacing.md },
+  miniMapWrap: { marginBottom: spacing.sm },
   mapLinkButton: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, borderWidth: 1, borderColor: colors.border, height: 38, borderRadius: radius.sm, marginTop: spacing.sm },
   mapLinkText: { ...typography.caption, color: colors.accentText, fontWeight: "700", fontFamily: FONT.bold },
   row: {

@@ -3,7 +3,7 @@ import { prisma } from "../lib/prisma.js";
 import { requireAuth, requireRole } from "../middleware/auth.js";
 import { razorpay } from "../lib/razorpay.js";
 import { getAppConfig } from "../lib/appConfig.js";
-import { verifyRC, verifyLicense, verifyAadhaar, isRcVerified, isLicenseVerified, isAadhaarVerified } from "../lib/eko.js";
+import { verifyRC, verifyLicense, initiateAadhaarOtp, verifyAadhaarOtp, isRcVerified, isLicenseVerified } from "../lib/eko.js";
 import { confirmDriverVerificationPayment, confirmVehicleVerificationPayment, confirmPassengerVerificationPayment } from "../lib/verification.js";
 import { validate, isNonEmptyString, isValidDate, isFutureDate } from "../lib/validate.js";
 import { getIO } from "../lib/socket.js";
@@ -382,9 +382,14 @@ router.post("/passenger/mock-confirm-payment", requireAuth, async (req, res) => 
   res.json({ success: true });
 });
 
-// POST /api/verification/passenger/verify — the "check" step, same
-// preview-then-confirm shape as license/RC above.
-router.post("/passenger/verify", requireAuth, async (req, res) => {
+// POST /api/verification/passenger/verify/send-otp — STEP 1 of 2.
+// Unlike license/RC's single-lookup check, Aadhaar e-KYC is
+// OTP-consent-based: this call returns no personal data at all, only
+// triggers Eko to send an OTP to whatever mobile number is actually
+// linked with this Aadhaar in UIDAI's own records (never this app's own
+// stored phone number) and stores the transaction id needed to pair
+// with that OTP on confirm-otp below.
+router.post("/passenger/verify/send-otp", requireAuth, async (req, res) => {
   const { aadhaarNumber } = req.body;
   const normalized = typeof aadhaarNumber === "string" ? aadhaarNumber.replace(/\s+/g, "") : aadhaarNumber;
   const errors = validate({ aadhaarNumber: normalized }, [
@@ -397,36 +402,64 @@ router.post("/passenger/verify", requireAuth, async (req, res) => {
     return res.status(400).json({ error: "Payment required before verification." });
   }
   if (pv.aadhaarStatus === "VERIFIED") {
-    return res.json({ passengerVerification: pv, preview: null });
+    return res.json({ passengerVerification: pv, otpSent: false });
   }
 
-  const result = await verifyAadhaar(normalized).catch((err) => ({ verified: false, raw: { error: err.message } }));
+  const result = await initiateAadhaarOtp(normalized).catch((err) => ({ success: false, raw: { error: err.message } }));
+  if (!result.success) {
+    // Doesn't touch aadhaarStatus — a failed OTP send (bad Aadhaar
+    // number, Eko outage) isn't a verification *attempt* the way a
+    // failed DL/RC lookup is, there's nothing to record yet.
+    return res.status(400).json({ error: result.raw?.message || "Couldn't send an OTP for this Aadhaar number. Double-check it and try again." });
+  }
+
+  await prisma.passengerVerification.update({
+    where: { id: pv.id },
+    data: { aadhaarStatus: "PENDING", aadhaarOtpTxnId: result.txnId },
+  });
+
+  res.json({ otpSent: true });
+});
+
+// POST /api/verification/passenger/verify/confirm-otp — STEP 2 of 2.
+// The resident's actual OTP consent — this is the only call that ever
+// returns real e-KYC data, and it commits the final VERIFIED/FAILED
+// status in the same request (unlike license/RC's confirm step, there's
+// no separate "preview it first" beat here: UIDAI doesn't hand back
+// anything to preview until the OTP itself is already verified, so
+// there's nothing to show before this point and nothing left to decide
+// after it).
+router.post("/passenger/verify/confirm-otp", requireAuth, async (req, res) => {
+  const { otp } = req.body;
+  const errors = validate({ otp }, [
+    { field: "otp", check: (v) => typeof v === "string" && /^\d{6}$/.test(v), message: "Enter the 6-digit OTP." },
+  ]);
+  if (errors.length) return res.status(400).json({ errors });
+
+  const pv = await prisma.passengerVerification.findUnique({ where: { userId: req.user.id } });
+  if (!pv || pv.aadhaarStatus !== "PENDING" || !pv.aadhaarOtpTxnId) {
+    return res.status(400).json({ error: "Nothing to verify — send an OTP first." });
+  }
+
+  const result = await verifyAadhaarOtp(pv.aadhaarOtpTxnId, otp).catch((err) => ({ verified: false, raw: { error: err.message } }));
   const updatedPv = await prisma.passengerVerification.update({
     where: { id: pv.id },
-    data: { aadhaarStatus: "PENDING", aadhaarEkoResponse: result.raw },
+    data: {
+      aadhaarStatus: result.verified ? "VERIFIED" : "FAILED",
+      aadhaarEkoResponse: result.raw,
+      aadhaarVerifiedAt: new Date(),
+      // Spent either way — a failed attempt needs a fresh send-otp
+      // (and, per reset below, a fresh payment) to try again, same as
+      // a wrong-code login OTP can't just be retried indefinitely.
+      aadhaarOtpTxnId: null,
+    },
   });
 
   res.json({
     passengerVerification: updatedPv,
-    preview: buildAadhaarPreview(result.raw, normalized, result.verified),
+    preview: result.verified ? buildAadhaarPreview(result.raw, result.raw?.data?.aadhaar_number, true) : null,
+    error: result.verified ? undefined : (result.raw?.message || "Incorrect OTP or verification failed."),
   });
-});
-
-// POST /api/verification/passenger/verify/confirm — commits the
-// already-fetched Aadhaar response, no second Eko call.
-router.post("/passenger/verify/confirm", requireAuth, async (req, res) => {
-  const pv = await prisma.passengerVerification.findUnique({ where: { userId: req.user.id } });
-  if (!pv || pv.aadhaarStatus !== "PENDING" || !pv.aadhaarEkoResponse) {
-    return res.status(400).json({ error: "Nothing to confirm — run the check first." });
-  }
-  const updatedPv = await prisma.passengerVerification.update({
-    where: { id: pv.id },
-    data: {
-      aadhaarStatus: isAadhaarVerified(pv.aadhaarEkoResponse) ? "VERIFIED" : "FAILED",
-      aadhaarVerifiedAt: new Date(),
-    },
-  });
-  res.json({ passengerVerification: updatedPv });
 });
 
 // POST /api/verification/passenger/reset — same "edit means pay again"
@@ -440,7 +473,7 @@ router.post("/passenger/reset", requireAuth, async (req, res) => {
     where: { id: pv.id },
     data: {
       paymentStatus: "UNPAID", razorpayOrderId: null, razorpayPaymentId: null, amountPaidInr: null, paidAt: null,
-      aadhaarStatus: "UNVERIFIED", aadhaarEkoResponse: null, aadhaarVerifiedAt: null,
+      aadhaarStatus: "UNVERIFIED", aadhaarEkoResponse: null, aadhaarVerifiedAt: null, aadhaarOtpTxnId: null,
     },
   });
   res.json({ passengerVerification: updatedPv });

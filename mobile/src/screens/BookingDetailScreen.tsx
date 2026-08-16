@@ -1,5 +1,5 @@
-import React, { useState, useCallback } from "react";
-import { View, Text, StyleSheet } from "react-native";
+import React, { useState, useCallback, useEffect } from "react";
+import { View, Text, StyleSheet, Linking } from "react-native";
 import { Pressable } from "../components/Pressable";
 import { useFocusEffect } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
@@ -12,6 +12,28 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { BackHeader } from "../components/BackHeader";
 import { useScreenView } from "../lib/useScreenView";
 import { useTranslation } from "../lib/i18n/I18nContext";
+import { showAlert } from "../lib/alert";
+
+// Google Calendar's "quick add" URL — no API key, no OAuth, no backend
+// email infra required (this app has none — see api.ts). It just opens
+// a pre-filled Calendar event the user still has to hit Save on, which
+// is exactly what "add to calendar" means to a passenger: nobody wants
+// an automatic invite silently added to their calendar.
+function buildGoogleCalendarUrl(booking: any) {
+  const start = new Date(booking.ride.travelDate);
+  const durationMinutes = booking.ride.routeDurationMinutes || 60;
+  const end = new Date(start.getTime() + durationMinutes * 60000);
+  const toUtcStamp = (d: Date) => d.toISOString().replace(/[-:]/g, "").replace(/\.\d{3}Z$/, "Z");
+
+  const params = new URLSearchParams({
+    action: "TEMPLATE",
+    text: `NanbaGO ride: ${booking.ride.sourceAddress} → ${booking.ride.destAddress}`,
+    dates: `${toUtcStamp(start)}/${toUtcStamp(end)}`,
+    details: `Booked via NanbaGO.\nDriver: ${booking.ride.driver.name || booking.ride.driver.phone}\nSeats: ${booking.seatsBooked}`,
+    location: booking.ride.sourceAddress,
+  });
+  return `https://calendar.google.com/calendar/render?${params.toString()}`;
+}
 
 export default function BookingDetailScreen({ route, navigation }: any) {
   useScreenView("BookingDetailScreen");
@@ -19,6 +41,14 @@ export default function BookingDetailScreen({ route, navigation }: any) {
   const { bookingId } = route.params;
   const [booking, setBooking] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  // Only for the "does this account even have an email to gate the
+  // calendar link on" check below — not part of the booking fetch
+  // itself, and never blocks the screen if it fails to load.
+  const [profileEmail, setProfileEmail] = useState<string | null>(null);
+
+  useEffect(() => {
+    api.getMyProfile().then((p: any) => setProfileEmail(p?.email || null)).catch(() => {});
+  }, []);
 
   // Refetches every time this screen regains focus, not just on first
   // mount — status/refund/cash-collected fields here can all change
@@ -52,6 +82,15 @@ export default function BookingDetailScreen({ route, navigation }: any) {
   }
 
   const amount = Number(booking.segmentPricePerSeat ?? booking.ride.pricePerSeat) * booking.seatsBooked;
+
+  async function handleAddToCalendar() {
+    const url = buildGoogleCalendarUrl(booking);
+    try {
+      await Linking.openURL(url);
+    } catch {
+      showAlert(t("bookingDetail.couldntOpenCalendar"), t("bookingDetail.couldntOpenCalendarBody"));
+    }
+  }
 
   return (
     <SafeAreaView style={styles.screen} edges={["top", "bottom"]}>
@@ -127,6 +166,22 @@ export default function BookingDetailScreen({ route, navigation }: any) {
           </View>
         )}
 
+        {/* Gated on the booking actually being confirmed (nothing to put
+            on a calendar before that) and on the account having an
+            email on file — this app has no email-sending infra at all
+            (see api.ts), so this is a client-side "quick add" deep link
+            into Google Calendar rather than a real emailed invite; the
+            email-on-file check is a reasonable proxy for "this person
+            actually uses Calendar/Gmail" without us needing to build
+            any of that infra. */}
+        {booking.status === "CONFIRMED" && !!profileEmail && (
+          <Pressable style={styles.actionButton} onPress={handleAddToCalendar}>
+            <View style={styles.calendarButtonRow}>
+              <Ionicons name="calendar-outline" size={16} color={colors.accentText} />
+              <Text style={styles.actionButtonText}>{t("bookingDetail.addToCalendar")}</Text>
+            </View>
+          </Pressable>
+        )}
         {!!booking.platformFeePaidAt && (
           <Pressable
             style={styles.actionButton}
@@ -163,6 +218,7 @@ const styles = StyleSheet.create({
   value: typography.body,
   actionButton: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, height: 44, borderRadius: radius.sm, alignItems: "center", justifyContent: "center", marginTop: spacing.md },
   actionButtonText: { ...typography.body, color: colors.accentText },
+  calendarButtonRow: { flexDirection: "row", alignItems: "center", gap: 6 },
   notFound: { ...typography.body, color: colors.textMuted },
   reviewCard: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: radius.md, padding: spacing.md, marginTop: spacing.md },
   reviewTitle: { ...typography.caption, color: colors.textSecondary, fontWeight: "700", fontFamily: FONT.bold },

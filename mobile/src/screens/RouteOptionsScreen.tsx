@@ -8,14 +8,68 @@ import { api } from "../lib/api";
 import { Analytics } from "../lib/analytics";
 import { ErrorState } from "../components/ErrorState";
 import { RouteStopsList } from "../components/RouteStopsList";
-import { CarLoader } from "../components/CarLoader";
+import { SkeletonCardList } from "../components/Skeleton";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { BackHeader } from "../components/BackHeader";
 import { useScreenView } from "../lib/useScreenView";
 import { useTranslation } from "../lib/i18n/I18nContext";
+import { RouteMiniMap } from "../components/RouteMiniMap";
 
 type Stop = { lat: number; lng: number; placeName: string; distanceKm: number; durationMinutes: number };
 type RouteOption = { summary: string; polyline: string; distanceKm: number; durationMinutes: number; stops: Stop[] };
+
+// A right-there-on-the-card mini map, not just a "View in map" link out
+// to a separate screen — this list is a handful of route alternatives
+// (Directions rarely returns more than 2-3), nothing like
+// SearchResultsScreen's much longer results list, so one live MapView
+// per card here is a reasonable cost, not the per-row-MapView-in-a-long-
+// FlatList problem that would rule it out there. Traffic/weather live
+// here directly for the same reason "Search routes" is literally this
+// screen's own title — this is the natural place to check both before
+// picking a route to publish, not a screen you'd expect to detour away
+// from first.
+function RouteOptionCard({
+  item, rideForm, publishing, onSelectRoute, navigation, t,
+}: {
+  item: RouteOption;
+  rideForm: any;
+  publishing: boolean;
+  onSelectRoute: (alt: RouteOption) => void;
+  navigation: any;
+  t: (key: string, params?: any) => string;
+}) {
+  return (
+    <View style={styles.card}>
+      <Text style={styles.summary}>{item.summary}</Text>
+      <Text style={styles.meta}>{t("routeOptions.distanceDuration", { km: item.distanceKm, min: item.durationMinutes })}</Text>
+
+      <RouteMiniMap
+        sourceLat={rideForm.sourceLat}
+        sourceLng={rideForm.sourceLng}
+        destLat={rideForm.destLat}
+        destLng={rideForm.destLng}
+        routePolyline={item.polyline}
+        height={170}
+      />
+
+      <RouteStopsList stops={item.stops} departAt={rideForm.travelDate} />
+      <Pressable
+        style={styles.mapLinkButton}
+        onPress={() => navigation.navigate("RouteMap", {
+          sourceLat: rideForm.sourceLat, sourceLng: rideForm.sourceLng, sourceAddress: rideForm.sourceAddress,
+          destLat: rideForm.destLat, destLng: rideForm.destLng, destAddress: rideForm.destAddress,
+          routePolyline: item.polyline,
+        })}
+      >
+        <Ionicons name="expand-outline" size={14} color={colors.accentText} />
+        <Text style={styles.mapLinkText}>{t("routeMap.viewInMap")}</Text>
+      </Pressable>
+      <Pressable style={styles.button} onPress={() => onSelectRoute(item)} disabled={publishing}>
+        <Text style={styles.buttonText}>{publishing ? t("routeOptions.publishing") : t("routeOptions.publishThisRoute")}</Text>
+      </Pressable>
+    </View>
+  );
+}
 
 // Always shown after OfferRideScreen, even for a plain point-to-point
 // trip with no meaningfully different alternative shape — Directions
@@ -40,6 +94,40 @@ export default function RouteOptionsScreen({ route, navigation }: any) {
   async function selectRoute(alt: RouteOption | null) {
     setPublishing(true);
     try {
+      const routeFields = alt ? {
+        routePolyline: alt.polyline,
+        routeStops: alt.stops,
+        routeDistanceKm: alt.distanceKm,
+        routeDurationMinutes: alt.durationMinutes,
+      } : {};
+
+      // OfferRideScreen's "Repeat this ride" toggle sends a `recurrence`
+      // param — everything else about the form (route/seats/price/
+      // preferences/vehicle) is identical either way, so this is the
+      // only branch point between publishing one ride and setting up a
+      // whole series. Same picked route (polyline/stops/distance) is
+      // reused for the template either way — see recurringRides.routes.js
+      // for why it's computed once here, not re-fetched per occurrence.
+      if (rideForm.recurrence) {
+        const result = await api.createRecurringRide({
+          sourceLat: rideForm.sourceLat, sourceLng: rideForm.sourceLng, sourceAddress: rideForm.sourceAddress,
+          destLat: rideForm.destLat, destLng: rideForm.destLng, destAddress: rideForm.destAddress,
+          departureTime: rideForm.recurrence.departureTime,
+          daysOfWeek: rideForm.recurrence.daysOfWeek,
+          startDate: rideForm.recurrence.startDate,
+          ...(rideForm.recurrence.endDate ? { endDate: rideForm.recurrence.endDate } : {}),
+          seatsAvailable: rideForm.seatsAvailable,
+          pricePerSeat: rideForm.pricePerSeat,
+          preferences: rideForm.preferences,
+          ...(rideForm.vehicleId ? { vehicleId: rideForm.vehicleId } : {}),
+          ...routeFields,
+        });
+        Analytics.ridePublished(result?.template?.id || "");
+        showAlert(t("routeOptions.recurringPublishedTitle"), t("routeOptions.recurringPublishedBody", { count: result.ridesGenerated }));
+        navigation.navigate("History", { role: "DRIVER" });
+        return;
+      }
+
       const ride = await api.createRide({
         sourceLat: rideForm.sourceLat, sourceLng: rideForm.sourceLng, sourceAddress: rideForm.sourceAddress,
         destLat: rideForm.destLat, destLng: rideForm.destLng, destAddress: rideForm.destAddress,
@@ -48,12 +136,7 @@ export default function RouteOptionsScreen({ route, navigation }: any) {
         pricePerSeat: rideForm.pricePerSeat,
         preferences: rideForm.preferences,
         ...(rideForm.vehicleId ? { vehicleId: rideForm.vehicleId } : {}),
-        ...(alt ? {
-          routePolyline: alt.polyline,
-          routeStops: alt.stops,
-          routeDistanceKm: alt.distanceKm,
-          routeDurationMinutes: alt.durationMinutes,
-        } : {}),
+        ...routeFields,
       });
       Analytics.ridePublished(ride?.id || "");
       // alt is only ever null from the "Publish anyway" button on the
@@ -74,9 +157,7 @@ export default function RouteOptionsScreen({ route, navigation }: any) {
       <BackHeader title={t("offerRide.searchRoutes")} onBack={() => navigation.goBack()} />
 
       {alternatives === null && !error ? (
-        <View style={styles.centerState}>
-          <CarLoader size="lg" />
-        </View>
+        <SkeletonCardList count={2} />
       ) : error ? (
         <ErrorState message={t("routeOptions.couldntLoad")} onRetry={() => { setError(false); setAlternatives(null); }} />
       ) : alternatives.length === 0 ? (
@@ -97,25 +178,14 @@ export default function RouteOptionsScreen({ route, navigation }: any) {
           keyExtractor={(_, i) => String(i)}
           contentContainerStyle={{ padding: spacing.md, gap: spacing.sm }}
           renderItem={({ item }) => (
-            <View style={styles.card}>
-              <Text style={styles.summary}>{item.summary}</Text>
-              <Text style={styles.meta}>{t("routeOptions.distanceDuration", { km: item.distanceKm, min: item.durationMinutes })}</Text>
-              <RouteStopsList stops={item.stops} departAt={rideForm.travelDate} />
-              <Pressable
-                style={styles.mapLinkButton}
-                onPress={() => navigation.navigate("RouteMap", {
-                  sourceLat: rideForm.sourceLat, sourceLng: rideForm.sourceLng, sourceAddress: rideForm.sourceAddress,
-                  destLat: rideForm.destLat, destLng: rideForm.destLng, destAddress: rideForm.destAddress,
-                  routePolyline: item.polyline,
-                })}
-              >
-                <Ionicons name="map-outline" size={14} color={colors.accentText} />
-                <Text style={styles.mapLinkText}>{t("routeMap.viewInMap")}</Text>
-              </Pressable>
-              <Pressable style={styles.button} onPress={() => selectRoute(item)} disabled={publishing}>
-                <Text style={styles.buttonText}>{publishing ? t("routeOptions.publishing") : t("routeOptions.publishThisRoute")}</Text>
-              </Pressable>
-            </View>
+            <RouteOptionCard
+              item={item}
+              rideForm={rideForm}
+              publishing={publishing}
+              onSelectRoute={selectRoute}
+              navigation={navigation}
+              t={t}
+            />
           )}
         />
       )}

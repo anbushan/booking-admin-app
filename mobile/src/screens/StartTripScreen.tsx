@@ -6,6 +6,7 @@ import { showAlert } from "../lib/alert";
 import { colors, spacing, radius, typography, FONT } from "../theme/theme";
 import { api } from "../lib/api";
 import { primeLocationIfNeeded } from "../lib/locationPriming";
+import { getDeviceCoords } from "../lib/deviceLocation";
 import { Analytics } from "../lib/analytics";
 import { useToast } from "../components/Toast";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -17,6 +18,8 @@ import { useScreenView } from "../lib/useScreenView";
 import Avatar from "../components/Avatar";
 import { VerifiedBadge } from "../components/VerifiedBadge";
 import { useTranslation } from "../lib/i18n/I18nContext";
+
+const LOCATION_REPORT_INTERVAL_MS = 10 * 1000;
 
 export default function StartTripScreen({ route, navigation }: any) {
   useScreenView("StartTripScreen");
@@ -73,6 +76,27 @@ export default function StartTripScreen({ route, navigation }: any) {
       }
     );
     return () => { cancelled = true; };
+  }, [bookingId]);
+
+  // Same ping loop LiveTrackingScreen's driver side already runs during
+  // an IN_PROGRESS trip, started here too — this booking is still
+  // CONFIRMED (not yet IN_PROGRESS) for this entire screen's lifetime,
+  // but trips.routes.js's location-ping endpoint now updates CONFIRMED
+  // bookings on the ride as well specifically so TripOtpScreen's map
+  // (the passenger's view of this exact waiting window) has something
+  // real to show instead of nothing. Stops on its own when this screen
+  // unmounts (OTP verified -> navigated away, or driver backs out).
+  useEffect(() => {
+    const report = setInterval(async () => {
+      try {
+        const { lat, lng } = await getDeviceCoords();
+        await api.pingLocation(bookingId, lat, lng);
+      } catch {
+        // Best-effort — a missed ping just means TripOtpScreen's map is
+        // briefly stale, never worth interrupting this flow over.
+      }
+    }, LOCATION_REPORT_INTERVAL_MS);
+    return () => clearInterval(report);
   }, [bookingId]);
 
   function retryArrival() {
@@ -172,7 +196,14 @@ export default function StartTripScreen({ route, navigation }: any) {
                   />
                 </View>
               </View>
-              <Pressable style={styles.callButton} onPress={handleCall} disabled={calling} hitSlop={4}>
+              <Pressable
+                style={styles.callButton}
+                onPress={handleCall}
+                disabled={calling}
+                hitSlop={4}
+                accessibilityRole="button"
+                accessibilityLabel={t("common.call")}
+              >
                 <Ionicons name="call-outline" size={17} color={colors.accentText} />
               </Pressable>
             </View>

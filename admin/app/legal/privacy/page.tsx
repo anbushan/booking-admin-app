@@ -122,6 +122,11 @@ export default function PrivacyPage() {
           need to resolve it first — the app tells you exactly what, if anything, is blocking
           deletion before you confirm.
         </p>
+        <p style={{ marginTop: 10 }}>
+          No longer have the app installed? You can request deletion from{" "}
+          <a href="/delete-account" style={{ color: "#0C447C" }}>this page</a> instead — we verify
+          it&rsquo;s really you before anything is removed.
+        </p>
       </Section>
 
       <Section title="Security">

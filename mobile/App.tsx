@@ -73,6 +73,7 @@ import VerifyDriverScreen from "./src/screens/VerifyDriverScreen";
 import VerifyPassengerScreen from "./src/screens/VerifyPassengerScreen";
 import EarningsScreen from "./src/screens/EarningsScreen";
 import EditRideScreen from "./src/screens/EditRideScreen";
+import ManageRecurringRidesScreen from "./src/screens/ManageRecurringRidesScreen";
 
 import PaymentScreen from "./src/screens/PaymentScreen";
 import LocationSearchScreen from "./src/screens/LocationSearchScreen";
@@ -206,6 +207,7 @@ function App() {
         <Stack.Screen name="EditVehicle" component={EditVehicleScreen} />
         <Stack.Screen name="Earnings" component={EarningsScreen} />
         <Stack.Screen name="EditRide" component={EditRideScreen} />
+        <Stack.Screen name="ManageRecurringRides" component={ManageRecurringRidesScreen} />
         <Stack.Screen name="PaymentQueue" component={PaymentQueueScreen} />
 
         {/* Payments */}

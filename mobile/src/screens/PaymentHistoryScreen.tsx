@@ -4,7 +4,7 @@ import { Pressable } from "../components/Pressable";
 import { useFocusEffect } from "@react-navigation/native";
 import { colors, spacing, radius, typography } from "../theme/theme";
 import { api } from "../lib/api";
-import { CarLoader } from "../components/CarLoader";
+import { SkeletonList } from "../components/Skeleton";
 import { EmptyState } from "../components/EmptyState";
 import { ErrorState } from "../components/ErrorState";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -38,9 +38,7 @@ export default function PaymentHistoryScreen({ navigation }: any) {
     <SafeAreaView style={styles.screen} edges={["top"]}>
       <Text style={{ ...typography.title, padding: spacing.lg, paddingBottom: spacing.sm }}>{t("payment.historyTitle")}</Text>
       {loading ? (
-        <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
-          <CarLoader size="lg" />
-        </View>
+        <SkeletonList />
       ) : error ? (
         <ErrorState message={t("payment.couldntLoadHistory")} onRetry={load} />
       ) : (

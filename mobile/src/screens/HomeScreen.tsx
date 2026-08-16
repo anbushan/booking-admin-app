@@ -15,9 +15,12 @@ import { VerifiedBadge } from "../components/VerifiedBadge";
 import { api } from "../lib/api";
 import { useScreenView } from "../lib/useScreenView";
 import Avatar from "../components/Avatar";
+import { QuickActionsGrid, QuickAction } from "../components/QuickActionsGrid";
+import { setRoleQuickActions } from "../lib/quickActions";
 import { getRecentSearches, RecentLocation } from "../lib/recentSearches";
 import { useTranslation } from "../lib/i18n/I18nContext";
 import { hasSeenCopilotTour, markCopilotTourSeen } from "../lib/copilotOnboarding";
+import { appEvents } from "../lib/appEvents";
 
 // `walkthroughable` just forwards a `copilot` ref/onLayout prop into the
 // wrapped component's own props — defined once at module scope (not
@@ -35,16 +38,6 @@ type PopularRoute = {
 
 const DEFAULT_SOURCE: Point = { lat: 12.9352, lng: 77.6146, address: "Koramangala, Bengaluru" };
 
-// Icon + label pairs for the driver's own action list — an icon-only
-// change from before, but the whole point of this pass: "Booking
-// requests" reads as an inbox, "Earnings" as a wallet, before anyone
-// reads the word.
-const DRIVER_ACTIONS = [
-  { route: "BookingRequests", labelKey: "home.bookingRequests", icon: "mail-unread-outline" },
-  { route: "UpcomingTrips", labelKey: "home.startTripNow", icon: "navigate-outline" },
-  { route: "History", labelKey: "home.yourRides", params: { role: "DRIVER" }, icon: "car-outline" },
-  { route: "Earnings", labelKey: "home.earnings", icon: "wallet-outline" },
-] as const;
 
 // Wraps the actual screen in CopilotProvider so `useCopilot()` is
 // available inside it — the provider has to be an ancestor of every
@@ -90,6 +83,12 @@ function HomeScreenContent({ navigation }: any) {
   const [profile, setProfile] = useState<{ id?: string; name?: string; role?: string; photoViewUrl?: string | null } | null>(null);
   const [checkingActiveTrip, setCheckingActiveTrip] = useState(true);
   const [pendingRequestCount, setPendingRequestCount] = useState(0);
+  // Same two counts AppBottomNav's own badges already fetch — mirrored
+  // here (not lifted/shared) so the new quick-actions grid's tile
+  // badges match instantly rather than waiting on a navigation round
+  // trip, the same reasoning pendingRequestCount above already used.
+  const [upcomingTripsCount, setUpcomingTripsCount] = useState(0);
+  const [myRequestsCount, setMyRequestsCount] = useState(0);
   const [howItWorksVisible, setHowItWorksVisible] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [recentSearches, setRecentSearches] = useState<RecentLocation[]>([]);
@@ -103,6 +102,32 @@ function HomeScreenContent({ navigation }: any) {
   useEffect(() => {
     api.getMyProfile().then(setProfile).catch(() => {});
   }, []);
+
+  // LocationSearchScreen reports a pick back via this event instead of a
+  // callback passed through navigation params — React Navigation warns
+  // ("non-serializable values were found in the navigation state") the
+  // moment a function ends up in route params, since that state is
+  // meant to be persistable/restorable. "home-source"/"home-destination"
+  // scope this listener to picks actually meant for this screen, in case
+  // another screen with its own location fields (OfferRideScreen) has a
+  // listener alive at the same time.
+  useEffect(() => {
+    return appEvents.on("location:selected", (payload: { selectFor: string; location: Point }) => {
+      if (payload.selectFor === "home-source") setSource(payload.location);
+      else if (payload.selectFor === "home-destination") setDestination(payload.location);
+    });
+  }, []);
+
+  // Keeps the OS-level long-press-app-icon shortcuts (see
+  // lib/quickActions.ts) in sync with whichever role is actually
+  // active — refires on every role change (initial login, and
+  // SwitchRoleScreen), not just once, so a driver who switches to
+  // passenger doesn't keep seeing driver shortcuts on their launcher.
+  useEffect(() => {
+    if (profile?.role === "DRIVER" || profile?.role === "PASSENGER") {
+      setRoleQuickActions(profile.role, t);
+    }
+  }, [profile?.role]);
 
   // Recent re-reads on every focus (a pick made on LocationSearch just
   // now should show up back here immediately); popular routes are a
@@ -192,6 +217,23 @@ function HomeScreenContent({ navigation }: any) {
     }, [profile?.role])
   );
 
+  // Drives the two quick-actions grid badge tiles (Start Trip / My
+  // Requests) — same filter logic and same source calls AppBottomNav's
+  // own badges already use, so the numbers always agree with each other.
+  useFocusEffect(
+    useCallback(() => {
+      if (profile?.role === "DRIVER") {
+        api.getDriverActiveBookings()
+          .then((list: any[]) => setUpcomingTripsCount(list.filter((t) => ["AWAITING_PAYMENT", "CONFIRMED", "IN_PROGRESS"].includes(t.status)).length))
+          .catch(() => {});
+      } else if (profile?.role === "PASSENGER") {
+        api.getMyBookings()
+          .then((list: any[]) => setMyRequestsCount(list.filter((b) => ["BOOKED", "AWAITING_PAYMENT", "PAYMENT_PENDING"].includes(b.status)).length))
+          .catch(() => {});
+      }
+    }, [profile?.role])
+  );
+
   // Drives the "why get verified" banner below — only fetched for
   // drivers, and only ever used to decide whether to show it (once
   // verified, it disappears; VehicleListScreen's own banner + the
@@ -225,6 +267,30 @@ function HomeScreenContent({ navigation }: any) {
   // was when the screen first mounted.
   const hour = new Date().getHours();
   const greeting = hour < 12 ? t("home.goodMorning") : hour < 17 ? t("home.goodAfternoon") : hour < 21 ? t("home.goodEvening") : t("home.goodNight");
+
+  // Visual, icon-first quick-actions grid — replaces the old plain
+  // text-row DRIVER_ACTIONS list for drivers, and gives passengers an
+  // equivalent set of shortcuts they never had before (previously only
+  // the search form itself). Badge counts mirror AppBottomNav's own
+  // badges exactly (same source calls, same filters — see the
+  // useFocusEffect above), so a number here always agrees with the one
+  // on the tab it corresponds to.
+  const driverQuickActions: QuickAction[] = [
+    { key: "requests", label: t("home.bookingRequests"), icon: "mail-unread-outline", onPress: () => navigation.navigate("BookingRequests"), badge: pendingRequestCount },
+    { key: "startTrip", label: t("home.startTripNow"), icon: "navigate-outline", onPress: () => navigation.navigate("UpcomingTrips"), badge: upcomingTripsCount, tint: "marigold" },
+    { key: "myRides", label: t("home.yourRides"), icon: "car-outline", onPress: () => navigation.navigate("History", { role: "DRIVER" }) },
+    { key: "earnings", label: t("home.earnings"), icon: "wallet-outline", onPress: () => navigation.navigate("Earnings"), tint: "success" },
+    { key: "vehicles", label: t("sideMenu.myVehicles"), icon: "car-sport-outline", onPress: () => navigation.navigate("VehicleList") },
+    { key: "paymentQueue", label: t("sideMenu.paymentQueue"), icon: "cash-outline", onPress: () => navigation.navigate("PaymentQueue") },
+  ];
+  const passengerQuickActions: QuickAction[] = [
+    { key: "myRequests", label: t("navTabs.myRequests"), icon: "list-outline", onPress: () => navigation.navigate("MyRequests"), badge: myRequestsCount },
+    { key: "bookings", label: t("navTabs.bookings"), icon: "receipt-outline", onPress: () => navigation.navigate("History", { role: "PASSENGER" }) },
+    { key: "verifyId", label: t("verification.passengerLink"), icon: "shield-checkmark-outline", onPress: () => navigation.navigate("VerifyPassenger"), tint: "success" },
+    { key: "chat", label: t("chatList.title"), icon: "chatbubbles-outline", onPress: () => navigation.navigate("ChatList") },
+    { key: "emergencyContacts", label: t("settings.emergencyContacts"), icon: "shield-checkmark-outline", onPress: () => navigation.navigate("EmergencyContacts"), tint: "danger" },
+    { key: "helpSupport", label: t("settings.helpSupport"), icon: "help-buoy-outline", onPress: () => navigation.navigate("HelpSupport"), tint: "marigold" },
+  ];
 
   // Auto-starts the walkthrough exactly once per role, the first time
   // that role's real Home content (with its CopilotSteps registered)
@@ -268,13 +334,13 @@ function HomeScreenContent({ navigation }: any) {
     );
   }
 
-  function openLocationSearch(onSelect: (loc: Point) => void) {
-    navigation.navigate("LocationSearch", { onSelect, skipMapConfirm: true });
+  function openLocationSearch(selectFor: "home-source" | "home-destination") {
+    navigation.navigate("LocationSearch", { selectFor, skipMapConfirm: true });
   }
 
   function handleSearch() {
     if (!destination) {
-      openLocationSearch(setDestination);
+      openLocationSearch("home-destination");
       return;
     }
     navigation.navigate("SearchResults", {
@@ -350,24 +416,7 @@ function HomeScreenContent({ navigation }: any) {
           </CopilotStep>
           <CopilotStep name="driverActions" order={2} text={t("copilot.driver.step2")}>
             <CopilotView>
-              {DRIVER_ACTIONS.map((action) => (
-                <Pressable
-                  key={action.route}
-                  style={styles.driverActionRow}
-                  onPress={() => navigation.navigate(action.route, "params" in action ? action.params : undefined)}
-                >
-                  <View style={styles.driverActionIconWrap}>
-                    <Ionicons name={action.icon as any} size={17} color={colors.accentText} />
-                  </View>
-                  <Text style={styles.driverActionText}>{t(action.labelKey)}</Text>
-                  {action.route === "BookingRequests" && pendingRequestCount > 0 && (
-                    <View style={styles.badge}>
-                      <Text style={styles.badgeText}>{pendingRequestCount > 9 ? "9+" : pendingRequestCount}</Text>
-                    </View>
-                  )}
-                  <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
-                </Pressable>
-              ))}
+              <QuickActionsGrid actions={driverQuickActions} />
             </CopilotView>
           </CopilotStep>
           <Text style={styles.driverHint}>{t("home.driverHint")}</Text>
@@ -432,13 +481,13 @@ function HomeScreenContent({ navigation }: any) {
         <>
           <CopilotStep name="passengerSearch" order={1} text={t("copilot.passenger.step1")}>
             <CopilotView style={styles.searchCard}>
-              <Pressable style={styles.field} onPress={() => openLocationSearch(setSource)}>
+              <Pressable style={styles.field} onPress={() => openLocationSearch("home-source")}>
                 <View style={[styles.dot, { backgroundColor: colors.accent }]} />
                 <Text style={styles.fieldText}>{source.address}</Text>
               </Pressable>
               <Pressable
                 style={[styles.field, { borderBottomWidth: 0 }]}
-                onPress={() => openLocationSearch(setDestination)}
+                onPress={() => openLocationSearch("home-destination")}
               >
                 <View style={[styles.dot, { backgroundColor: colors.marigold }]} />
                 <Text style={[styles.fieldText, !destination && { color: colors.textMuted }]}>
@@ -472,6 +521,15 @@ function HomeScreenContent({ navigation }: any) {
             <Ionicons name="information-circle-outline" size={14} color={colors.accentText} />
             <Text style={styles.howItWorksLinkText}>{t("home.howBookingWorks")}</Text>
           </Pressable>
+
+          {/* Passengers had zero quick-action shortcuts before this —
+              only the search form itself. Same icon-grid pattern as the
+              driver side above, same badge visual language. */}
+          <CopilotStep name="passengerQuickActions" order={4} text={t("copilot.passenger.step4")}>
+            <CopilotView>
+              <QuickActionsGrid actions={passengerQuickActions} />
+            </CopilotView>
+          </CopilotStep>
 
           <TrustBadges role="PASSENGER" />
 
@@ -694,27 +752,6 @@ const styles = StyleSheet.create({
   },
   ctaText: { ...typography.title, color: "#FFFFFF" },
   driverPanel: { marginHorizontal: spacing.lg, marginTop: -spacing.lg },
-  driverActionRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.sm,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radius.md,
-    padding: spacing.md,
-    marginTop: spacing.sm,
-  },
-  driverActionIconWrap: {
-    width: 32, height: 32, borderRadius: 10,
-    backgroundColor: colors.accentBg, alignItems: "center", justifyContent: "center",
-  },
-  driverActionText: { ...typography.body, flex: 1 },
-  badge: {
-    minWidth: 18, height: 18, borderRadius: 9, paddingHorizontal: 5,
-    backgroundColor: colors.danger, alignItems: "center", justifyContent: "center",
-  },
-  badgeText: { color: "#FFFFFF", fontSize: 10, fontWeight: "700", fontFamily: FONT.bold },
   driverHint: { ...typography.small, color: colors.textMuted, marginTop: spacing.lg, lineHeight: 18 },
   verifyBanner: {
     flexDirection: "row", alignItems: "center", gap: spacing.sm,

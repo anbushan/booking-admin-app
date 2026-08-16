@@ -48,7 +48,8 @@ export default function AboutPage() {
           "Dosti" means friendship — the idea being that a shared ride works best when it feels closer to
           getting a lift from someone you know than to hailing a stranger. That shapes what we actually built:
           who you're riding with is visible before you ever meet, a pickup can't be faked, and if something's
-          wrong there's a real safety flow, not just a support ticket after the fact.
+          wrong there's a real safety flow, not just a support ticket after the fact. We're currently live in
+          Chennai and Bengaluru, growing city by city rather than everywhere at once.
         </p>
       </section>
 

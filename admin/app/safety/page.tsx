@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { KeyRound, ShieldCheck, Car, Star, MessageCircle, Wallet, AlertTriangle, PhoneCall } from "lucide-react";
+import { KeyRound, ShieldCheck, Car, Star, MessageCircle, Wallet, AlertTriangle, PhoneCall, Share2 } from "lucide-react";
 import { MarketingShell } from "../../components/MarketingShell";
 import { SITE_URL, BRAND_NAME } from "../../lib/siteContent";
 
@@ -31,6 +31,11 @@ const DEEP_FEATURES = [
     body: "A licence badge (once per driver, covers every vehicle) and an RC badge (once per vehicle — the registration is tied to that specific car, not the driver). Either is earned instantly with a small paid automated check, or free via manual admin review — look for both badges before you ride, not just one.",
   },
   {
+    icon: ShieldCheck,
+    title: "Passengers can verify their ID too",
+    body: "Verification isn't one-sided — a passenger can optionally complete the same kind of check on their own Aadhaar, earning a green badge a driver sees right on the request before deciding to accept. Entirely optional; booking works exactly the same without it.",
+  },
+  {
     icon: Star,
     title: "Ratings that follow the account",
     body: "Every completed trip can be rated by both sides. That history is visible on a profile before you ever agree to share a car with someone — not hidden, not reset, not something only the app itself can see.",
@@ -39,6 +44,11 @@ const DEEP_FEATURES = [
     icon: MessageCircle,
     title: "In-app chat, no real number shared",
     body: "Coordinating pickup details happens through the app's own chat, open only for the pre-trip window — from the moment a booking's confirmed to the moment the trip actually starts. It closes automatically once you're on the road, since coordination is over by then.",
+  },
+  {
+    icon: Share2,
+    title: "Share your trip with anyone",
+    body: "One tap from the live tracking screen sends your route and real-time location to whoever you choose — a family member, a friend — even if they've never opened the app. Useful on its own, not just as a backup for SOS.",
   },
   {
     icon: Wallet,

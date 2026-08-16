@@ -3,6 +3,7 @@
     "name": "NanbaGO",
     "slug": "carpool",
     "version": "0.1.0",
+    "scheme": "nanbago",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
     "icon": "./assets/icon.png",
@@ -51,7 +52,8 @@
       [
         "expo-location",
         {
-          "locationAlwaysAndWhenInUsePermission": "We use your location during an active trip so the other rider can track progress and to power the SOS button."
+          "locationAlwaysAndWhenInUsePermission": "We use your location during an active trip so the other rider can track progress and to power the SOS button.",
+          "isAndroidBackgroundLocationEnabled": true
         }
       ],
       [
@@ -72,7 +74,8 @@
         }
       ],
       "./plugins/withDisableForceDark",
-      "expo-speech-recognition"
+      "expo-speech-recognition",
+      "expo-quick-actions"
     ],
     "extra": {
       "eas": {

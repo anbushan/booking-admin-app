@@ -39,7 +39,13 @@ export function SkeletonRow() {
 // loading FlatList.
 export function SkeletonList({ count = 4 }: { count?: number }) {
   return (
-    <View style={{ padding: spacing.md, gap: spacing.sm }}>
+    // flex: 1 is the important part here, not cosmetic — this replaces a
+    // FlatList that itself has style={{flex:1}}, filling the space
+    // between the screen's header and its bottom nav/tab bar. Without
+    // it, this shorter, intrinsic-height block leaves that space empty
+    // during loading, so anything pinned below (AppBottomNav) renders
+    // too high and visibly jumps down the moment real content swaps in.
+    <View style={{ flex: 1, padding: spacing.md, gap: spacing.sm }}>
       {Array.from({ length: count }).map((_, i) => (
         <SkeletonRow key={i} />
       ))}
@@ -47,12 +53,80 @@ export function SkeletonList({ count = 4 }: { count?: number }) {
   );
 }
 
+// Preset: a leading circular avatar + two text lines — matches the
+// chat/notification/vehicle/upcoming-trip row shape, which SkeletonRow
+// alone doesn't cover (no avatar).
+export function SkeletonAvatarRow() {
+  return (
+    <View style={styles.row}>
+      <SkeletonBlock style={styles.avatar} />
+      <View style={{ flex: 1 }}>
+        <SkeletonBlock style={{ width: "55%", height: 14, marginBottom: spacing.xs }} />
+        <SkeletonBlock style={{ width: "35%", height: 11 }} />
+      </View>
+    </View>
+  );
+}
+
+export function SkeletonAvatarRowList({ count = 4 }: { count?: number }) {
+  return (
+    // Same flex: 1 reasoning as SkeletonList above.
+    <View style={{ flex: 1, padding: spacing.md, gap: spacing.sm }}>
+      {Array.from({ length: count }).map((_, i) => (
+        <SkeletonAvatarRow key={i} />
+      ))}
+    </View>
+  );
+}
+
+// Preset: a multi-line "trip card" — route line, a meta line, a chip,
+// and a trailing action-button placeholder. Matches History,
+// BookingRequests, PaymentQueue, UpcomingTrips, ManageRecurringRides.
+export function SkeletonCard() {
+  return (
+    <View style={styles.card}>
+      <SkeletonBlock style={{ width: "80%", height: 15, marginBottom: spacing.xs }} />
+      <SkeletonBlock style={{ width: "45%", height: 11, marginBottom: spacing.sm }} />
+      <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
+        <SkeletonBlock style={{ width: 70, height: 20, borderRadius: 999 }} />
+        <SkeletonBlock style={{ width: 90, height: 32 }} />
+      </View>
+    </View>
+  );
+}
+
+export function SkeletonCardList({ count = 3 }: { count?: number }) {
+  return (
+    // Same flex: 1 reasoning as SkeletonList above.
+    <View style={{ flex: 1, padding: spacing.md, gap: spacing.sm }}>
+      {Array.from({ length: count }).map((_, i) => (
+        <SkeletonCard key={i} />
+      ))}
+    </View>
+  );
+}
+
+// Preset: the thin section-header bar SectionList screens (Notifications
+// grouped by day, BookingRequests/PaymentQueue/UpcomingTrips grouped by
+// ride) render above each group.
+export function SkeletonSectionHeader() {
+  return <SkeletonBlock style={{ width: "30%", height: 12, marginHorizontal: spacing.md, marginTop: spacing.md, marginBottom: spacing.xs }} />;
+}
+
 const styles = StyleSheet.create({
   block: { backgroundColor: colors.border, borderRadius: radius.sm },
   row: {
     flexDirection: "row",
-    justifyContent: "space-between",
     alignItems: "center",
+    gap: spacing.sm,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.md,
+    padding: spacing.md,
+  },
+  avatar: { width: 40, height: 40, borderRadius: 20 },
+  card: {
     backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.border,

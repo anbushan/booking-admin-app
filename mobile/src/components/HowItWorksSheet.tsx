@@ -85,7 +85,13 @@ export function HowItWorksSheet({ visible, role, onClose }: Props) {
         <View style={styles.handle} />
         <View style={styles.headerRow}>
           <Text style={styles.title}>{t("howItWorks.title")}</Text>
-          <Pressable style={styles.closeButton} onPress={onClose} hitSlop={6}>
+          <Pressable
+            style={styles.closeButton}
+            onPress={onClose}
+            hitSlop={8}
+            accessibilityRole="button"
+            accessibilityLabel={t("common.close")}
+          >
             <Ionicons name="close" size={17} color={colors.textPrimary} />
           </Pressable>
         </View>

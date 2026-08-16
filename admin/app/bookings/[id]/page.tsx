@@ -17,14 +17,24 @@ export default async function BookingDetailPage({ params }: { params: { id: stri
   const booking = await prisma.booking.findUnique({
     where: { id: params.id },
     include: {
-      ride: { include: { driver: { select: { name: true, phone: true } } } },
-      passenger: { select: { name: true, phone: true } },
+      ride: { include: { driver: { select: { id: true, name: true, phone: true } } } },
+      passenger: { select: { id: true, name: true, phone: true } },
       refund: true,
+      callLogs: { orderBy: { createdAt: "desc" } },
     },
   });
   if (!booking) redirect("/bookings");
 
   const fullFare = Number(booking.ride.pricePerSeat) * booking.seatsBooked;
+
+  // Neither ChatMessage nor CallLog previously had any admin surface at
+  // all — both are for dispute investigation (a pickup disagreement, a
+  // "driver never called" complaint), read-only here, same as the rest
+  // of this page.
+  const chatMessages = await prisma.chatMessage.findMany({
+    where: { bookingId: booking.id },
+    orderBy: { createdAt: "asc" },
+  });
 
   return (
     <AdminShell activeHref="/bookings">
@@ -97,6 +107,38 @@ export default async function BookingDetailPage({ params }: { params: { id: stri
             </div>
           </>
         )}
+
+        <h2 style={{ fontSize: 15, fontWeight: 500, marginTop: 24 }}>Call log</h2>
+        {booking.callLogs.map((c) => (
+          <div key={c.id} style={{ fontSize: 13, padding: "8px 0", borderBottom: "1px solid #E3E1D8", display: "flex", justifyContent: "space-between", gap: 8, flexWrap: "wrap" }}>
+            <span>
+              {c.callerId === booking.passenger.id ? "Passenger" : c.callerId === booking.ride.driver.id ? "Driver" : "Unknown"} called {" "}
+              {c.calleeId === booking.passenger.id ? "passenger" : c.calleeId === booking.ride.driver.id ? "driver" : "unknown"} via {c.proxyNumber}
+            </span>
+            <span style={{ color: "#888780" }}>
+              {c.createdAt.toLocaleString()} · <Badge>{c.status}</Badge>{c.durationSec != null && ` · ${c.durationSec}s`}
+            </span>
+          </div>
+        ))}
+        {booking.callLogs.length === 0 && <div style={{ fontSize: 13, color: "#888780", padding: "8px 0" }}>No calls made via the app for this booking.</div>}
+
+        <h2 style={{ fontSize: 15, fontWeight: 500, marginTop: 24 }}>Chat transcript</h2>
+        <div style={{ display: "flex", flexDirection: "column", gap: 6, maxHeight: 360, overflowY: "auto", border: chatMessages.length ? "1px solid #E3E1D8" : undefined, borderRadius: 8, padding: chatMessages.length ? 12 : 0 }}>
+          {chatMessages.map((m) => (
+            <div key={m.id} style={{ fontSize: 13 }}>
+              <span style={{ fontWeight: 500 }}>
+                {m.senderId === booking.passenger.id ? "Passenger" : m.senderId === booking.ride.driver.id ? "Driver" : "Unknown"}:
+              </span>{" "}
+              {m.type === "LOCATION" ? (
+                <a href={`https://www.google.com/maps?q=${m.text}`} target="_blank" rel="noreferrer" style={{ color: "#0C447C" }}>shared a location</a>
+              ) : (
+                <span>{m.text}</span>
+              )}
+              <span style={{ color: "#888780", fontSize: 11, marginLeft: 6 }}>{m.createdAt.toLocaleString()}</span>
+            </div>
+          ))}
+        </div>
+        {chatMessages.length === 0 && <div style={{ fontSize: 13, color: "#888780", padding: "8px 0" }}>No chat messages for this booking (messages are also hard-deleted once outside the active chat window).</div>}
       </div>
     </AdminShell>
   );

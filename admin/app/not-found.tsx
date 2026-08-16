@@ -11,10 +11,15 @@ import AdminShell from "../components/AdminShell";
 // Two different audiences hit this, so two different treatments: a
 // signed-in admin gets it inside the normal shell (sidebar still there,
 // still one click back to anywhere real) since there's a real dashboard
-// to return to; a signed-out visitor gets the same standalone branded
-// card the login page uses, since showing them the internal nav
-// wouldn't be useful — every one of those links just bounces them to
-// login anyway.
+// to return to.
+//
+// A signed-out visitor is far more often someone who mistyped a public
+// URL or followed a dead /blog/[slug] link than a stray admin — this
+// used to badge itself "NanbaGO / Admin" with only a "Go to login" CTA,
+// which made no sense for that far more common visitor. No longer
+// admin-branded: plain NanbaGO mark, and "Back to home" is the primary
+// action, with the admin login kept as a small secondary link for the
+// minority who actually meant to land there.
 export default function NotFound() {
   const session = getSession();
 
@@ -29,8 +34,8 @@ export default function NotFound() {
       <p style={{ fontSize: 14, color: "#5F5E5A", margin: "0 0 24px" }}>
         That page doesn't exist, or may have moved.
       </p>
-      <Link href={session ? "/dashboard" : "/login"} className="admin-btn admin-btn-primary">
-        {session ? "Back to dashboard" : "Go to login"}
+      <Link href={session ? "/dashboard" : "/"} className="admin-btn admin-btn-primary">
+        {session ? "Back to dashboard" : "Back to home"}
       </Link>
     </div>
   );
@@ -53,12 +58,12 @@ export default function NotFound() {
       >
         <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 20 }}>
           <Logo size={32} />
-          <div>
-            <div style={{ fontSize: 16, fontWeight: 700, color: "#0C447C" }}>NanbaGO</div>
-            <div style={{ fontSize: 12, color: "#888780" }}>Admin</div>
-          </div>
+          <div style={{ fontSize: 16, fontWeight: 700, color: "#0C447C" }}>NanbaGO</div>
         </div>
         {content}
+        <div style={{ textAlign: "center", marginTop: -8 }}>
+          <Link href="/login" style={{ fontSize: 12, color: "#888780" }}>Looking for admin login?</Link>
+        </div>
       </div>
     </div>
   );

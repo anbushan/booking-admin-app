@@ -3,6 +3,7 @@ import { View, Text, StyleSheet } from "react-native";
 import { Pressable } from "./Pressable";
 import { Ionicons } from "@expo/vector-icons";
 import { colors, spacing, typography } from "../theme/theme";
+import { useTranslation } from "../lib/i18n/I18nContext";
 
 // Drop-in replacement for the bare `<Text style={{...typography.title}}>`
 // header line every detail/sub-screen used to render on its own — none of
@@ -19,12 +20,19 @@ export function BackHeader({
   onBack: () => void;
   right?: React.ReactNode;
 }) {
+  const { t } = useTranslation();
   return (
     <View style={styles.row}>
-      <Pressable style={styles.backButton} onPress={onBack} hitSlop={8}>
+      <Pressable
+        style={styles.backButton}
+        onPress={onBack}
+        hitSlop={8}
+        accessibilityRole="button"
+        accessibilityLabel={t("common.back")}
+      >
         <Ionicons name="chevron-back" size={22} color={colors.textPrimary} />
       </Pressable>
-      <Text style={styles.title} numberOfLines={1}>
+      <Text style={styles.title} numberOfLines={1} accessibilityRole="header">
         {title}
       </Text>
       {right ? <View style={styles.side}>{right}</View> : <View style={styles.spacer} />}

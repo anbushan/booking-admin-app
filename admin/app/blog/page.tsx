@@ -21,8 +21,25 @@ function formatDate(iso: string) {
 export default function BlogIndexPage() {
   const posts = [...BLOG_POSTS].sort((a, b) => (a.date < b.date ? 1 : -1));
 
+  // Every other public page has JSON-LD (Organization on the home page,
+  // BlogPosting on each individual post) — this index was the one gap,
+  // just an ItemList pointing at each post's own already-structured URL.
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@type": "Blog",
+    name: `${TITLE} — ${BRAND_NAME}`,
+    url: `${SITE_URL}/blog`,
+    blogPost: posts.map((post) => ({
+      "@type": "BlogPosting",
+      headline: post.title,
+      url: `${SITE_URL}/blog/${post.slug}`,
+      datePublished: post.date,
+    })),
+  };
+
   return (
     <MarketingShell>
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
       <section className="mkt-section">
         <Newspaper size={28} color="#185FA5" style={{ marginBottom: 12 }} />
         <h1 className="mkt-h1" style={{ fontSize: "clamp(28px, 4vw, 40px)" }}>{TITLE}</h1>

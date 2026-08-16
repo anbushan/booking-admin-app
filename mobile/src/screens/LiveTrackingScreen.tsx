@@ -1,7 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { View, Text, StyleSheet, Animated } from "react-native";
 import { Pressable } from "../components/Pressable";
-import * as Location from "expo-location";
 import { Ionicons } from "@expo/vector-icons";
 import { showAlert } from "../lib/alert";
 import MapView, { Marker, MarkerAnimated, AnimatedRegion, Polyline, PROVIDER_GOOGLE } from "react-native-maps";
@@ -11,12 +10,17 @@ import { Analytics } from "../lib/analytics";
 import { useToast } from "../components/Toast";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { decodePolyline, haversineKm, bearingDeg, LatLng } from "../lib/mapGeo";
+import { getDeviceCoords } from "../lib/deviceLocation";
+import { shareTrip } from "../lib/shareTrip";
 import { dialProxyNumber } from "../lib/callHelper";
 import { useScreenView } from "../lib/useScreenView";
-import { CarLoader } from "../components/CarLoader";
+import { SkeletonAvatarRow } from "../components/Skeleton";
 import Avatar from "../components/Avatar";
 import { VerifiedBadge } from "../components/VerifiedBadge";
 import { useTranslation } from "../lib/i18n/I18nContext";
+import { MapFeatureButtons } from "../components/MapFeatureButtons";
+import { WeatherEffectOverlay } from "../components/WeatherEffectOverlay";
+import { useRouteWeather } from "../lib/useRouteWeather";
 
 const STALE_THRESHOLD_MS = 90 * 1000;
 const SOS_HOLD_MS = 3000;
@@ -40,22 +44,6 @@ type ManifestStop = {
 // mostly map. journey.tripStarted/status.onTheWay are reused from
 // elsewhere in the app since the wording matches exactly.
 const TRIP_PHASE_KEYS = ["journey.tripStarted", "status.onTheWay", "liveTracking.arriving"];
-
-// Raw coordinates only — unlike lib/api.ts's getCurrentLocation (used
-// for pickup-point selection), this deliberately skips the
-// reverse-geocode-to-an-address step, which would otherwise fire an
-// extra Google Geocoding call every single ping.
-async function getDeviceCoords() {
-  let { status } = await Location.getForegroundPermissionsAsync();
-  if (status !== "granted") {
-    ({ status } = await Location.requestForegroundPermissionsAsync());
-  }
-  if (status !== "granted") {
-    throw new Error("Location permission denied.");
-  }
-  const position = await Location.getCurrentPositionAsync({});
-  return { lat: position.coords.latitude, lng: position.coords.longitude };
-}
 
 // Index into `coords` closest to `point` — a cheap brute-force nearest
 // point (route polylines here are a few dozen to a couple hundred
@@ -108,6 +96,15 @@ export default function LiveTrackingScreen({ route, navigation }: any) {
   const prevPositionRef = useRef<{ lat: number; lng: number } | null>(null);
   const animatedCoordinateRef = useRef<AnimatedRegion | null>(null);
   const [carVisible, setCarVisible] = useState(false);
+  const [showTraffic, setShowTraffic] = useState(false);
+  const [showWeather, setShowWeather] = useState(false);
+  // Weather at wherever the map's actually centered right now — the
+  // current position once known, falling back to the pickup point
+  // before the first location update lands (same fallback the map's own
+  // initialRegion already uses, just reused here).
+  const weatherLat = position?.lat ?? ride?.sourceLat ?? 12.9352;
+  const weatherLng = position?.lng ?? ride?.sourceLng ?? 77.6146;
+  const weather = useRouteWeather(showWeather, weatherLat, weatherLng);
   const { showError } = useToast();
 
   // The ride's route (source, destination, and the polyline captured
@@ -355,6 +352,26 @@ export default function LiveTrackingScreen({ route, navigation }: any) {
     }
   }
 
+  // Passenger-only — a driver's own ride can carry several concurrent
+  // passengers (see the manifest below), so there's no single "other
+  // party" a share message could name from that side without picking
+  // one arbitrarily.
+  async function handleShareTrip() {
+    if (!ride) return;
+    try {
+      await shareTrip({
+        t,
+        otherPartyName: driverName || t("liveTracking.driverFallback"),
+        sourceAddress: ride.sourceAddress,
+        destAddress: ride.destAddress,
+        lat: position?.lat ?? null,
+        lng: position?.lng ?? null,
+      });
+    } catch {
+      // Share sheet dismissed/cancelled — nothing to surface as an error.
+    }
+  }
+
   return (
     <SafeAreaView style={styles.screen} edges={["top", "bottom"]}>
       <View style={styles.mapArea}>
@@ -362,6 +379,7 @@ export default function LiveTrackingScreen({ route, navigation }: any) {
           ref={mapRef}
           style={{ flex: 1 }}
           provider={PROVIDER_GOOGLE}
+          showsTraffic={showTraffic}
           initialRegion={{
             latitude: ride?.sourceLat ?? position?.lat ?? 12.9352,
             longitude: ride?.sourceLng ?? position?.lng ?? 77.6146,
@@ -403,9 +421,20 @@ export default function LiveTrackingScreen({ route, navigation }: any) {
           )}
         </MapView>
 
+        {showWeather && weather.condition && <WeatherEffectOverlay condition={weather.condition} />}
+
         <Pressable style={styles.floatingBack} onPress={() => navigation.goBack()} hitSlop={8}>
           <Ionicons name="arrow-back" size={18} color={colors.textPrimary} />
         </Pressable>
+
+        <MapFeatureButtons
+          showTraffic={showTraffic}
+          onToggleTraffic={() => setShowTraffic((v) => !v)}
+          showWeather={showWeather}
+          onToggleWeather={() => setShowWeather((v) => !v)}
+          weatherLoading={showWeather && weather.loading}
+          weatherTempC={weather.tempC}
+        />
 
         <View style={styles.etaBadge}>
           <Ionicons name={isStale ? "sync-outline" : "time"} size={13} color={colors.accentText} />
@@ -450,8 +479,24 @@ export default function LiveTrackingScreen({ route, navigation }: any) {
               </View>
               <Text style={styles.driverSub}>{isStale ? t("liveTracking.lastKnownAMomentAgo") : t("liveTracking.enRouteToDestination")}</Text>
             </View>
-            <Pressable style={styles.callButton} onPress={handleCall} disabled={calling}>
+            <Pressable
+              style={styles.callButton}
+              onPress={handleCall}
+              disabled={calling}
+              hitSlop={4}
+              accessibilityRole="button"
+              accessibilityLabel={t("common.call")}
+            >
               <Ionicons name={calling ? "call" : "call-outline"} size={17} color={colors.success} />
+            </Pressable>
+            <Pressable
+              style={styles.shareButton}
+              onPress={handleShareTrip}
+              hitSlop={4}
+              accessibilityRole="button"
+              accessibilityLabel={t("trip.shareTrip")}
+            >
+              <Ionicons name="share-social-outline" size={17} color={colors.accentText} />
             </Pressable>
           </View>
         )}
@@ -467,7 +512,7 @@ export default function LiveTrackingScreen({ route, navigation }: any) {
           <View style={styles.manifestWrap}>
             <Text style={styles.manifestTitle}>{t("liveTracking.passengersOnThisRide")}</Text>
             {manifest == null ? (
-              <CarLoader size="sm" />
+              <SkeletonAvatarRow />
             ) : (
               manifest.map((stop) => (
                 <View key={stop.id} style={styles.manifestRow}>
@@ -580,6 +625,7 @@ const styles = StyleSheet.create({
   driverName: { ...typography.title, fontSize: 14 },
   driverSub: { ...typography.small, color: colors.textMuted, marginTop: 1 },
   callButton: { width: 40, height: 40, borderRadius: 20, backgroundColor: colors.successBg, alignItems: "center", justifyContent: "center" },
+  shareButton: { width: 40, height: 40, borderRadius: 20, backgroundColor: colors.accentBg, alignItems: "center", justifyContent: "center" },
   actions: { gap: spacing.md, marginTop: spacing.xl },
   manifestWrap: { marginTop: spacing.lg, gap: spacing.sm },
   manifestTitle: { ...typography.small, color: colors.textMuted, fontWeight: "700", fontFamily: FONT.bold, textTransform: "uppercase", letterSpacing: 0.3 },

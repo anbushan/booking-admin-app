@@ -196,9 +196,16 @@ router.put("/:bookingId/location", requireAuth, requireRole("DRIVER"), async (re
   // relying on their own LiveTrackingScreen poll to move. Previously
   // only the one bookingId in the URL ever got updated, so a second
   // concurrent passenger's map silently went stale the whole trip.
+  //
+  // CONFIRMED is included too (not just IN_PROGRESS) — a booking stays
+  // CONFIRMED for the entire pre-pickup window, including the whole
+  // "driver tapped Start trip, passenger is reading the OTP screen"
+  // stretch (see StartTripScreen.tsx's own ping loop, added for exactly
+  // this) — without this, TripOtpScreen's map had nothing to show
+  // regardless of how often the driver's app pinged.
   const now = new Date();
   await prisma.booking.updateMany({
-    where: { rideId: booking.rideId, status: "IN_PROGRESS" },
+    where: { rideId: booking.rideId, status: { in: ["CONFIRMED", "IN_PROGRESS"] } },
     data: { lastLat: lat, lastLng: lng, lastLocationAt: now },
   });
   res.json({ success: true, lastLocationAt: now });

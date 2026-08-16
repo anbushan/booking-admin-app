@@ -1,10 +1,11 @@
+import Link from "next/link";
 import { prisma } from "../../lib/prisma";
 import { getSession, requireRole } from "../../lib/session";
 import { redirect } from "next/navigation";
 import AdminShell from "../../components/AdminShell";
 import { PageHeader } from "../../components/PageHeader";
 import { StatCard } from "../../components/StatCard";
-import { LayoutDashboard, Users, Car, UserCheck, Route, Wallet } from "lucide-react";
+import { LayoutDashboard, Users, Car, UserCheck, Route, Wallet, ShieldCheck, AlertTriangle, RotateCcw, Flag } from "lucide-react";
 
 export const dynamic = "force-dynamic";
 
@@ -44,6 +45,28 @@ export default async function DashboardPage() {
     { label: "Fee-paid bookings", value: revenueResult._count, icon: Wallet, tone: "success" as const },
   ];
 
+  // Actionable counts, not just totals — each one is a real queue
+  // someone needs to work through, so it links straight there instead
+  // of just reporting a number nobody can act on from this page.
+  const [pendingDriverVerifications, pendingVehicleVerifications, pendingPassengerVerifications, openSosAlerts, pendingRefunds, flaggedReviews] =
+    await Promise.all([
+      prisma.driverVerification.count({ where: { licenseStatus: { in: ["PENDING"] }, paymentStatus: "PAID" } }),
+      prisma.vehicleVerification.count({ where: { rcStatus: { in: ["PENDING"] }, paymentStatus: { in: ["PAID", "WAIVED"] } } }),
+      prisma.passengerVerification.count({ where: { aadhaarStatus: "PENDING" } }),
+      prisma.sosAlert.count({ where: { status: "OPEN" } }),
+      prisma.refund.count({ where: { status: { in: ["INITIATED", "PROCESSING"] } } }),
+      prisma.review.count({ where: { flagged: true } }),
+    ]);
+
+  const attention = [
+    { label: "Open SOS alerts", value: openSosAlerts, icon: AlertTriangle, tone: openSosAlerts > 0 ? "warning" as const : "neutral" as const, href: "/sos-alerts" },
+    { label: "Pending driver checks", value: pendingDriverVerifications, icon: ShieldCheck, tone: "neutral" as const, href: "/drivers/verification-queue" },
+    { label: "Pending vehicle checks", value: pendingVehicleVerifications, icon: ShieldCheck, tone: "neutral" as const, href: "/drivers/vehicle-verification-queue" },
+    { label: "Pending passenger checks", value: pendingPassengerVerifications, icon: ShieldCheck, tone: "neutral" as const, href: "/users/verification-queue" },
+    { label: "Refunds in progress", value: pendingRefunds, icon: RotateCcw, tone: "neutral" as const, href: "/refunds" },
+    { label: "Flagged reviews", value: flaggedReviews, icon: Flag, tone: flaggedReviews > 0 ? "warning" as const : "neutral" as const, href: "/reviews/flagged" },
+  ];
+
   return (
     <AdminShell activeHref="/dashboard">
     <div style={{ padding: 24 }}>
@@ -57,6 +80,21 @@ export default async function DashboardPage() {
       >
         {stats.map((s) => (
           <StatCard key={s.label} icon={s.icon} label={s.label} value={s.value} tone={s.tone} />
+        ))}
+      </div>
+
+      <h2 style={{ fontSize: 15, fontWeight: 500, marginTop: 28, marginBottom: 12 }}>Needs attention</h2>
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
+          gap: 12,
+        }}
+      >
+        {attention.map((s) => (
+          <Link key={s.label} href={s.href} style={{ textDecoration: "none", color: "inherit" }}>
+            <StatCard icon={s.icon} label={s.label} value={s.value} tone={s.tone} />
+          </Link>
         ))}
       </div>
     </div>

@@ -5,7 +5,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
 import { colors, spacing, radius, typography, FONT } from "../theme/theme";
 import { api } from "../lib/api";
-import { CarLoader } from "../components/CarLoader";
+import { SkeletonList } from "../components/Skeleton";
 import { EmptyState } from "../components/EmptyState";
 import { ErrorState } from "../components/ErrorState";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -46,9 +46,7 @@ export default function RatingsReceivedScreen({ navigation }: any) {
       <Text style={{ ...typography.title, padding: spacing.lg, paddingBottom: spacing.sm }}>{t("settings.yourRatings")}</Text>
 
       {loading ? (
-        <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
-          <CarLoader size="lg" />
-        </View>
+        <SkeletonList />
       ) : error ? (
         <ErrorState message={t("ratings.couldntLoad")} onRetry={load} />
       ) : (

@@ -115,8 +115,31 @@ export default function SideMenu({ visible, onClose, navigation, profile, unread
             exactly what read as "not closing smoothly" — a well-known
             RN Android cost specifically for elevation + transform
             together, not a bug in the animation's own timing/easing. */}
-        <Animated.View style={[styles.panel, { transform: [{ translateX }] }]} renderToHardwareTextureAndroid>
-          <Pressable style={styles.closeButton} onPress={onClose} hitSlop={8}>
+        {/* panel's own paddingTop was a flat spacing.xl (24px) with no
+            regard for the device's actual top safe-area inset — fine on
+            a typical phone, but the close button and profile block sat
+            underneath the status bar / notch / dynamic island on
+            anything with a bigger inset (large-screen tablets included),
+            same class of bug the ScrollView's bottom padding below was
+            already fixed for. */}
+        <Animated.View
+          style={[styles.panel, { paddingTop: Math.max(insets.top, spacing.xl), transform: [{ translateX }] }]}
+          renderToHardwareTextureAndroid
+        >
+          {/* position:absolute doesn't follow the panel's own padding —
+              it offsets from the panel's outer edge regardless, so this
+              needs the same insets.top accounting the padding above
+              just got, or it'd still land under the notch/status bar
+              on a large-inset device even though the padding fix alone
+              already moved everything else (the scrollable content)
+              clear of it. */}
+          <Pressable
+            style={[styles.closeButton, { top: Math.max(insets.top + spacing.xs, spacing.md) }]}
+            onPress={onClose}
+            hitSlop={8}
+            accessibilityRole="button"
+            accessibilityLabel={t("common.close")}
+          >
             <Ionicons name="close" size={18} color={colors.textPrimary} />
           </Pressable>
 
@@ -159,6 +182,7 @@ export default function SideMenu({ visible, onClose, navigation, profile, unread
               <MenuRow icon="navigate-outline" label={t("home.startTripNow")} onPress={() => go("UpcomingTrips")} badge={upcomingTripsCount} />
               <MenuRow icon="car-sport-outline" label={t("sideMenu.myVehicles")} onPress={() => go("VehicleList")} />
               <MenuRow icon="wallet-outline" label={t("home.earnings")} onPress={() => go("Earnings")} />
+              <MenuRow icon="repeat-outline" label={t("sideMenu.recurringRides")} onPress={() => go("ManageRecurringRides")} />
             </>
           )}
 
@@ -210,7 +234,8 @@ const styles = StyleSheet.create({
     maxWidth: 320,
     height: "100%",
     backgroundColor: colors.surface,
-    paddingTop: spacing.xl,
+    // paddingTop is set inline (needs insets.top, only available at
+    // render time) — see the Animated.View below.
     paddingHorizontal: spacing.lg,
     shadowColor: "#000",
     shadowOffset: { width: -2, height: 0 },
@@ -220,7 +245,7 @@ const styles = StyleSheet.create({
   },
   closeButton: {
     position: "absolute",
-    top: spacing.md,
+    // top is set inline (needs insets.top) — see the Pressable above.
     right: spacing.md,
     width: 30,
     height: 30,

@@ -4,7 +4,7 @@ import { Pressable } from "../components/Pressable";
 import { useFocusEffect } from "@react-navigation/native";
 import { colors, spacing, radius, typography } from "../theme/theme";
 import { api } from "../lib/api";
-import { CarLoader } from "../components/CarLoader";
+import { SkeletonAvatarRowList } from "../components/Skeleton";
 import { EmptyState } from "../components/EmptyState";
 import { ErrorState } from "../components/ErrorState";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -108,9 +108,7 @@ export default function ChatListScreen({ navigation, route }: any) {
     <SafeAreaView style={styles.screen} edges={["top", "bottom"]}>
       <BackHeader title={t("chatList.title")} onBack={() => navigation.goBack()} />
       {loading ? (
-        <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
-          <CarLoader size="lg" />
-        </View>
+        <SkeletonAvatarRowList />
       ) : error ? (
         <ErrorState message={t("chatList.couldntLoad")} onRetry={load} />
       ) : (

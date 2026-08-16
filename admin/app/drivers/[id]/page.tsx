@@ -19,14 +19,19 @@ export default async function DriverDetailPage({ params }: { params: { id: strin
   const driver = await prisma.user.findUnique({ where: { id: params.id } });
   if (!driver || driver.role !== "DRIVER") redirect("/users");
 
-  const [vehicles, documents, rides, completedBookings, strikes] = await Promise.all([
-    prisma.vehicle.findMany({ where: { driverId: params.id } }),
+  const [vehicles, documents, rides, completedBookings, strikes, ekoVerification] = await Promise.all([
+    prisma.vehicle.findMany({ where: { driverId: params.id }, include: { verification: true } }),
     prisma.document.findMany({ where: { userId: params.id } }),
     prisma.ride.findMany({ where: { driverId: params.id }, orderBy: { travelDate: "desc" }, take: 10 }),
     prisma.booking.findMany({
       where: { status: "COMPLETED", ride: { driverId: params.id } },
     }),
     prisma.driverStrike.findMany({ where: { driverId: params.id }, orderBy: { createdAt: "desc" } }),
+    // The real, paid license-verification path this app actually runs on
+    // (see backend/src/lib/eko.js) — separate from the legacy Document
+    // review below, which predates it and is still used by
+    // /drivers/verification-queue.
+    prisma.driverVerification.findUnique({ where: { driverId: params.id } }),
   ]);
 
   // Earnings = remaining fare only — the platform fee never reaches the
@@ -77,7 +82,57 @@ export default async function DriverDetailPage({ params }: { params: { id: strin
         ))}
         {strikes.length === 0 && <EmptyState title="No strikes on record" />}
 
-        <h2 style={{ fontSize: 15, fontWeight: 500, marginTop: 24 }}>Documents</h2>
+        <h2 style={{ fontSize: 15, fontWeight: 500, marginTop: 24 }}>License verification (paid, Eko)</h2>
+        {ekoVerification ? (
+          <div style={{ fontSize: 13, padding: "10px 0", borderBottom: "1px solid #E3E1D8" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+              <Badge>{ekoVerification.paymentStatus}</Badge>
+              <Badge>{ekoVerification.licenseStatus}</Badge>
+              {ekoVerification.amountPaidInr != null && <span style={{ color: "#5F5E5A" }}>Rs {ekoVerification.amountPaidInr.toString()} paid{ekoVerification.paidAt ? ` on ${ekoVerification.paidAt.toLocaleDateString()}` : ""}</span>}
+            </div>
+            {ekoVerification.licenseVerifiedAt && (
+              <div style={{ color: "#888780", marginTop: 4 }}>Verified {ekoVerification.licenseVerifiedAt.toLocaleString()}</div>
+            )}
+            {ekoVerification.licenseEkoResponse != null && (
+              <details style={{ marginTop: 6 }}>
+                <summary style={{ cursor: "pointer", color: "#0C447C", fontSize: 12 }}>Raw Eko response</summary>
+                <pre style={{ fontSize: 11, background: "#F1EFE8", padding: 8, borderRadius: 6, overflowX: "auto", marginTop: 4 }}>
+                  {JSON.stringify(ekoVerification.licenseEkoResponse, null, 2)}
+                </pre>
+              </details>
+            )}
+          </div>
+        ) : (
+          <EmptyState title="Never started a paid license check" />
+        )}
+
+        <h2 style={{ fontSize: 15, fontWeight: 500, marginTop: 24 }}>Vehicles &amp; RC verification (paid, Eko)</h2>
+        {vehicles.map((v) => (
+          <div key={v.id} style={{ fontSize: 13, padding: "10px 0", borderBottom: "1px solid #E3E1D8" }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, flexWrap: "wrap" }}>
+              <span>{v.make} {v.model} — {v.regNumber}</span>
+              {v.verification ? (
+                <div style={{ display: "flex", gap: 6 }}>
+                  <Badge>{v.verification.paymentStatus}</Badge>
+                  <Badge>{v.verification.rcStatus}</Badge>
+                </div>
+              ) : (
+                <Badge tone="neutral">No RC check started</Badge>
+              )}
+            </div>
+            {v.verification?.rcEkoResponse != null && (
+              <details style={{ marginTop: 6 }}>
+                <summary style={{ cursor: "pointer", color: "#0C447C", fontSize: 12 }}>Raw Eko response</summary>
+                <pre style={{ fontSize: 11, background: "#F1EFE8", padding: 8, borderRadius: 6, overflowX: "auto", marginTop: 4 }}>
+                  {JSON.stringify(v.verification.rcEkoResponse, null, 2)}
+                </pre>
+              </details>
+            )}
+          </div>
+        ))}
+        {vehicles.length === 0 && <EmptyState title="No vehicles added yet" />}
+
+        <h2 style={{ fontSize: 15, fontWeight: 500, marginTop: 24 }}>Documents (legacy manual review)</h2>
         {documents.map((d) => (
           <div key={d.id} style={{ fontSize: 13, padding: "8px 0", borderBottom: "1px solid #E3E1D8", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, flexWrap: "wrap" }}>
             <span>{d.docType}</span>

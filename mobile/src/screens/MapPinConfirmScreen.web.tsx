@@ -7,6 +7,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { BackHeader } from "../components/BackHeader";
 import { useScreenView } from "../lib/useScreenView";
 import { useTranslation } from "../lib/i18n/I18nContext";
+import { appEvents } from "../lib/appEvents";
 
 // Web build of MapPinConfirmScreen — see LiveTrackingScreen.web.tsx for why
 // react-native-maps can't be imported on web at all. The drag-to-adjust-pin
@@ -16,12 +17,14 @@ import { useTranslation } from "../lib/i18n/I18nContext";
 export default function MapPinConfirmScreen({ route, navigation }: any) {
   useScreenView("MapPinConfirmScreen");
   const { t } = useTranslation();
-  const { lat, lng, address, onSelect } = route.params;
+  // selectFor replaces what used to be an onSelect callback — see
+  // MapPinConfirmScreen.tsx's identical comment for why.
+  const { lat, lng, address, selectFor } = route.params;
   const [confirming, setConfirming] = useState(false);
 
   function handleConfirm() {
     setConfirming(true);
-    onSelect?.({ lat, lng, address });
+    appEvents.emit("location:selected", { selectFor, location: { lat, lng, address } });
     navigation.goBack();
   }
 

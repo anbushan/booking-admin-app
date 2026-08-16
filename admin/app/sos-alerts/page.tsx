@@ -60,6 +60,15 @@ export default async function SosAlertsPage({ searchParams }: { searchParams: { 
 
   const [alerts, total, openCount] = await Promise.all([
     prisma.sosAlert.findMany({
+      include: {
+        booking: {
+          select: {
+            id: true,
+            passenger: { select: { id: true, name: true, phone: true } },
+            ride: { select: { driver: { select: { id: true, name: true, phone: true } } } },
+          },
+        },
+      },
       orderBy: { createdAt: "desc" },
       skip: (page - 1) * PAGE_SIZE,
       take: PAGE_SIZE,
@@ -72,6 +81,21 @@ export default async function SosAlertsPage({ searchParams }: { searchParams: { 
   ]);
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
+  // Two extra lookups, batched across the whole page rather than one
+  // query per alert: who actually pressed SOS (triggeredBy is a bare
+  // userId, not a relation — SosAlert can be triggered by either the
+  // passenger or driver on the booking) and who the resolved emergency
+  // contacts are (contactedIds is an array of EmergencyContact ids, set
+  // at trigger time — see trips.routes.js).
+  const triggeredByIds = Array.from(new Set(alerts.map((a) => a.triggeredBy)));
+  const allContactedIds = Array.from(new Set(alerts.flatMap((a) => a.contactedIds)));
+  const [triggeredByUsers, contacts] = await Promise.all([
+    prisma.user.findMany({ where: { id: { in: triggeredByIds } }, select: { id: true, name: true, phone: true } }),
+    prisma.emergencyContact.findMany({ where: { id: { in: allContactedIds } }, select: { id: true, name: true, phone: true, relation: true } }),
+  ]);
+  const triggeredByMap = new Map(triggeredByUsers.map((u) => [u.id, u]));
+  const contactMap = new Map(contacts.map((c) => [c.id, c]));
+
   return (
     <AdminShell activeHref="/sos-alerts">
       <div style={{ padding: 24 }}>
@@ -79,6 +103,11 @@ export default async function SosAlertsPage({ searchParams }: { searchParams: { 
 
         <div style={{ marginTop: 16, display: "flex", flexDirection: "column", gap: 10 }}>
           {alerts.map((alert) => {
+            const triggeredByUser = triggeredByMap.get(alert.triggeredBy);
+            const passenger = alert.booking.passenger;
+            const driver = alert.booking.ride.driver;
+            const resolvedContacts = alert.contactedIds.map((id) => contactMap.get(id)).filter(Boolean) as { id: string; name: string; phone: string; relation: string | null }[];
+            const mapsUrl = `https://www.google.com/maps?q=${alert.lat},${alert.lng}`;
             return (
               <div
                 key={alert.id}
@@ -88,19 +117,35 @@ export default async function SosAlertsPage({ searchParams }: { searchParams: { 
                   padding: 16,
                   display: "flex",
                   justifyContent: "space-between",
-                  alignItems: "center",
+                  alignItems: "flex-start",
                   flexWrap: "wrap",
                   gap: 12,
                 }}
               >
                 <div>
-                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
                     <Badge tone={sosTone(alert.status)}>{alert.status}</Badge>
-                    <span style={{ fontSize: 13, fontWeight: 500 }}>Booking {alert.bookingId}</span>
+                    <a href={`/bookings/${alert.booking.id}`} style={{ fontSize: 13, fontWeight: 500, color: "#0C447C" }}>
+                      Booking {alert.booking.id}
+                    </a>
+                  </div>
+                  <div style={{ fontSize: 12, color: "#5F5E5A", marginTop: 6 }}>
+                    Passenger: {passenger.name || passenger.phone} ({passenger.phone}) · Driver: {driver.name || driver.phone} ({driver.phone})
+                  </div>
+                  <div style={{ fontSize: 12, color: "#5F5E5A", marginTop: 2 }}>
+                    Triggered by {triggeredByUser?.id === passenger.id ? "passenger" : triggeredByUser?.id === driver.id ? "driver" : "unknown"}
+                    {triggeredByUser ? ` (${triggeredByUser.name || triggeredByUser.phone})` : ""} at {alert.createdAt.toLocaleString()}
+                    {" · "}
+                    <a href={mapsUrl} target="_blank" rel="noreferrer" style={{ color: "#0C447C" }}>view location</a>
                   </div>
                   <div style={{ fontSize: 12, color: "#888780", marginTop: 4 }}>
-                    Triggered {alert.createdAt.toLocaleString()} · lat {alert.lat.toFixed(4)}, lng{" "}
-                    {alert.lng.toFixed(4)} · {alert.contactedIds.length} contact(s) notified
+                    {resolvedContacts.length === 0 ? (
+                      "No emergency contacts notified"
+                    ) : (
+                      <>
+                        Notified: {resolvedContacts.map((c) => `${c.name} (${c.phone}${c.relation ? `, ${c.relation}` : ""})`).join(" · ")}
+                      </>
+                    )}
                   </div>
                 </div>
                 {alert.status !== "RESOLVED" && (

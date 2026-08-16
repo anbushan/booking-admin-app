@@ -5,7 +5,7 @@ import { useFocusEffect } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
 import { colors, spacing, radius, typography, FONT } from "../theme/theme";
 import { api } from "../lib/api";
-import { CarLoader } from "../components/CarLoader";
+import { SkeletonBlock, SkeletonCardList } from "../components/Skeleton";
 import { EmptyState } from "../components/EmptyState";
 import { ErrorState } from "../components/ErrorState";
 import { useToast } from "../components/Toast";
@@ -77,8 +77,21 @@ export default function EarningsScreen({ navigation }: any) {
       <Text style={{ ...typography.title, padding: spacing.lg, paddingBottom: spacing.sm }}>{t("home.earnings")}</Text>
 
       {loading ? (
-        <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
-          <CarLoader size="lg" />
+        <View style={{ flex: 1 }}>
+          {/* Same dark summaryCard chrome as the real card below, just
+              with the icon/label/value swapped for pulsing blocks —
+              this loads fast enough that a plain-spinner-then-pop-in
+              was the main source of flicker on this screen. */}
+          <View style={styles.summaryCard}>
+            <View style={styles.summaryTopRow}>
+              <View style={styles.summaryIconWrap} />
+              <View style={{ flex: 1, gap: spacing.xs }}>
+                <SkeletonBlock style={{ width: "50%", height: 11, backgroundColor: "rgba(255,255,255,0.16)" }} />
+                <SkeletonBlock style={{ width: "35%", height: 22, backgroundColor: "rgba(255,255,255,0.16)" }} />
+              </View>
+            </View>
+          </View>
+          <SkeletonCardList count={3} />
         </View>
       ) : error ? (
         <ErrorState message={t("earnings.couldntLoad")} onRetry={load} />

@@ -1,4 +1,4 @@
-import React, { useRef } from "react";
+import React, { useRef, useState } from "react";
 import { View, Text, StyleSheet } from "react-native";
 import MapView, { Marker, Polyline, PROVIDER_GOOGLE } from "react-native-maps";
 import { Ionicons } from "@expo/vector-icons";
@@ -8,6 +8,9 @@ import { BackHeader } from "../components/BackHeader";
 import { decodePolyline } from "../lib/mapGeo";
 import { useScreenView } from "../lib/useScreenView";
 import { useTranslation } from "../lib/i18n/I18nContext";
+import { MapFeatureButtons } from "../components/MapFeatureButtons";
+import { WeatherEffectOverlay } from "../components/WeatherEffectOverlay";
+import { useRouteWeather } from "../lib/useRouteWeather";
 
 // A static, non-live view of a route — reused from every screen that
 // currently only shows the route as text/stops (search results, a
@@ -24,6 +27,14 @@ export default function RouteMapScreen({ route, navigation }: any) {
     routePolyline,
   } = route.params;
   const mapRef = useRef<MapView>(null);
+  const [showTraffic, setShowTraffic] = useState(false);
+  const [showWeather, setShowWeather] = useState(false);
+  // Weather at the route's midpoint — close enough for a whole-route
+  // background effect (this isn't per-stop granular, it's "what's it
+  // like out there right now"), and one call instead of one per stop.
+  const midLat = (sourceLat + destLat) / 2;
+  const midLng = (sourceLng + destLng) / 2;
+  const weather = useRouteWeather(showWeather, midLat, midLng);
 
   // Falls back to a straight line between the two points whenever no
   // computed route is stored (a legacy ride, or a not-yet-selected
@@ -37,33 +48,47 @@ export default function RouteMapScreen({ route, navigation }: any) {
   return (
     <SafeAreaView style={styles.screen} edges={["top", "bottom"]}>
       <BackHeader title={t("routeMap.title")} onBack={() => navigation.goBack()} />
-      <MapView
-        ref={mapRef}
-        style={{ flex: 1 }}
-        provider={PROVIDER_GOOGLE}
-        initialRegion={{
-          latitude: (sourceLat + destLat) / 2,
-          longitude: (sourceLng + destLng) / 2,
-          latitudeDelta: Math.max(Math.abs(sourceLat - destLat) * 1.6, 0.03),
-          longitudeDelta: Math.max(Math.abs(sourceLng - destLng) * 1.6, 0.03),
-        }}
-        onLayout={() => mapRef.current?.fitToCoordinates(coords, {
-          edgePadding: { top: 80, right: 60, bottom: 160, left: 60 },
-          animated: false,
-        })}
-      >
-        {coords.length > 1 && <Polyline coordinates={coords} strokeColor={colors.accent} strokeWidth={4} />}
-        <Marker coordinate={{ latitude: sourceLat, longitude: sourceLng }} title={t("routeMap.pickup")} description={sourceAddress} anchor={{ x: 0.5, y: 0.5 }}>
-          <View style={styles.startPin}>
-            <View style={styles.startPinDot} />
-          </View>
-        </Marker>
-        <Marker coordinate={{ latitude: destLat, longitude: destLng }} title={t("routeMap.dropoff")} description={destAddress} anchor={{ x: 0.5, y: 1 }}>
-          <View style={styles.endPin}>
-            <Ionicons name="flag" size={14} color="#FFFFFF" />
-          </View>
-        </Marker>
-      </MapView>
+      <View style={{ flex: 1 }}>
+        <MapView
+          ref={mapRef}
+          style={{ flex: 1 }}
+          provider={PROVIDER_GOOGLE}
+          showsTraffic={showTraffic}
+          initialRegion={{
+            latitude: (sourceLat + destLat) / 2,
+            longitude: (sourceLng + destLng) / 2,
+            latitudeDelta: Math.max(Math.abs(sourceLat - destLat) * 1.6, 0.03),
+            longitudeDelta: Math.max(Math.abs(sourceLng - destLng) * 1.6, 0.03),
+          }}
+          onLayout={() => mapRef.current?.fitToCoordinates(coords, {
+            edgePadding: { top: 80, right: 60, bottom: 160, left: 60 },
+            animated: false,
+          })}
+        >
+          {coords.length > 1 && <Polyline coordinates={coords} strokeColor={colors.accent} strokeWidth={4} />}
+          <Marker coordinate={{ latitude: sourceLat, longitude: sourceLng }} title={t("routeMap.pickup")} description={sourceAddress} anchor={{ x: 0.5, y: 0.5 }}>
+            <View style={styles.startPin}>
+              <View style={styles.startPinDot} />
+            </View>
+          </Marker>
+          <Marker coordinate={{ latitude: destLat, longitude: destLng }} title={t("routeMap.dropoff")} description={destAddress} anchor={{ x: 0.5, y: 1 }}>
+            <View style={styles.endPin}>
+              <Ionicons name="flag" size={14} color="#FFFFFF" />
+            </View>
+          </Marker>
+        </MapView>
+
+        {showWeather && weather.condition && <WeatherEffectOverlay condition={weather.condition} />}
+
+        <MapFeatureButtons
+          showTraffic={showTraffic}
+          onToggleTraffic={() => setShowTraffic((v) => !v)}
+          showWeather={showWeather}
+          onToggleWeather={() => setShowWeather((v) => !v)}
+          weatherLoading={showWeather && weather.loading}
+          weatherTempC={weather.tempC}
+        />
+      </View>
 
       <View style={styles.footer}>
         <View style={styles.footerRow}>

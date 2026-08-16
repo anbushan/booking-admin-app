@@ -3,6 +3,7 @@ import * as Location from "expo-location";
 import { reportNetworkError } from "./networkStatus";
 import { appEvents } from "./appEvents";
 import { setErrorTrackingUser } from "./errorTracking";
+import { setRoleQuickActions } from "./quickActions";
 
 // Production backend on Railway (see backend/README or the deploy notes for
 // how this got provisioned — Neon Postgres + Railway-hosted Redis, both
@@ -141,10 +142,16 @@ export const api = {
     request("/api/verification/passenger/charge", { method: "POST" }),
   mockConfirmPassengerVerificationPayment: () =>
     request("/api/verification/passenger/mock-confirm-payment", { method: "POST" }),
-  verifyAadhaar: (aadhaarNumber: string) =>
-    request("/api/verification/passenger/verify", { method: "POST", body: JSON.stringify({ aadhaarNumber }) }),
-  confirmAadhaarVerification: () =>
-    request("/api/verification/passenger/verify/confirm", { method: "POST" }),
+  // Aadhaar e-KYC is OTP-consent-based (UIDAI requirement), not a single
+  // lookup like DL/RC — sendAadhaarOtp triggers an OTP to whatever
+  // mobile number is linked with this Aadhaar in UIDAI's own records
+  // (never this app's stored phone number), and confirmAadhaarOtp is
+  // the resident's actual consent + the only call that returns real
+  // e-KYC data.
+  sendAadhaarOtp: (aadhaarNumber: string) =>
+    request("/api/verification/passenger/verify/send-otp", { method: "POST", body: JSON.stringify({ aadhaarNumber }) }),
+  confirmAadhaarOtp: (otp: string) =>
+    request("/api/verification/passenger/verify/confirm-otp", { method: "POST", body: JSON.stringify({ otp }) }),
   resetPassengerVerification: () =>
     request("/api/verification/passenger/reset", { method: "POST" }),
 
@@ -171,6 +178,34 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ sourceLat, sourceLng, sourceAddress, destLat, destLng, destAddress }),
     }),
+
+  // "Repeat this ride" — same shape as createRide's payload, minus
+  // travelDate (a single point in time) and plus the recurrence fields
+  // (daysOfWeek/startDate/endDate/departureTime instead). See
+  // backend/src/routes/recurringRides.routes.js.
+  createRecurringRide: (payload: {
+    sourceLat: number; sourceLng: number; sourceAddress: string;
+    destLat: number; destLng: number; destAddress: string;
+    departureTime: string; seatsAvailable: number; pricePerSeat: number;
+    preferences: Record<string, boolean>;
+    vehicleId?: string;
+    daysOfWeek: number[];
+    startDate: string;
+    endDate?: string;
+    routePolyline?: string;
+    routeStops?: { lat: number; lng: number; placeName: string; distanceKm: number; durationMinutes: number }[];
+    routeDistanceKm?: number;
+    routeDurationMinutes?: number;
+  }) => request("/api/recurring-rides", { method: "POST", body: JSON.stringify(payload) }),
+
+  getRecurringRides: () => request("/api/recurring-rides"),
+
+  // Pause/resume only — see recurringRides.routes.js's PATCH for why
+  // mid-series price/seat edits aren't supported yet.
+  setRecurringRideActive: (id: string, active: boolean) =>
+    request(`/api/recurring-rides/${id}`, { method: "PATCH", body: JSON.stringify({ active }) }),
+
+  deleteRecurringRide: (id: string) => request(`/api/recurring-rides/${id}`, { method: "DELETE" }),
 
   searchRides: (params: { sourceLat: number; sourceLng: number; destLat?: number; destLng?: number; date: string; seats: number; startTime?: string; endTime?: string }) =>
     request(
@@ -304,6 +339,10 @@ export const api = {
   // pairs, tap one to jump straight into search with both ends filled.
   getPopularRoutes: () => request("/api/rides/popular-routes"),
 
+  // Current conditions for the route map's "view weather" overlay
+  // (RouteMapScreen / LiveTrackingScreen) — see weather.routes.js.
+  getWeather: (lat: number, lng: number) => request(`/api/weather?lat=${lat}&lng=${lng}`),
+
   getCurrentLocation: async () => {
     let { status } = await Location.getForegroundPermissionsAsync();
     if (status !== "granted") {
@@ -419,6 +458,9 @@ export async function logout() {
   // doesn't get misattributed to whoever was just signed out.
   setErrorTrackingUser(null);
   await AsyncStorage.removeItem("authToken");
+  // A signed-out device shouldn't keep offering a long-press-app-icon
+  // shortcut into a screen that'll just bounce back to login anyway.
+  setRoleQuickActions(null).catch(() => {});
   // Tells AppSocketBridge to drop the live connection — without this a
   // stale, still-authenticated socket could sit open after sign-out
   // until the app happened to background/foreground again.

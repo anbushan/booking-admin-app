@@ -248,7 +248,14 @@ export default function ChatDetailScreen({ route, navigation }: any) {
           <Ionicons name="information-circle-outline" size={20} color={colors.textMuted} />
         </Pressable>
         {!!calleeRole && !ended && (
-          <Pressable style={styles.callButton} onPress={handleCall} disabled={calling} hitSlop={6}>
+          <Pressable
+            style={styles.callButton}
+            onPress={handleCall}
+            disabled={calling}
+            hitSlop={6}
+            accessibilityRole="button"
+            accessibilityLabel={t("common.call")}
+          >
             <Ionicons name={calling ? "call" : "call-outline"} size={16} color={colors.success} />
           </Pressable>
         )}

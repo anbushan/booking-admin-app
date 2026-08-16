@@ -17,6 +17,8 @@ import {
   Users,
   Bell,
   RotateCcw,
+  Repeat,
+  Share2,
 } from "lucide-react";
 import { MarketingShell } from "../components/MarketingShell";
 import { JourneyMockup, type MockupKind } from "../components/JourneyMockup";
@@ -69,14 +71,17 @@ const FEATURES = [
   { icon: RotateCcw, title: "Flexible cancellations", body: "A shared grace window after payment, and automatic refunds if a driver cancels or never shows up." },
   { icon: Wallet, title: "Fair, capped pricing", body: "A per-kilometre cap on top of a small upfront platform fee — cost-sharing, never a surge fare." },
   { icon: ShieldAlert, title: "Built-in accountability", body: "Repeated late cancellations or no-shows escalate through real warnings before any account action." },
+  { icon: Repeat, title: "Repeat rides, set up once", body: "Drive the same route daily? Set the days and time once and it keeps publishing itself — pause or stop it whenever you want." },
 ];
 
 const SAFETY_FEATURES = [
   { icon: KeyRound, title: "Pickup verification", body: "A one-time code the passenger reads aloud — the trip can't start without it." },
   { icon: ShieldCheck, title: "Live SOS", body: "One tap shares your real-time location with emergency contacts you've already set up." },
   { icon: Car, title: "Verified drivers & vehicles", body: "A separate licence badge and RC badge per vehicle — earned instantly with a small paid check, or free via manual review. Either way, publishing itself never requires it." },
+  { icon: ShieldCheck, title: "Passengers can verify too", body: "An optional Aadhaar check passengers can complete themselves — a green badge drivers see when deciding whether to accept a request." },
   { icon: Star, title: "Ratings that stick", body: "Every completed ride can be rated — visible on a profile before you ever share a car." },
   { icon: MessageCircle, title: "In-app chat", body: "Coordinate pickup details directly, without sharing a real phone number." },
+  { icon: Share2, title: "Share your trip", body: "Send anyone — even someone outside the app — a live link to your route and location for the ride, one tap from the trip screen." },
   { icon: Wallet, title: "Fair, capped fares", body: "A per-km cap keeps this cost-sharing, not a taxi fare in disguise." },
 ];
 
@@ -153,7 +158,8 @@ export default function LandingPage() {
             <p className="mkt-lede">
               NanbaGO matches drivers already making a trip with passengers going the same way. Pay a
               small platform fee upfront, settle the rest of the fare directly — with pickup verification,
-              live SOS, and vetted drivers built into every single ride.
+              live SOS, and vetted drivers built into every single ride. Currently available in Chennai
+              and Bengaluru.
             </p>
             <div className="mkt-hero-ctas">
               {STORE_LINKS_READY ? (

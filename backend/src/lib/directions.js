@@ -88,8 +88,16 @@ export function progressAlongRouteKm(lat, lng, points) {
   return { progressKm: cumulativeKm, distanceKm };
 }
 
-const STOP_INTERVAL_KM = 15;
-const MAX_STOPS = 6;
+// STOP_INTERVAL_KM was 15 — meant as a floor to stop short routes from
+// producing near-duplicate entries, but at this app's actual route
+// lengths (mostly 20-60km intra-metro/intercity trips) it was the thing
+// actually limiting stop count, not MAX_STOPS: a 30km route only fits
+// ~2 samples 15km apart, so a real 3-stop route (A -> A1 -> A2 -> A3 ->
+// B) rendered as A -> A1 -> B, silently dropping A2/A3. Lowered to 5 —
+// still enough to avoid redundant points on the shortest qualifying
+// routes, but no longer the bottleneck for anything above ~35km.
+const STOP_INTERVAL_KM = 5;
+const MAX_STOPS = 8;
 const MIN_ROUTE_KM_FOR_STOPS = 8;
 const ENDPOINT_EXCLUSION_KM = 2;
 

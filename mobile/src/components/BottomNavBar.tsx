@@ -34,7 +34,15 @@ export function BottomNavBar({ tabs, active, onTabPress }: Props) {
         const isActive = tab.key === active;
         const badgeCount = tab.badge ?? 0;
         return (
-          <Pressable key={tab.key} style={styles.tab} onPress={() => onTabPress(tab.key)} hitSlop={4}>
+          <Pressable
+            key={tab.key}
+            style={styles.tab}
+            onPress={() => onTabPress(tab.key)}
+            hitSlop={4}
+            accessibilityRole="button"
+            accessibilityLabel={badgeCount > 0 ? `${tab.label}, ${badgeCount}` : tab.label}
+            accessibilityState={{ selected: isActive }}
+          >
             <View>
               <Ionicons
                 name={isActive ? tab.iconActive : tab.icon}

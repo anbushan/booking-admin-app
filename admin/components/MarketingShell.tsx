@@ -13,9 +13,10 @@ import { poppins } from "../lib/fonts";
 export function MarketingShell({ children }: { children: React.ReactNode }) {
   return (
     <div className={poppins.variable} style={{ minHeight: "100vh", display: "flex", flexDirection: "column", fontFamily: "var(--font-poppins)" }}>
+      <a href="#main-content" className="mkt-skip-link">Skip to content</a>
       <MarketingHeader />
 
-      <main style={{ flex: 1 }}>{children}</main>
+      <main id="main-content" style={{ flex: 1 }}>{children}</main>
 
       <footer className="mkt-footer">
         <div className="mkt-footer-inner">

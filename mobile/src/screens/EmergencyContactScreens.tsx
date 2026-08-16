@@ -1,11 +1,12 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { View, Text, TextInput, FlatList, StyleSheet, RefreshControl } from "react-native";
 import { Pressable } from "../components/Pressable";
+import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
 import { showAlert } from "../lib/alert";
 import { colors, spacing, radius, typography } from "../theme/theme";
 import { api } from "../lib/api";
-import { CarLoader } from "../components/CarLoader";
+import { SkeletonList } from "../components/Skeleton";
 import { EmptyState } from "../components/EmptyState";
 import { ErrorState } from "../components/ErrorState";
 import { useToast } from "../components/Toast";
@@ -61,9 +62,7 @@ export function EmergencyContactsScreen({ navigation }: any) {
       <Text style={{ ...typography.title, padding: spacing.lg, paddingBottom: spacing.sm }}>{t("emergencyContacts.title")}</Text>
 
       {loading ? (
-        <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
-          <CarLoader size="lg" />
-        </View>
+        <SkeletonList count={3} />
       ) : error ? (
         <ErrorState message={t("emergencyContacts.couldntLoad")} onRetry={load} />
       ) : (
@@ -148,6 +147,7 @@ export function AddEmergencyContactScreen({ navigation }: any) {
         <TextInput
           style={[styles.input, errors.name && styles.inputError]}
           placeholder={t("emergencyContacts.namePlaceholder")}
+          placeholderTextColor={colors.textMuted}
           value={name}
           onChangeText={(v) => { setName(v); if (errors.name) setErrors((e) => ({ ...e, name: "" })); }}
         />
@@ -155,6 +155,7 @@ export function AddEmergencyContactScreen({ navigation }: any) {
         <TextInput
           style={[styles.input, errors.phone && styles.inputError]}
           placeholder={t("emergencyContacts.phonePlaceholder")}
+          placeholderTextColor={colors.textMuted}
           keyboardType="number-pad"
           maxLength={10}
           value={phone}
@@ -164,11 +165,20 @@ export function AddEmergencyContactScreen({ navigation }: any) {
         <TextInput
           style={styles.input}
           placeholder={t("emergencyContacts.relationPlaceholder")}
+          placeholderTextColor={colors.textMuted}
           value={relation}
           onChangeText={setRelation}
         />
-        <Pressable style={styles.checkboxRow} onPress={() => setIsPrimary(!isPrimary)}>
-          <View style={[styles.checkbox, isPrimary && styles.checkboxActive]} />
+        <Pressable
+          style={styles.checkboxRow}
+          onPress={() => setIsPrimary(!isPrimary)}
+          accessibilityRole="checkbox"
+          accessibilityState={{ checked: isPrimary }}
+          accessibilityLabel={t("emergencyContacts.setPrimary")}
+        >
+          <View style={[styles.checkbox, isPrimary && styles.checkboxActive]}>
+            {isPrimary && <Ionicons name="checkmark" size={13} color="#FFFFFF" />}
+          </View>
           <Text style={styles.checkboxLabel}>{t("emergencyContacts.setPrimary")}</Text>
         </Pressable>
         <Pressable style={styles.addButton} onPress={handleSave} disabled={submitting}>
@@ -228,8 +238,11 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
   },
   inputError: { borderColor: colors.danger },
-  checkboxRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm, marginTop: spacing.sm },
-  checkbox: { width: 18, height: 18, borderRadius: 4, borderWidth: 1, borderColor: colors.border },
+  checkboxRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm, marginTop: spacing.sm, alignSelf: "flex-start" },
+  checkbox: {
+    width: 20, height: 20, borderRadius: 5, borderWidth: 1.5, borderColor: colors.border,
+    backgroundColor: colors.surface, alignItems: "center", justifyContent: "center",
+  },
   checkboxActive: { backgroundColor: colors.accent, borderColor: colors.accent },
   checkboxLabel: typography.caption,
 });

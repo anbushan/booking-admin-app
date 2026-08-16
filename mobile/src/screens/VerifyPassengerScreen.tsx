@@ -28,17 +28,29 @@ type AadhaarPreview = {
 type PassengerVerification = { paymentStatus: string; aadhaarStatus: string; confirmedPreview?: AadhaarPreview | null } | null;
 
 // Same dev-only stand-in as VerifyDriverScreen.tsx — lets the whole
-// pay -> check -> confirm -> badge flow be tested with EKO_MOCK_MODE
-// data end to end without real Razorpay Checkout or real Eko access.
+// pay -> send OTP -> verify OTP -> badge flow be tested with
+// EKO_MOCK_MODE data end to end without real Razorpay Checkout or real
+// Eko access. In mock mode, the one OTP that always succeeds is
+// "123456" — same static test-OTP this app already uses for phone
+// login (see auth.routes.js), reused here so there's only one mock-OTP
+// convention to remember across the whole app.
 const SHOW_MOCK_PAYMENT_BUTTON = true;
+const MOCK_OTP_HINT = "123456";
 
 // Mirrors verification.routes.js's AADHAAR_PATTERN exactly.
 const AADHAAR_PATTERN = /^\d{12}$/;
+const OTP_PATTERN = /^\d{6}$/;
 
 function validateAadhaar(v: string, t: (k: string) => string) {
   const normalized = v.replace(/\s+/g, "");
   if (!normalized.trim()) return t("verification.aadhaarRequired");
   if (!AADHAAR_PATTERN.test(normalized)) return t("verification.aadhaarInvalid");
+  return "";
+}
+
+function validateOtp(v: string, t: (k: string) => string) {
+  if (!v.trim()) return t("verification.otpRequired");
+  if (!OTP_PATTERN.test(v.trim())) return t("verification.otpInvalid");
   return "";
 }
 
@@ -125,19 +137,28 @@ export default function VerifyPassengerScreen({ navigation }: any) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [paying, setPaying] = useState(false);
-  const [checking, setChecking] = useState(false);
-  const [confirming, setConfirming] = useState(false);
+  const [sendingOtp, setSendingOtp] = useState(false);
+  const [verifyingOtp, setVerifyingOtp] = useState(false);
   const [resetting, setResetting] = useState(false);
   const [aadhaarNumber, setAadhaarNumber] = useState("");
   const [aadhaarError, setAadhaarError] = useState("");
+  const [otp, setOtp] = useState("");
+  const [otpError, setOtpError] = useState("");
+  // True the moment send-otp succeeds this session — combined with the
+  // server's own aadhaarStatus === "PENDING" below (`pending`) so
+  // reopening this screen while a real Eko OTP session is still valid
+  // resumes straight at the OTP-entry step instead of making the
+  // passenger request a new one for no reason.
+  const [otpSentLocally, setOtpSentLocally] = useState(false);
   // Purely cosmetic (the ID card preview) — never sent anywhere, and
   // never blocks the flow if it fails to load, unlike passengerVerification
   // itself which does gate the whole screen via `error` below.
   const [profile, setProfile] = useState<{ name?: string; photoViewUrl?: string | null } | null>(null);
 
-  // What Eko actually returned for the passenger's own review, before
-  // it's committed as their official record — same preview-then-confirm
-  // shape as the driver screen's license/RC.
+  // What Eko actually returned once the OTP itself was verified — unlike
+  // license/RC, there's nothing to preview *before* this: UIDAI doesn't
+  // hand back any data until OTP consent is already confirmed, so
+  // confirm-otp is simultaneously "the check" and "the commit."
   const [preview, setPreview] = useState<AadhaarPreview | null>(null);
   const cardRef = useRef<ViewShot>(null);
 
@@ -168,6 +189,7 @@ export default function VerifyPassengerScreen({ navigation }: any) {
   const paid = passengerVerification?.paymentStatus === "PAID";
   const verified = passengerVerification?.aadhaarStatus === "VERIFIED";
   const pending = passengerVerification?.aadhaarStatus === "PENDING";
+  const showOtpEntry = otpSentLocally || pending;
   const display = preview || passengerVerification?.confirmedPreview || null;
 
   async function handleDownload() {
@@ -227,34 +249,51 @@ export default function VerifyPassengerScreen({ navigation }: any) {
     }
   }
 
-  async function handleCheck() {
+  async function handleSendOtp() {
     const err = validateAadhaar(aadhaarNumber, t);
     setAadhaarError(err);
     if (err) return;
 
-    setChecking(true);
+    setSendingOtp(true);
     try {
-      const res = await api.verifyAadhaar(aadhaarNumber.replace(/\s+/g, ""));
-      setPreview(res.preview);
+      await api.sendAadhaarOtp(aadhaarNumber.replace(/\s+/g, ""));
+      setOtpSentLocally(true);
+      setOtp("");
+      setOtpError("");
+      showSuccess(t("verification.otpSentToast"));
+      load();
+    } catch (e: any) {
+      showAlert(t("verification.couldntSendOtp"), e.message);
+    } finally {
+      setSendingOtp(false);
+    }
+  }
+
+  async function handleVerifyOtp() {
+    const err = validateOtp(otp, t);
+    setOtpError(err);
+    if (err) return;
+
+    setVerifyingOtp(true);
+    try {
+      const res = await api.confirmAadhaarOtp(otp.trim());
+      if (res.passengerVerification?.aadhaarStatus === "VERIFIED") {
+        setPreview(res.preview);
+        setOtpSentLocally(false);
+        showSuccess(t("verification.aadhaarConfirmedToast"));
+      } else {
+        // Failed OTP/e-KYC attempt — back to the Aadhaar-number step;
+        // no reset/re-payment needed, the backend allows retrying
+        // send-otp on anything short of an already-VERIFIED record.
+        setOtpSentLocally(false);
+        setOtp("");
+        showAlert(t("verification.couldntVerify"), res.error || t("verification.aadhaarFailed"));
+      }
       load();
     } catch (e: any) {
       showAlert(t("verification.couldntVerify"), e.message);
     } finally {
-      setChecking(false);
-    }
-  }
-
-  async function handleConfirm() {
-    setConfirming(true);
-    try {
-      await api.confirmAadhaarVerification();
-      showSuccess(t("verification.aadhaarConfirmedToast"));
-      setPreview(null);
-      load();
-    } catch (err: any) {
-      showAlert(t("verification.couldntVerify"), err.message);
-    } finally {
-      setConfirming(false);
+      setVerifyingOtp(false);
     }
   }
 
@@ -268,7 +307,7 @@ export default function VerifyPassengerScreen({ navigation }: any) {
           setResetting(true);
           try {
             await api.resetPassengerVerification();
-            setAadhaarNumber(""); setPreview(null);
+            setAadhaarNumber(""); setOtp(""); setPreview(null); setOtpSentLocally(false);
             load();
           } catch (err: any) {
             showError(err.message || t("verification.couldntVerify"));
@@ -324,13 +363,6 @@ export default function VerifyPassengerScreen({ navigation }: any) {
           )}
 
           <View style={styles.card}>
-            {passengerVerification?.aadhaarStatus === "FAILED" && !preview && (
-              <View style={styles.failedRow}>
-                <Ionicons name="close-circle" size={18} color={colors.danger} />
-                <Text style={styles.failedText}>{t("verification.aadhaarFailed")}</Text>
-              </View>
-            )}
-
             {!paid ? (
               <>
                 <Text style={styles.cardHint}>{t("verification.passengerFeeHint")}</Text>
@@ -343,7 +375,7 @@ export default function VerifyPassengerScreen({ navigation }: any) {
                   </Pressable>
                 )}
               </>
-            ) : display ? (
+            ) : verified && display ? (
               <>
                 <IdCard
                   viewShotRef={cardRef}
@@ -355,33 +387,59 @@ export default function VerifyPassengerScreen({ navigation }: any) {
                   photoUri={profile?.photoViewUrl}
                   name={display.name || profile?.name}
                 />
-                {!verified && (
-                  <Text style={[styles.previewNote, { color: display.wouldPass ? colors.success : colors.danger, marginTop: spacing.sm }]}>
-                    {display.wouldPass ? t("verification.previewGood") : t("verification.previewBad")}
-                  </Text>
-                )}
                 <Pressable style={styles.downloadButton} onPress={handleDownload}>
                   <Ionicons name="download-outline" size={15} color={colors.accentText} />
                   <Text style={styles.downloadButtonText}>{t("verification.downloadCard")}</Text>
                 </Pressable>
-                {verified ? (
-                  <Pressable style={styles.linkButton} onPress={handleReset} disabled={resetting}>
-                    <Text style={styles.linkButtonText}>{resetting ? t("verification.resetting") : t("verification.verifyAgain")}</Text>
-                  </Pressable>
-                ) : (
-                  <>
-                    <Pressable style={styles.button} onPress={handleConfirm} disabled={confirming}>
-                      <Text style={styles.buttonText}>{confirming ? t("verification.confirming") : t("verification.confirmAndSave")}</Text>
-                    </Pressable>
-                    <Pressable style={styles.linkButton} onPress={() => setPreview(null)} disabled={confirming}>
-                      <Text style={styles.linkButtonText}>{t("verification.editAndRecheck")}</Text>
-                    </Pressable>
-                  </>
+                <Pressable style={styles.linkButton} onPress={handleReset} disabled={resetting}>
+                  <Text style={styles.linkButtonText}>{resetting ? t("verification.resetting") : t("verification.verifyAgain")}</Text>
+                </Pressable>
+              </>
+            ) : showOtpEntry ? (
+              <>
+                {/* Real Aadhaar e-KYC is OTP-consent-based (a UIDAI legal
+                    requirement, not an Eko quirk) — the OTP goes to
+                    whatever mobile number is linked with this Aadhaar in
+                    UIDAI's own records, never a number this app has on
+                    file, so there's genuinely nothing to preview until
+                    it's entered here. */}
+                <View style={styles.otpSentRow}>
+                  <Ionicons name="chatbox-ellipses-outline" size={16} color={colors.accentText} />
+                  <Text style={styles.otpSentText}>{t("verification.otpSentHint")}</Text>
+                </View>
+                {SHOW_MOCK_PAYMENT_BUTTON && (
+                  <Text style={styles.mockOtpHint}>{t("verification.mockOtpHint", { otp: MOCK_OTP_HINT })}</Text>
                 )}
+                <Text style={styles.label}>{t("verification.otpLabel")}</Text>
+                <TextInput
+                  style={[styles.input, otpError && styles.inputError]}
+                  placeholder={t("verification.otpPlaceholder")}
+                  placeholderTextColor={colors.textMuted}
+                  keyboardType="number-pad"
+                  maxLength={6}
+                  value={otp}
+                  onChangeText={(v) => { setOtp(v); if (otpError) setOtpError(""); }}
+                />
+                <FieldError message={otpError} />
+                <Pressable style={styles.button} onPress={handleVerifyOtp} disabled={verifyingOtp}>
+                  <Text style={styles.buttonText}>{verifyingOtp ? t("verification.verifyingOtp") : t("verification.verifyOtp")}</Text>
+                </Pressable>
+                <Pressable
+                  style={styles.linkButton}
+                  onPress={() => { setOtpSentLocally(false); setOtp(""); setOtpError(""); }}
+                  disabled={verifyingOtp}
+                >
+                  <Text style={styles.linkButtonText}>{t("verification.changeAadhaarNumber")}</Text>
+                </Pressable>
               </>
             ) : (
               <>
-                {pending && <Text style={styles.cardHint}>{t("verification.pendingReview")}</Text>}
+                {passengerVerification?.aadhaarStatus === "FAILED" && (
+                  <View style={styles.failedRow}>
+                    <Ionicons name="close-circle" size={18} color={colors.danger} />
+                    <Text style={styles.failedText}>{t("verification.aadhaarFailed")}</Text>
+                  </View>
+                )}
                 <Text style={styles.label}>{t("verification.aadhaarNumber")}</Text>
                 <TextInput
                   style={[styles.input, aadhaarError && styles.inputError]}
@@ -393,8 +451,8 @@ export default function VerifyPassengerScreen({ navigation }: any) {
                   onChangeText={(v) => { setAadhaarNumber(v); if (aadhaarError) setAadhaarError(""); }}
                 />
                 <FieldError message={aadhaarError} />
-                <Pressable style={styles.button} onPress={handleCheck} disabled={checking}>
-                  <Text style={styles.buttonText}>{checking ? t("verification.checking") : t("verification.reviewDetails")}</Text>
+                <Pressable style={styles.button} onPress={handleSendOtp} disabled={sendingOtp}>
+                  <Text style={styles.buttonText}>{sendingOtp ? t("verification.sendingOtp") : t("verification.sendOtp")}</Text>
                 </Pressable>
               </>
             )}
@@ -419,6 +477,9 @@ const styles = StyleSheet.create({
   cardHint: { ...typography.small, color: colors.textMuted, marginBottom: spacing.sm, lineHeight: 17 },
   failedRow: { flexDirection: "row", alignItems: "center", gap: spacing.xs, marginBottom: spacing.sm },
   failedText: { ...typography.caption, color: colors.danger },
+  otpSentRow: { flexDirection: "row", alignItems: "center", gap: spacing.xs, backgroundColor: colors.accentBg, borderRadius: radius.sm, padding: spacing.sm, marginBottom: spacing.xs },
+  otpSentText: { ...typography.caption, color: colors.accentText, flex: 1, lineHeight: 17 },
+  mockOtpHint: { ...typography.small, color: colors.warning, marginBottom: spacing.sm },
   label: { ...typography.caption, color: colors.textSecondary, marginBottom: spacing.xs, marginTop: spacing.sm },
   input: {
     backgroundColor: colors.bg, borderWidth: 1, borderColor: colors.border, borderRadius: radius.sm,

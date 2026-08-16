@@ -6,7 +6,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { showAlert } from "../lib/alert";
 import { colors, spacing, radius, typography, FONT } from "../theme/theme";
 import { api } from "../lib/api";
-import { CarLoader } from "../components/CarLoader";
+import { SkeletonAvatarRowList } from "../components/Skeleton";
 import { EmptyState } from "../components/EmptyState";
 import { ErrorState } from "../components/ErrorState";
 import { useToast } from "../components/Toast";
@@ -100,9 +100,7 @@ export default function VehicleListScreen({ navigation }: any) {
       )}
 
       {loading ? (
-        <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
-          <CarLoader size="lg" />
-        </View>
+        <SkeletonAvatarRowList count={3} />
       ) : error ? (
         <ErrorState message={t("vehicle.couldntLoad")} onRetry={load} />
       ) : (

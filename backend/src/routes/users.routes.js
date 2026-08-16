@@ -3,10 +3,11 @@ import { PutObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { prisma } from "../lib/prisma.js";
 import { requireAuth } from "../middleware/auth.js";
-import { validate, isNonEmptyString, isEmail, isOneOf } from "../lib/validate.js";
+import { validate, isNonEmptyString, isEmail, isOneOf, isPhone } from "../lib/validate.js";
 import { serializeUser } from "../lib/serializeUser.js";
 import { r2, R2_BUCKET } from "../lib/r2.js";
 import { photoViewUrl } from "../lib/photo.js";
+import { redis } from "../lib/redis.js";
 
 const router = Router();
 const UPLOAD_URL_TTL_SECONDS = 600; // 10 min
@@ -193,6 +194,38 @@ router.delete("/me", requireAuth, async (req, res) => {
   ]);
 
   res.json({ deleted: true });
+});
+
+// POST /api/users/request-deletion — deliberately unauthenticated. This
+// is Google Play's "deletion requestable from outside the app" path (see
+// AccountDeletionRequest's own schema comment) — the admin/marketing
+// site's public /delete-account page posts here for someone who wants
+// their data gone but doesn't have the app installed to use DELETE /me
+// above. Queues a request for an admin to verify and action rather than
+// deleting outright — an unauthenticated form has no way to prove who's
+// actually asking, unlike DELETE /me's OTP-verified session.
+router.post("/request-deletion", async (req, res) => {
+  const { phone, reason } = req.body;
+  const errors = validate({ phone }, [
+    { field: "phone", check: isPhone, message: "Enter a valid phone number." },
+  ]);
+  if (errors.length) return res.status(400).json({ errors });
+
+  // One request per phone per 24h — this form has no login to abuse,
+  // just a queue an admin has to read, so the only real risk is someone
+  // spamming it; a plain per-phone throttle is enough.
+  const rateLimitKey = `deletion-request:${phone}`;
+  const alreadyRequested = await redis.get(rateLimitKey);
+  if (alreadyRequested) {
+    return res.status(429).json({ error: "A deletion request for this number was already submitted recently — we'll be in touch." });
+  }
+  await redis.set(rateLimitKey, "1", "EX", 60 * 60 * 24);
+
+  await prisma.accountDeletionRequest.create({
+    data: { phone, reason: typeof reason === "string" ? reason.slice(0, 500) : null },
+  });
+
+  res.json({ success: true });
 });
 
 // GET /api/users/:id/public — shown to the other party in a booking

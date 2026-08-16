@@ -61,6 +61,7 @@ export const FOOTER_LINKS = [
   { href: "/contact", label: "Contact" },
   { href: "/legal/terms", label: "Terms" },
   { href: "/legal/privacy", label: "Privacy" },
+  { href: "/delete-account", label: "Delete account" },
 ];
 
 export type FaqItem = { question: string; answer: string };
@@ -145,6 +146,16 @@ export const FAQ_GROUPS: FaqGroup[] = [
         answer:
           "Yes — the other person's name, photo, and rating are shown on your booking before you ever meet, and in-app chat opens as soon as the booking's confirmed so you can coordinate pickup details directly.",
       },
+      {
+        question: "Can passengers get verified too, or is that just for drivers?",
+        answer:
+          "Passengers can optionally verify their own identity with a small paid Aadhaar check — same instant-check model as driver verification. It's entirely optional and never required to book a ride, but a driver deciding whether to accept your request will see the badge if you have it.",
+      },
+      {
+        question: "Can I let someone outside the app follow my trip?",
+        answer:
+          "Yes — from the live tracking screen, \"Share my trip\" sends your route and real-time location to anyone you choose, even if they've never used NanbaGO. It's separate from SOS — useful any time you just want someone to know where you are, not only in an emergency.",
+      },
     ],
   },
   {
@@ -192,6 +203,11 @@ export const FAQ_GROUPS: FaqGroup[] = [
         question: "What happens if I repeatedly cancel or don't show up?",
         answer:
           "Repeated late cancellations or no-shows escalate through a warning, a final warning, and then a temporary account block that lifts automatically — the same rules apply to every driver, and honoring an accepted booking is what avoids all of it.",
+      },
+      {
+        question: "I drive the same route every day — do I have to republish it every time?",
+        answer:
+          "No — set up a recurring ride once (route, seats, price, which days of the week, and a time) and it keeps generating a real, bookable ride on its own on each of those days, no further action needed. Pause it or stop it entirely whenever your routine changes; cancelling one day's occurrence never affects the rest of the series.",
       },
     ],
   },

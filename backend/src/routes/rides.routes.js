@@ -1,52 +1,18 @@
 import { Router } from "express";
 import { prisma } from "../lib/prisma.js";
 import { requireAuth, requireRole } from "../middleware/auth.js";
-import { refundIfPaid } from "../lib/refunds.js";
-import { notify } from "../lib/notify.js";
 import { getAppConfig } from "../lib/appConfig.js";
 import { isDriverStrikeBlocked } from "../lib/strikes.js";
-import { clearChatForBooking } from "../lib/chat.js";
+import { attemptCancelRide } from "../lib/rideLifecycle.js";
 import { isWithinIndia } from "../lib/geo.js";
 import { getRouteAlternatives, decodePolyline, pointToPolylineDistanceKm, progressAlongRouteKm, MATCH_RADIUS_KM } from "../lib/directions.js";
 import { peakOccupancy, recomputeRideSeatsAvailable, proratedFarePerSeat } from "../lib/segments.js";
 import { validate, isLat, isLng, isNonEmptyString, isFutureDate, isPositiveInt, isPositiveNumber } from "../lib/validate.js";
 import { photoViewUrl, photoViewUrlsByUser } from "../lib/photo.js";
 import { verifiedDriverIdsBatch, isVehicleRcVerified, verifiedPassengerIdsBatch } from "../lib/verification.js";
+import { haversineKm, computeFareCap } from "../lib/fareCap.js";
 
 const router = Router();
-
-// Rough point-to-line-segment distance in km (haversine-based).
-// Good enough for a "within N km of the route" check without a full
-// polyline decode — swap for a proper polyline distance check once
-// you're storing Google's encoded route polyline per ride.
-function haversineKm(lat1, lng1, lat2, lng2) {
-  const R = 6371;
-  const dLat = ((lat2 - lat1) * Math.PI) / 180;
-  const dLng = ((lng2 - lng1) * Math.PI) / 180;
-  const a =
-    Math.sin(dLat / 2) ** 2 +
-    Math.cos((lat1 * Math.PI) / 180) *
-      Math.cos((lat2 * Math.PI) / 180) *
-      Math.sin(dLng / 2) ** 2;
-  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-}
-
-// Fare cap — the regulatory line between genuine cost-sharing carpooling
-// (exempt from taxi-aggregator licensing in most Indian states) and an
-// unlicensed commercial passenger service. A driver setting price freely
-// with no ceiling tied to actual trip cost looks like the latter. This
-// caps pricePerSeat at a generous per-km rate covering fuel, tolls, and
-// wear — not a tight commercial fare, just an upper bound that keeps the
-// "cost-sharing, not profit" framing defensible.
-// routeDistanceKm (real Directions API distance, when a route's been
-// computed) takes priority over the straight-line guess when given — an
-// actual driving distance is always at least the straight-line one, so
-// this only ever makes the cap more generous, never stricter, relative
-// to what a ride without route data gets.
-function computeFareCap(sourceLat, sourceLng, destLat, destLng, fareCapPerKmInr, routeDistanceKm) {
-  const distanceKm = routeDistanceKm ?? haversineKm(sourceLat, sourceLng, destLat, destLng);
-  return Math.round(distanceKm * fareCapPerKmInr);
-}
 
 // Rough ETA off the same straight-line distance already used for the
 // fare cap — an assumed average speed, not a real route/traffic-aware
@@ -627,50 +593,21 @@ router.delete("/:id", requireAuth, requireRole("DRIVER"), async (req, res) => {
     return res.status(404).json({ error: "Ride not found." });
   }
 
-  if (ride.bookings.some((b) => b.status === "CONFIRMED")) {
-    return res.status(400).json({
-      error: "A passenger has already paid and locked in a seat — this ride can only be edited now, not cancelled outright. Remove a specific passenger from Booking requests if you need to.",
-    });
-  }
-
   // Belt-and-suspenders alongside the ride.status flip in
   // trips.routes.js verify-otp: a ride shouldn't be cancellable while
   // the driver is literally mid-trip with a passenger, regardless of
-  // what the ride's own status currently says.
-  const activeTrip = await prisma.booking.findFirst({ where: { rideId: req.params.id, status: "IN_PROGRESS" } });
-  if (activeTrip) {
-    return res.status(400).json({ error: "Can't cancel a ride with a trip in progress." });
+  // what the ride's own status currently says — enforced inside
+  // attemptCancelRide (shared with a recurring series' stop action, see
+  // lib/rideLifecycle.js).
+  const result = await attemptCancelRide(ride);
+  if (!result.cancelled) {
+    const error = result.reason === "CONFIRMED_BOOKING"
+      ? "A passenger has already paid and locked in a seat — this ride can only be edited now, not cancelled outright. Remove a specific passenger from Booking requests if you need to."
+      : "Can't cancel a ride with a trip in progress.";
+    return res.status(400).json({ error });
   }
 
-  const now = new Date();
-
-  await prisma.ride.update({ where: { id: req.params.id }, data: { status: "CANCELLED" } });
-
-  // Only BOOKED/AWAITING_PAYMENT bookings can reach here now — the guard
-  // above already rejects the request outright if any booking is
-  // CONFIRMED — so nobody being cancelled here has actually paid yet:
-  // no refund needed (refundIfPaid stays a safe no-op regardless), no
-  // grace-window/strike logic applies, same as a plain withdrawn request.
-  // One affected booking's cancel work is independent of every other's,
-  // so they run in parallel instead of one at a time — the previous
-  // sequential loop meant a ride with N pending requests took N times as
-  // long to cancel as one with a single request.
-  await Promise.all(
-    ride.bookings.map(async (booking) => {
-      await prisma.booking.update({
-        where: { id: booking.id },
-        data: { status: "CANCELLED", cancelledBy: "DRIVER", cancelReason: "DRIVER_WITHDRAWN", cancelledAt: now },
-      });
-      await clearChatForBooking(booking.id);
-      await refundIfPaid(booking.id).catch((err) =>
-        console.error(`Refund check failed for booking ${booking.id}:`, err.message)
-      );
-      await notify(booking.passengerId, "RIDE_CANCELLED", "Ride cancelled",
-        "The driver cancelled this ride. Please search for another one.", booking.id);
-    })
-  );
-
-  res.json({ success: true, affectedBookings: ride.bookings.length });
+  res.json({ success: true, affectedBookings: result.affectedBookings });
 });
 
 // GET /api/rides/earnings — driver's earnings summary + recent completed

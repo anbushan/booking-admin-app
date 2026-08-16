@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { View, Text, StyleSheet } from "react-native";
+import { View, Text, StyleSheet, Platform } from "react-native";
 import { Pressable } from "../components/Pressable";
 import { Ionicons } from "@expo/vector-icons";
 import { colors, spacing, radius, typography, FONT } from "../theme/theme";
@@ -12,6 +12,8 @@ import { dialProxyNumber } from "../lib/callHelper";
 import { useScreenView } from "../lib/useScreenView";
 import Avatar from "../components/Avatar";
 import { VerifiedBadge } from "../components/VerifiedBadge";
+import { TripPickupMap } from "../components/TripPickupMap";
+import { shareTrip } from "../lib/shareTrip";
 import { useTranslation } from "../lib/i18n/I18nContext";
 
 const OTP_LENGTH = 4;
@@ -27,7 +29,10 @@ export default function TripOtpScreen({ route, navigation }: any) {
   const [driverVerified, setDriverVerified] = useState(false);
   const [vehicle, setVehicle] = useState<{ regNumber: string; make: string; model: string; color: string | null } | null>(null);
   const [routeLabel, setRouteLabel] = useState<string | null>(null);
+  const [routeAddresses, setRouteAddresses] = useState<{ source: string; dest: string } | null>(null);
   const [calling, setCalling] = useState(false);
+  const [pickupCoords, setPickupCoords] = useState<{ lat: number; lng: number } | null>(null);
+  const [driverCoords, setDriverCoords] = useState<{ lat: number; lng: number } | null>(null);
   const navigatedAway = useRef(false);
   const { showError } = useToast();
 
@@ -44,7 +49,13 @@ export default function TripOtpScreen({ route, navigation }: any) {
         if (booking.ride?.driver?.ratingAvg != null) setDriverRating(booking.ride.driver.ratingAvg);
         setDriverVerified(!!booking.ride?.driverVerified);
         if (booking.ride?.vehicle) setVehicle(booking.ride.vehicle);
-        if (booking.ride) setRouteLabel(t("common.routeTo", { source: booking.ride.sourceAddress, dest: booking.ride.destAddress }));
+        if (booking.ride) {
+          setRouteLabel(t("common.routeTo", { source: booking.ride.sourceAddress, dest: booking.ride.destAddress }));
+          setRouteAddresses({ source: booking.ride.sourceAddress, dest: booking.ride.destAddress });
+        }
+        if (booking.pickupLat != null && booking.pickupLng != null) {
+          setPickupCoords({ lat: booking.pickupLat, lng: booking.pickupLng });
+        }
       })
       .catch(() => {});
   }, [bookingId]);
@@ -63,6 +74,16 @@ export default function TripOtpScreen({ route, navigation }: any) {
           navigatedAway.current = true;
           clearInterval(poll);
           primeLocationIfNeeded(navigation, "LiveTracking", { bookingId, role: "PASSENGER" });
+          return;
+        }
+        // See TripPickupMap — trackTrip already returned lat/lng the
+        // whole time, this is just the first thing that actually reads
+        // them instead of only checking `status`. Driver-side comes from
+        // StartTripScreen's own ping loop, which now runs during exactly
+        // this pre-verification window (see trips.routes.js's
+        // /:bookingId/location for why CONFIRMED bookings are included).
+        if (track.lat != null && track.lng != null) {
+          setDriverCoords({ lat: track.lat, lng: track.lng });
         }
       } catch {
         // swallow — a missed poll just tries again in 3s
@@ -80,6 +101,23 @@ export default function TripOtpScreen({ route, navigation }: any) {
       showError(err.message || t("common.couldntStartCall"));
     } finally {
       setCalling(false);
+    }
+  }
+
+  async function handleShareTrip() {
+    if (!routeAddresses) return;
+    try {
+      await shareTrip({
+        t,
+        otherPartyName: driverName,
+        vehicleLabel: vehicle ? `${vehicle.regNumber} · ${vehicle.make} ${vehicle.model}` : null,
+        sourceAddress: routeAddresses.source,
+        destAddress: routeAddresses.dest,
+        lat: driverCoords?.lat ?? pickupCoords?.lat ?? null,
+        lng: driverCoords?.lng ?? pickupCoords?.lng ?? null,
+      });
+    } catch {
+      // Share sheet dismissed/cancelled — nothing to surface as an error.
     }
   }
 
@@ -117,6 +155,18 @@ export default function TripOtpScreen({ route, navigation }: any) {
             </View>
           </View>
         )}
+
+        {/* Rapido/Uber/Ola-style visual reassurance while waiting — see
+            TripPickupMap for why the driver marker only shows up once
+            StartTripScreen's own ping loop has actually reported a
+            position (there's no data to plot before that). */}
+        <TripPickupMap
+          driverLat={driverCoords?.lat ?? null}
+          driverLng={driverCoords?.lng ?? null}
+          pickupLat={pickupCoords?.lat ?? null}
+          pickupLng={pickupCoords?.lng ?? null}
+        />
+
         <View style={styles.infoRow}>
           <Ionicons name="shield-checkmark-outline" size={15} color={colors.textMuted} />
           <Text style={styles.hint}>{t("tripOtp.confirmsRide")}</Text>
@@ -165,6 +215,17 @@ export default function TripOtpScreen({ route, navigation }: any) {
         >
           <Ionicons name="chatbubble-outline" size={17} color={colors.accentText} />
         </Pressable>
+        {Platform.OS !== "web" && (
+          <Pressable
+            style={styles.iconButton}
+            onPress={handleShareTrip}
+            hitSlop={4}
+            accessibilityRole="button"
+            accessibilityLabel={t("trip.shareTrip")}
+          >
+            <Ionicons name="share-social-outline" size={17} color={colors.accentText} />
+          </Pressable>
+        )}
       </View>
 
       <View style={styles.waitingRow}>

@@ -5,7 +5,7 @@ import { useFocusEffect } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
 import { colors, spacing, radius, typography, FONT } from "../theme/theme";
 import { api } from "../lib/api";
-import { CarLoader } from "../components/CarLoader";
+import { SkeletonSectionHeader, SkeletonCard } from "../components/Skeleton";
 import { EmptyState } from "../components/EmptyState";
 import { ErrorState } from "../components/ErrorState";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -92,8 +92,12 @@ export default function PaymentQueueScreen({ navigation }: any) {
       <Text style={{ ...typography.title, padding: spacing.lg, paddingBottom: spacing.sm }}>{t("payment.queueTitle")}</Text>
 
       {loading ? (
-        <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
-          <CarLoader size="lg" />
+        <View style={{ flex: 1, paddingBottom: spacing.md }}>
+          <SkeletonSectionHeader />
+          <View style={{ paddingHorizontal: spacing.md, gap: spacing.sm }}>
+            <SkeletonCard />
+            <SkeletonCard />
+          </View>
         </View>
       ) : error ? (
         <ErrorState message={t("payment.couldntLoadQueue")} onRetry={load} />

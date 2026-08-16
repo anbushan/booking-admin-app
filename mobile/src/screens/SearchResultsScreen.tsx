@@ -5,16 +5,18 @@ import { useFocusEffect } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
 import { colors, spacing, radius, typography, FONT } from "../theme/theme";
 import { api } from "../lib/api";
-import { CarLoader } from "../components/CarLoader";
+import { SkeletonCardList } from "../components/Skeleton";
 import { NoRidesFound } from "../components/NoRidesFound";
 import { ErrorState } from "../components/ErrorState";
 import { Analytics } from "../lib/analytics";
 import { SafeAreaView } from "react-native-safe-area-context";
 import SearchOptionsModal, { formatSearchDate } from "../components/SearchOptionsModal";
 import { RouteTimeline } from "../components/RouteTimeline";
+import { RouteMiniMap } from "../components/RouteMiniMap";
 import { useScreenView } from "../lib/useScreenView";
 import Avatar from "../components/Avatar";
 import { VerifiedBadge } from "../components/VerifiedBadge";
+import { RidePreferences } from "../components/RidePreferences";
 import { useTranslation } from "../lib/i18n/I18nContext";
 
 type RideResult = {
@@ -42,6 +44,7 @@ type RideResult = {
   routePolyline?: string | null;
   estimatedArrivalAt: string;
   estimatedDurationMinutes: number;
+  preferences?: Record<string, boolean> | null;
 };
 
 type SortKey = "earliest" | "cheapest" | "rated";
@@ -51,6 +54,124 @@ const SORT_OPTIONS: { key: SortKey; labelKey: string }[] = [
   { key: "cheapest", labelKey: "search.cheapest" },
   { key: "rated", labelKey: "search.topRated" },
 ];
+
+// One card's mini map + its own Traffic/Weather toggles — its own
+// component (not inlined in renderItem) purely so each card gets its
+// own independent hook state; one person's toggle shouldn't flip every
+// other result's map too. FlatList windowing (see maxToRenderPerBatch/
+// windowSize below) keeps how many of these are actually mounted at
+// once bounded, the same way any other card content on this screen is.
+function RideResultCard({
+  item, navigation, sourceLat, sourceLng, sourceAddress, destLat, destLng, destAddress, t,
+}: {
+  item: RideResult;
+  navigation: any;
+  sourceLat: number;
+  sourceLng: number;
+  sourceAddress: string;
+  destLat?: number;
+  destLng?: number;
+  destAddress?: string;
+  t: (key: string, params?: any) => string;
+}) {
+  return (
+    <Pressable
+      style={[styles.card, (item.seatsFull || item.isOwnRide) && styles.cardFull]}
+      onPress={() => {
+        if (item.seatsFull || item.isOwnRide) return;
+        // Carries the passenger's own searched pickup/drop through to
+        // the booking screen — previously only rideId went across, so
+        // the booking always silently defaulted to the ride's full
+        // source/destination regardless of what was actually searched
+        // and matched here.
+        navigation.navigate("BookingConfirm", {
+          rideId: item.id,
+          pickupLat: sourceLat,
+          pickupLng: sourceLng,
+          pickupAddress: sourceAddress,
+          ...(destLat != null && destLng != null
+            ? { dropLat: destLat, dropLng: destLng, dropAddress: destAddress }
+            : {}),
+        });
+      }}
+    >
+      <View style={styles.cardTop}>
+        <Avatar uri={item.driver?.photoViewUrl} name={item.driver?.name} size={40} />
+        <View style={{ flex: 1 }}>
+          <View style={styles.nameRow}>
+            <Text style={styles.driverName}>{item.driver?.name || t("common.driverFallback")}</Text>
+            <VerifiedBadge verified={!!item.driverVerified} size="sm" />
+          </View>
+          <Text style={styles.meta}>
+            <Ionicons name="star" size={11} color={colors.marigold} /> {(item.driver?.ratingAvg ?? 0).toFixed(1)}
+            {item.vehicle ? `  ·  ${item.vehicle.make} ${item.vehicle.model}` : ""}
+          </Text>
+        </View>
+        <View style={{ alignItems: "flex-end" }}>
+          <Text style={styles.price}>Rs {item.segmentPricePerSeat ?? item.pricePerSeat}</Text>
+          {item.isOwnRide ? (
+            <View style={[styles.seatsPill, styles.seatsPillFull]}>
+              <Ionicons name="person-circle-outline" size={11} color={colors.danger} />
+              <Text style={[styles.seatsPillText, { color: colors.danger }]}>{t("search.yourRide")}</Text>
+            </View>
+          ) : (
+            <View style={[styles.seatsPill, item.seatsFull && styles.seatsPillFull]}>
+              <Ionicons
+                name={item.seatsFull ? "close-circle" : "people"}
+                size={11}
+                color={item.seatsFull ? colors.danger : colors.success}
+              />
+              <Text style={[styles.seatsPillText, { color: item.seatsFull ? colors.danger : colors.success }]}>
+                {item.seatsFull ? t("search.full") : t("search.seatsLeft", { count: item.seatsAvailable })}
+              </Text>
+            </View>
+          )}
+        </View>
+      </View>
+      {item.preferences && (
+        <View style={styles.preferencesWrap}>
+          <RidePreferences preferences={item.preferences} size="sm" />
+        </View>
+      )}
+
+      <View style={{ marginTop: spacing.sm }}>
+        <RouteMiniMap
+          sourceLat={item.sourceLat}
+          sourceLng={item.sourceLng}
+          destLat={item.destLat}
+          destLng={item.destLng}
+          routePolyline={item.routePolyline}
+          height={150}
+        />
+      </View>
+
+      <View style={styles.timelineWrap}>
+        <RouteTimeline
+          departAt={item.travelDate}
+          arriveAt={item.estimatedArrivalAt}
+          durationMinutes={item.estimatedDurationMinutes}
+          sourceAddress={item.sourceAddress}
+          destAddress={item.destAddress}
+        />
+        {/* Nested inside the card's own Pressable — same pattern
+            MyRequestsScreen already uses for its per-status action
+            button, so this doesn't also trigger the card's own
+            navigate-to-BookingConfirm handler. */}
+        <Pressable
+          style={styles.mapLinkButton}
+          onPress={() => navigation.navigate("RouteMap", {
+            sourceLat: item.sourceLat, sourceLng: item.sourceLng, sourceAddress: item.sourceAddress,
+            destLat: item.destLat, destLng: item.destLng, destAddress: item.destAddress,
+            routePolyline: item.routePolyline,
+          })}
+        >
+          <Ionicons name="expand-outline" size={13} color={colors.accentText} />
+          <Text style={styles.mapLinkText}>{t("routeMap.viewInMap")}</Text>
+        </Pressable>
+      </View>
+    </Pressable>
+  );
+}
 
 export default function SearchResultsScreen({ navigation, route }: any) {
   useScreenView("SearchResultsScreen");
@@ -138,9 +259,7 @@ export default function SearchResultsScreen({ navigation, route }: any) {
       </View>
 
       {loading ? (
-        <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
-          <CarLoader size="lg" />
-        </View>
+        <SkeletonCardList />
       ) : error ? (
         <ErrorState message={t("search.couldntLoadRides")} onRetry={load} />
       ) : (
@@ -153,84 +272,17 @@ export default function SearchResultsScreen({ navigation, route }: any) {
           initialNumToRender={8}
           contentContainerStyle={{ padding: spacing.md, gap: spacing.sm, flexGrow: 1 }}
           renderItem={({ item }) => (
-            <Pressable
-              style={[styles.card, (item.seatsFull || item.isOwnRide) && styles.cardFull]}
-              onPress={() => {
-                if (item.seatsFull || item.isOwnRide) return;
-                // Carries the passenger's own searched pickup/drop through
-                // to the booking screen — previously only rideId went
-                // across, so the booking always silently defaulted to the
-                // ride's full source/destination regardless of what was
-                // actually searched and matched here.
-                navigation.navigate("BookingConfirm", {
-                  rideId: item.id,
-                  pickupLat: sourceLat,
-                  pickupLng: sourceLng,
-                  pickupAddress: sourceAddress,
-                  ...(destLat != null && destLng != null
-                    ? { dropLat: destLat, dropLng: destLng, dropAddress: destAddress }
-                    : {}),
-                });
-              }}
-            >
-              <View style={styles.cardTop}>
-                <Avatar uri={item.driver?.photoViewUrl} name={item.driver?.name} size={40} />
-                <View style={{ flex: 1 }}>
-                  <View style={styles.nameRow}>
-                    <Text style={styles.driverName}>{item.driver?.name || t("common.driverFallback")}</Text>
-                    <VerifiedBadge verified={!!item.driverVerified} size="sm" />
-                  </View>
-                  <Text style={styles.meta}>
-                    <Ionicons name="star" size={11} color={colors.marigold} /> {(item.driver?.ratingAvg ?? 0).toFixed(1)}
-                    {item.vehicle ? `  ·  ${item.vehicle.make} ${item.vehicle.model}` : ""}
-                  </Text>
-                </View>
-                <View style={{ alignItems: "flex-end" }}>
-                  <Text style={styles.price}>Rs {item.segmentPricePerSeat ?? item.pricePerSeat}</Text>
-                  {item.isOwnRide ? (
-                    <View style={[styles.seatsPill, styles.seatsPillFull]}>
-                      <Ionicons name="person-circle-outline" size={11} color={colors.danger} />
-                      <Text style={[styles.seatsPillText, { color: colors.danger }]}>{t("search.yourRide")}</Text>
-                    </View>
-                  ) : (
-                    <View style={[styles.seatsPill, item.seatsFull && styles.seatsPillFull]}>
-                      <Ionicons
-                        name={item.seatsFull ? "close-circle" : "people"}
-                        size={11}
-                        color={item.seatsFull ? colors.danger : colors.success}
-                      />
-                      <Text style={[styles.seatsPillText, { color: item.seatsFull ? colors.danger : colors.success }]}>
-                        {item.seatsFull ? t("search.full") : t("search.seatsLeft", { count: item.seatsAvailable })}
-                      </Text>
-                    </View>
-                  )}
-                </View>
-              </View>
-              <View style={styles.timelineWrap}>
-                <RouteTimeline
-                  departAt={item.travelDate}
-                  arriveAt={item.estimatedArrivalAt}
-                  durationMinutes={item.estimatedDurationMinutes}
-                  sourceAddress={item.sourceAddress}
-                  destAddress={item.destAddress}
-                />
-                {/* Nested inside the card's own Pressable — same pattern
-                    MyRequestsScreen already uses for its per-status action
-                    button, so this doesn't also trigger the card's own
-                    navigate-to-BookingConfirm handler. */}
-                <Pressable
-                  style={styles.mapLinkButton}
-                  onPress={() => navigation.navigate("RouteMap", {
-                    sourceLat: item.sourceLat, sourceLng: item.sourceLng, sourceAddress: item.sourceAddress,
-                    destLat: item.destLat, destLng: item.destLng, destAddress: item.destAddress,
-                    routePolyline: item.routePolyline,
-                  })}
-                >
-                  <Ionicons name="map-outline" size={13} color={colors.accentText} />
-                  <Text style={styles.mapLinkText}>{t("routeMap.viewInMap")}</Text>
-                </Pressable>
-              </View>
-            </Pressable>
+            <RideResultCard
+              item={item}
+              navigation={navigation}
+              sourceLat={sourceLat}
+              sourceLng={sourceLng}
+              sourceAddress={sourceAddress}
+              destLat={destLat}
+              destLng={destLng}
+              destAddress={destAddress}
+              t={t}
+            />
           )}
           ListEmptyComponent={
             <NoRidesFound title={t("search.noRidesFound")} subtitle={t("search.noRidesSubtitle")} />
@@ -276,6 +328,7 @@ const styles = StyleSheet.create({
   },
   cardFull: { opacity: 0.55 },
   cardTop: { flexDirection: "row", gap: spacing.sm, alignItems: "flex-start" },
+  preferencesWrap: { marginTop: spacing.sm },
   timelineWrap: { marginTop: spacing.md, paddingTop: spacing.md, borderTopWidth: 1, borderTopColor: colors.border },
   mapLinkButton: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, borderWidth: 1, borderColor: colors.border, height: 34, borderRadius: radius.sm, marginTop: spacing.sm },
   mapLinkText: { ...typography.small, color: colors.accentText, fontWeight: "700", fontFamily: FONT.bold },

@@ -87,3 +87,26 @@ export async function checkPushPermission(): Promise<boolean> {
   const { status } = await Notifications.getPermissionsAsync();
   return status === "granted";
 }
+
+// The notification handler's shouldSetBadge:true above only bumps the
+// OS icon badge (the little numbered dot on the app icon, same idea as
+// WhatsApp/LinkedIn) the instant a push actually arrives — it never
+// corrects it back down when someone reads notifications in-app, or
+// sets it correctly on a cold app open with unread items already
+// sitting there from before. This is the one place that keeps the icon
+// badge honestly in sync with the real unread count, called from
+// wherever that count is computed (AppBottomNav's refresh(), on every
+// hub-screen focus) — same "recompute on focus" discipline the badge
+// counts inside the app already follow, just mirrored onto the OS icon
+// too. Best-effort: Expo Go doesn't support it, older Android launchers
+// may not render it at all, and this app doesn't compile it into every
+// build until a fresh EAS build ships with expo-notifications' badge
+// support — none of that should ever throw or block the caller.
+export async function syncBadgeCount(count: number) {
+  if (isExpoGo) return;
+  try {
+    await Notifications.setBadgeCountAsync(count);
+  } catch {
+    // Best-effort, see above.
+  }
+}

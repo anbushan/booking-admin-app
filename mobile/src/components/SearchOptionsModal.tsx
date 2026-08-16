@@ -185,6 +185,18 @@ export default function SearchOptionsModal({ visible, initialDate, initialSeats,
           working without touching KeyboardAvoider itself. */}
       <Animated.View style={[styles.backdrop, { opacity: backdropOpacity }]} pointerEvents="none" />
       <KeyboardAvoider style={styles.avoiderBackdrop}>
+        {/* KeyboardAvoider already has its own full-screen tap-catcher
+            behind its children (dismisses the keyboard) — that layer
+            sits in front of the backdrop above in the stack, so it was
+            claiming every outside tap before this modal ever got a
+            chance to close on it. This Pressable, as the first child
+            inside KeyboardAvoider's own (pointerEvents="box-none")
+            content box, sits in front of THAT dismiss-catcher and
+            behind the sheet below (a later sibling always paints over
+            an earlier one) — so it closes the modal on any tap outside
+            the sheet, while a tap on the sheet itself still lands on
+            the sheet's own content, never reaching this layer. */}
+        <Pressable style={StyleSheet.absoluteFill} onPress={onClose} noFeedback accessibilityLabel={t("common.close")} accessibilityRole="button" />
         <Animated.View style={{ transform: [{ translateY }] }}>
         <View style={[styles.sheet, { paddingBottom: Math.max(insets.bottom, spacing.lg) }]}>
           <Text style={styles.sheetTitle}>{t("searchOptions.whenTraveling")}</Text>

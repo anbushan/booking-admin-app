@@ -1,7 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import { View, Text, StyleSheet } from "react-native";
 import { Pressable } from "../components/Pressable";
-import * as Location from "expo-location";
 import { Ionicons } from "@expo/vector-icons";
 import { showAlert } from "../lib/alert";
 import { colors, spacing, radius, typography, FONT } from "../theme/theme";
@@ -9,6 +8,7 @@ import { api } from "../lib/api";
 import { Analytics } from "../lib/analytics";
 import { useToast } from "../components/Toast";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { getDeviceCoords } from "../lib/deviceLocation";
 import { dialProxyNumber } from "../lib/callHelper";
 import { useScreenView } from "../lib/useScreenView";
 import Avatar from "../components/Avatar";
@@ -27,22 +27,6 @@ const SOS_HOLD_MS = 3000;
 const LOCATION_REPORT_INTERVAL_MS = 10 * 1000;
 const TRIP_PHASE_KEYS = ["journey.tripStarted", "status.onTheWay", "liveTracking.arriving"];
 
-// Raw coordinates only — expo-location falls back to the browser's
-// Geolocation API on web, so this works the same way here as on native;
-// deliberately skips reverse-geocoding to an address (unlike lib/api.ts's
-// getCurrentLocation, used for pickup-point selection), which would
-// otherwise fire an extra Google Geocoding call every single ping.
-async function getDeviceCoords() {
-  let { status } = await Location.getForegroundPermissionsAsync();
-  if (status !== "granted") {
-    ({ status } = await Location.requestForegroundPermissionsAsync());
-  }
-  if (status !== "granted") {
-    throw new Error("Location permission denied.");
-  }
-  const position = await Location.getCurrentPositionAsync({});
-  return { lat: position.coords.latitude, lng: position.coords.longitude };
-}
 
 export default function LiveTrackingScreen({ route, navigation }: any) {
   useScreenView("LiveTrackingScreen");

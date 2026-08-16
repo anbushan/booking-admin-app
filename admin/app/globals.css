@@ -17,6 +17,28 @@
   box-sizing: border-box;
 }
 
+/* Skip-to-content link for the public marketing pages (MarketingShell) —
+   MarketingHeader's own nav (plus the mobile hamburger menu's extra tab
+   stops) sat between a keyboard user and <main id="main-content"> with
+   no way past it. Hidden off-screen until it receives focus, same
+   pattern as most sites' skip links. */
+.mkt-skip-link {
+  position: absolute;
+  left: -9999px;
+  top: 0;
+  z-index: 1000;
+  background: #1A1A18;
+  color: #fff;
+  padding: 10px 16px;
+  border-radius: 0 0 8px 0;
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: none;
+}
+.mkt-skip-link:focus {
+  left: 0;
+}
+
 @keyframes shimmer {
   0% {
     opacity: 0.4;
