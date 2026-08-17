@@ -8,11 +8,13 @@ import { Badge } from "../../components/Badge";
 import { StatCard } from "../../components/StatCard";
 import { SubmitButton } from "../../components/SubmitButton";
 import { EmptyState } from "../../components/EmptyState";
+import Pagination from "../../components/Pagination";
 import { redirectWithToast } from "../../lib/toastRedirect";
 import { isRedirectError } from "../../lib/actionError";
 import { Gift, Ticket, CheckCircle2 } from "lucide-react";
 
 export const dynamic = "force-dynamic";
+const PAGE_SIZE = 25;
 
 async function createPromoCode(formData: FormData) {
   "use server";
@@ -55,15 +57,31 @@ async function toggleActive(formData: FormData) {
   }
 }
 
-export default async function PromoCodesPage() {
+export default async function PromoCodesPage({ searchParams }: { searchParams: { page?: string } }) {
   const session = getSession();
   if (!requireRole(session, ["finance"])) {
     redirect("/login");
   }
 
-  const codes = await prisma.promoCode.findMany({ orderBy: { createdAt: "desc" } });
-  const totalRedemptions = codes.reduce((sum, c) => sum + c.redemptionCount, 0);
-  const activeCount = codes.filter((c) => c.active).length;
+  const page = Math.max(1, Number(searchParams.page || 1));
+
+  // Stats come from their own aggregate/count queries, independent of
+  // the paginated list below — otherwise "Codes"/"Active"/"Total
+  // redemptions" would silently only reflect whichever page happened
+  // to be showing instead of the true totals, the moment this list
+  // grew past one page.
+  const [codes, totalCodes, activeCount, redemptionAgg] = await Promise.all([
+    prisma.promoCode.findMany({
+      orderBy: { createdAt: "desc" },
+      skip: (page - 1) * PAGE_SIZE,
+      take: PAGE_SIZE,
+    }),
+    prisma.promoCode.count(),
+    prisma.promoCode.count({ where: { active: true } }),
+    prisma.promoCode.aggregate({ _sum: { redemptionCount: true } }),
+  ]);
+  const totalRedemptions = redemptionAgg._sum.redemptionCount || 0;
+  const totalPages = Math.max(1, Math.ceil(totalCodes / PAGE_SIZE));
 
   return (
     <AdminShell activeHref="/promo-codes">
@@ -75,7 +93,7 @@ export default async function PromoCodesPage() {
         />
 
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 12, marginBottom: 24 }}>
-          <StatCard icon={Gift} label="Codes" value={codes.length} tone="accent" />
+          <StatCard icon={Gift} label="Codes" value={totalCodes} tone="accent" />
           <StatCard icon={CheckCircle2} label="Active" value={activeCount} tone="success" />
           <StatCard icon={Ticket} label="Total redemptions" value={totalRedemptions} tone="neutral" />
         </div>
@@ -140,6 +158,7 @@ export default async function PromoCodesPage() {
           })}
           {codes.length === 0 && <EmptyState title="No promo codes yet" subtitle="Create one above to give first-ride riders a discount." />}
         </div>
+        <Pagination page={page} totalPages={totalPages} basePath="/promo-codes" />
       </div>
     </AdminShell>
   );
