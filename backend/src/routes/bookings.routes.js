@@ -13,6 +13,7 @@ import { availableSeatsForInterval, recomputeRideSeatsAvailable, releaseSeatHold
 import { validate, isNonEmptyString, isLat, isLng, isPositiveInt } from "../lib/validate.js";
 import { photoViewUrl, photoViewUrlsByUser } from "../lib/photo.js";
 import { verifiedDriverIdsBatch, isVehicleRcVerified, verifiedPassengerIdsBatch, isPassengerVerified } from "../lib/verification.js";
+import { applyAvailableCredit, markCreditsUsed } from "../lib/credits.js";
 
 const router = Router();
 
@@ -229,20 +230,29 @@ router.put("/:id/accept", requireAuth, requireRole("DRIVER"), async (req, res) =
   // booking has no resolved segment (legacy ride, or pickup/drop
   // couldn't be projected) — same amount this always charged before.
   const fare = proratedFarePerSeat(booking.ride, booking.pickupProgressKm, booking.dropProgressKm) * booking.seatsBooked;
-  const platformFeeAmount = (fare * config.platformFeePercent) / 100;
+  const rawFeeAmount = (fare * config.platformFeePercent) / 100;
+
+  // The one place a passenger's referral/promo credit ever takes effect
+  // — see lib/credits.js. Never re-applied later (charge/retry just
+  // charge whatever platformFeeAmount already is), so this can only
+  // happen once per booking.
+  const { finalAmount: platformFeeAmount, creditAppliedInr, usedCreditIds } = await applyAvailableCredit(booking.passengerId, rawFeeAmount);
   const expiresAt = new Date(Date.now() + config.paymentWindowMinutes * 60 * 1000);
 
   const updated = await prisma.booking.update({
     where: { id: booking.id },
     data: { status: "AWAITING_PAYMENT", expiresAt, expiryReason: null, platformFeeAmount },
   });
+  await markCreditsUsed(usedCreditIds, booking.id);
 
   // Same TTL-key-plus-cron-sweep pattern as the driver-response expiry
   // (see cron/expireBookings.js, which now sweeps both cases).
   await redis.set(`payment-window:${booking.id}`, "1", "PX", config.paymentWindowMinutes * 60 * 1000);
 
-  await notify(booking.passengerId, "BOOKING_ACCEPTED", "Booking accepted — pay to confirm",
-    `The driver accepted your request. Pay the platform fee (Rs ${platformFeeAmount.toFixed(0)}) within ${config.paymentWindowMinutes} minutes to lock your seat.`, booking.id);
+  const feeMessage = creditAppliedInr > 0
+    ? `The driver accepted your request. Rs ${creditAppliedInr.toFixed(0)} credit was applied — pay the remaining Rs ${platformFeeAmount.toFixed(0)} within ${config.paymentWindowMinutes} minutes to lock your seat.`
+    : `The driver accepted your request. Pay the platform fee (Rs ${platformFeeAmount.toFixed(0)}) within ${config.paymentWindowMinutes} minutes to lock your seat.`;
+  await notify(booking.passengerId, "BOOKING_ACCEPTED", "Booking accepted — pay to confirm", feeMessage, booking.id);
 
   res.json(updated);
 });

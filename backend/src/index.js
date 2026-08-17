@@ -35,6 +35,8 @@ import statusRoutes from "./routes/status.routes.js";
 import verificationRoutes from "./routes/verification.routes.js";
 import recurringRidesRoutes from "./routes/recurringRides.routes.js";
 import weatherRoutes from "./routes/weather.routes.js";
+import referralsRoutes from "./routes/referrals.routes.js";
+import promoCodesRoutes from "./routes/promoCodes.routes.js";
 import { expireStaleBookings } from "./cron/expireBookings.js";
 import { checkNoShows } from "./cron/checkNoShows.js";
 import { expireStaleRides } from "./cron/expireStaleRides.js";
@@ -67,6 +69,8 @@ app.use("/api/app-status", statusRoutes);
 app.use("/api/verification", verificationRoutes);
 app.use("/api/recurring-rides", recurringRidesRoutes);
 app.use("/api/weather", weatherRoutes);
+app.use("/api/referrals", referralsRoutes);
+app.use("/api/promo-codes", promoCodesRoutes);
 
 const PORT = process.env.PORT || 4000;
 

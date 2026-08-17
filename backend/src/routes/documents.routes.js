@@ -4,6 +4,7 @@ import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { prisma } from "../lib/prisma.js";
 import { requireAuth } from "../middleware/auth.js";
 import { r2, R2_BUCKET } from "../lib/r2.js";
+import { getCachedSignedUrl } from "../lib/signedUrlCache.js";
 
 const router = Router();
 const UPLOAD_URL_TTL_SECONDS = 600; // 10 min
@@ -38,8 +39,10 @@ router.get("/:id/view-url", requireAuth, async (req, res) => {
     return res.status(403).json({ error: "Not permitted." });
   }
 
-  const command = new GetObjectCommand({ Bucket: R2_BUCKET, Key: doc.r2Key });
-  const viewUrl = await getSignedUrl(r2, command, { expiresIn: VIEW_URL_TTL_SECONDS });
+  const viewUrl = await getCachedSignedUrl(doc.r2Key, () => {
+    const command = new GetObjectCommand({ Bucket: R2_BUCKET, Key: doc.r2Key });
+    return getSignedUrl(r2, command, { expiresIn: VIEW_URL_TTL_SECONDS });
+  });
 
   res.json({ viewUrl });
 });

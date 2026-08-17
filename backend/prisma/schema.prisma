@@ -68,6 +68,12 @@ model User {
   strikeFlagged      Boolean   @default(false)
   strikeBlockedUntil DateTime?
 
+  // This user's own shareable invite code — generated lazily on first
+  // visit to the "Refer & earn" screen (see referrals.routes.js GET /me),
+  // not at signup, so an account created before this feature existed
+  // still gets one the first time it's actually needed.
+  referralCode String? @unique
+
   vehicles           Vehicle[]
   ridesAsDriver      Ride[]
   bookingsAsPassenger Booking[]
@@ -80,6 +86,10 @@ model User {
   driverVerification DriverVerification?
   passengerVerification PassengerVerification?
   recurringRideTemplates RecurringRideTemplate[]
+  credits            UserCredit[]
+  referralsMade      Referral[] @relation("ReferralsMade")
+  referralReceived   Referral?  @relation("ReferralReceived")
+  promoCodeRedemptions PromoCodeRedemption[]
 }
 
 model Vehicle {
@@ -507,7 +517,94 @@ model AppConfig {
   // Same idea, passenger-side — flat, one-time Aadhaar identity check.
   aadhaarVerificationFeeInr Float @default(4)
 
+  // Referral program (see UserCredit/Referral below) — what each side
+  // earns. Referee's is granted the moment they redeem a code; referrer's
+  // only once the referee actually completes a real, paid first ride —
+  // see maybeCompleteReferral() in lib/credits.js.
+  referralRewardInr Float @default(30)
+  refereeRewardInr  Float @default(30)
+
   updatedAt           DateTime @updatedAt
+}
+
+// A user's spendable credit balance — the single ledger both the
+// referral program and promo codes feed into, rather than two separate
+// ad-hoc discount mechanisms. Applied automatically (see
+// applyAvailableCredit in lib/credits.js) the moment a booking's
+// platformFeeAmount is frozen (PUT /api/bookings/:id/accept) — never
+// re-applied at charge/retry time, so there's exactly one place this can
+// ever take effect per booking.
+model UserCredit {
+  id              String    @id @default(cuid())
+  userId          String
+  user            User      @relation(fields: [userId], references: [id])
+  amountInr       Decimal
+  source          String    // REFERRAL_REFERRER, REFERRAL_REFEREE, PROMO_CODE
+  // Referral.id or PromoCodeRedemption.id this credit came from, for
+  // support/dispute lookups ("where did this credit come from?").
+  sourceId        String?
+  status          String    @default("AVAILABLE") // AVAILABLE, USED
+  usedOnBookingId String?
+  usedAt          DateTime?
+  createdAt       DateTime  @default(now())
+
+  // applyAvailableCredit's own query: this user's spendable balance,
+  // oldest-first.
+  @@index([userId, status])
+}
+
+// One row per successful "referee redeemed a referrer's code" — refereeId
+// is unique because a person can only ever have been referred once (not
+// once per code they happen to see). Referrer keeps their same code
+// forever and can refer any number of people.
+model Referral {
+  id               String    @id @default(cuid())
+  referrerId       String
+  referrer         User      @relation("ReferralsMade", fields: [referrerId], references: [id])
+  refereeId        String    @unique
+  referee          User      @relation("ReferralReceived", fields: [refereeId], references: [id])
+  status           String    @default("PENDING") // PENDING, COMPLETED
+  refereeCreditId  String?
+  referrerCreditId String?
+  createdAt        DateTime  @default(now())
+  completedAt      DateTime?
+
+  @@index([referrerId])
+}
+
+// Admin-managed discount codes ("first ride free-ish", a launch-city
+// promo, etc.) — deliberately separate from the referral program even
+// though both grant a UserCredit, since eligibility rules differ (a
+// promo code is redeemed by typing a code an admin published, not by
+// being personally invited by another user).
+model PromoCode {
+  id              String    @id @default(cuid())
+  code            String    @unique
+  discountInr     Decimal
+  // Most promo codes exist specifically to get a hesitant first-time
+  // user over the trust hurdle — checked at redemption time (zero prior
+  // paid bookings), not re-checked when the credit is actually spent.
+  firstRideOnly   Boolean   @default(true)
+  maxRedemptions  Int?
+  redemptionCount Int       @default(0)
+  active          Boolean   @default(true)
+  expiresAt       DateTime?
+  createdAt       DateTime  @default(now())
+  redemptions     PromoCodeRedemption[]
+}
+
+model PromoCodeRedemption {
+  id          String    @id @default(cuid())
+  promoCodeId String
+  promoCode   PromoCode @relation(fields: [promoCodeId], references: [id])
+  userId      String
+  user        User      @relation(fields: [userId], references: [id])
+  creditId    String?
+  createdAt   DateTime  @default(now())
+
+  // One redemption per user per code — the actual "have you already used
+  // this" guard, not just a nice-to-have index.
+  @@unique([promoCodeId, userId])
 }
 
 model NotificationTemplate {

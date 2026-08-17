@@ -404,6 +404,17 @@ router.post("/passenger/verify/send-otp", requireAuth, async (req, res) => {
   if (pv.aadhaarStatus === "VERIFIED") {
     return res.json({ passengerVerification: pv, otpSent: false });
   }
+  // One payment buys exactly one Aadhaar+OTP attempt — Eko charges per
+  // OTP-send call, so letting a single payment cover unlimited retries
+  // (a different Aadhaar number, or the same one again after a FAILED
+  // attempt) is an unbounded cost with no matching revenue. PENDING
+  // means this payment already spent its one attempt sending an OTP for
+  // some number; FAILED means that attempt didn't verify. Either way,
+  // changing the number or trying again needs a fresh paid attempt —
+  // see /passenger/reset, which is what both cases should route through.
+  if (pv.aadhaarStatus !== "UNVERIFIED") {
+    return res.status(400).json({ error: "That payment already covered one Aadhaar verification attempt. Reset and pay again to try a different number or retry." });
+  }
 
   const result = await initiateAadhaarOtp(normalized).catch((err) => ({ success: false, raw: { error: err.message } }));
   if (!result.success) {

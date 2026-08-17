@@ -8,6 +8,7 @@ import { getAppConfig } from "../lib/appConfig.js";
 import { isPositiveNumber } from "../lib/validate.js";
 import { confirmDriverVerificationPayment, confirmVehicleVerificationPayment, confirmPassengerVerificationPayment } from "../lib/verification.js";
 import { getIO } from "../lib/socket.js";
+import { maybeCompleteReferral } from "../lib/credits.js";
 
 const router = Router();
 
@@ -47,6 +48,11 @@ async function confirmPlatformFeePayment(booking, paymentId) {
   // already uses for "trip:started" — reaches the passenger wherever
   // they currently are in the app, not just this one screen.
   getIO()?.to(`user:${booking.passengerId}`).emit("payment:confirmed", { bookingId: booking.id });
+
+  // If this passenger was referred in, and this is genuinely their
+  // first-ever paid ride (not just a signup), this is the moment the
+  // referrer actually earns their reward — see lib/credits.js.
+  await maybeCompleteReferral(booking.passengerId);
 }
 
 // POST /api/payments/:bookingId/charge — called by the passenger right

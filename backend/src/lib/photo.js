@@ -1,6 +1,7 @@
 import { GetObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { r2, R2_BUCKET } from "./r2.js";
+import { getCachedSignedUrl } from "./signedUrlCache.js";
 
 // Pulled out of users.routes.js so every route that shows a driver/
 // passenger (rides search, booking confirm, chat, trip screens) can
@@ -12,8 +13,10 @@ const VIEW_URL_TTL_SECONDS = 300; // 5 min — matches documents.routes.js/users
 
 export async function photoViewUrl(photoR2Key) {
   if (!photoR2Key) return null;
-  const command = new GetObjectCommand({ Bucket: R2_BUCKET, Key: photoR2Key });
-  return getSignedUrl(r2, command, { expiresIn: VIEW_URL_TTL_SECONDS });
+  return getCachedSignedUrl(photoR2Key, () => {
+    const command = new GetObjectCommand({ Bucket: R2_BUCKET, Key: photoR2Key });
+    return getSignedUrl(r2, command, { expiresIn: VIEW_URL_TTL_SECONDS });
+  });
 }
 
 // Resolves a Map<userId, photoViewUrl> for a batch of {id, photoR2Key}

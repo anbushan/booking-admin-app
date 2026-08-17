@@ -5,6 +5,7 @@ import { prisma } from "../lib/prisma.js";
 import { requireAuth, requireRole } from "../middleware/auth.js";
 import { validate, isNonEmptyString, isPositiveInt } from "../lib/validate.js";
 import { r2, R2_BUCKET } from "../lib/r2.js";
+import { getCachedSignedUrl } from "../lib/signedUrlCache.js";
 
 const router = Router();
 
@@ -82,8 +83,10 @@ router.get("/:id/view-urls", requireAuth, async (req, res) => {
 
   async function signedUrl(key) {
     if (!key) return null;
-    const command = new GetObjectCommand({ Bucket: R2_BUCKET, Key: key });
-    return getSignedUrl(r2, command, { expiresIn: VIEW_URL_TTL_SECONDS });
+    return getCachedSignedUrl(key, () => {
+      const command = new GetObjectCommand({ Bucket: R2_BUCKET, Key: key });
+      return getSignedUrl(r2, command, { expiresIn: VIEW_URL_TTL_SECONDS });
+    });
   }
 
   const [photoViewUrl, rcViewUrl, dlViewUrl] = await Promise.all([
