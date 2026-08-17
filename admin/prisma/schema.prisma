@@ -433,6 +433,20 @@ model AppConfig {
   maintenanceMode    Boolean @default(false)
   maintenanceMessage String?
 
+  // Paid third-party (Eko) verification — flat, one-time license fee;
+  // RC fee charged per vehicle (every vehicle, including the first).
+  // Mirrored from backend/prisma/schema.prisma — this admin schema never
+  // got these added when the verification-fee feature was built, even
+  // though the Settings -> App config UI already had input fields for
+  // them. Every save of this form failed as a result: submitting them
+  // (even as 0, which is what an unrendered/undefined value becomes)
+  // hit Prisma's "Unknown argument" error for a field that doesn't
+  // exist on this schema at all — not specific to any one field's value.
+  licenseVerificationFeeInr Float @default(4)
+  vehicleRcFeeInr           Float @default(4)
+  // Same idea, passenger-side — flat, one-time Aadhaar identity check.
+  aadhaarVerificationFeeInr Float @default(4)
+
   // Referral/first-ride promo code rewards — see UserCredit/Referral below.
   referralRewardInr Float @default(30)
   refereeRewardInr  Float @default(30)
