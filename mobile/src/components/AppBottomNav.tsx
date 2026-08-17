@@ -1,53 +1,34 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { useFocusEffect } from "@react-navigation/native";
-import SideMenu from "./SideMenu";
 import { BottomNavBar } from "./BottomNavBar";
 import { api } from "../lib/api";
 import { appEvents } from "../lib/appEvents";
 import { syncBadgeCount } from "../lib/pushNotifications";
 import { useTranslation } from "../lib/i18n/I18nContext";
 
-// The persistent chrome for every "hub" screen (Home, My bookings,
-// Requests, Notifications, Settings, Profile, Earnings, ...) — screens
-// you land on repeatedly and jump between, as opposed to a specific
-// task's screens (search results, booking confirm, payment, chat...)
-// which still push/pop normally with a back button. Self-contained: it
-// fetches its own badge counts and owns its own SideMenu instance, so
-// every hub screen only needs `navigation`, `profile`, and which tab
-// (if any) to highlight — no per-screen badge-fetching duplication.
+// The persistent chrome for the app's 4 real tabs (Home, Offer/My
+// requests, Requests/Bookings, Menu) — the "Menu" tab pushes to
+// AccountScreen (Rapido/Zomato style: a real page, not a slide-out
+// drawer), same as any other tab. Self-contained: it fetches its own
+// badge counts so every screen that renders it only needs `navigation`,
+// `profile`, and which tab (if any) to highlight.
 type Props = {
   navigation: any;
   profile: { id?: string; name?: string; role?: string; isDriver?: boolean; isPassenger?: boolean } | null;
   active?: string;
-  // NotificationsScreen mounts its own AppBottomNav instance, with its
-  // own independent unreadCount fetched once on focus — marking things
-  // read while already on that screen updated its own list instantly
-  // but left this instance's sidebar badge showing the stale count from
-  // whenever it first loaded, only catching up after leaving and coming
-  // back (a different hub screen's own instance) to trigger a refetch.
-  // Passing the screen's own live count in skips that whole round trip.
-  unreadCountOverride?: number;
 };
 
-export function AppBottomNav({ navigation, profile, active = "", unreadCountOverride }: Props) {
+export function AppBottomNav({ navigation, profile, active = "" }: Props) {
   const { t } = useTranslation();
-  const [menuVisible, setMenuVisible] = useState(false);
   const [pendingRequestCount, setPendingRequestCount] = useState(0);
   const [myRequestsCount, setMyRequestsCount] = useState(0);
   const [unreadCount, setUnreadCount] = useState(0);
-  const [upcomingTripsCount, setUpcomingTripsCount] = useState(0);
   const isDriver = profile?.role === "DRIVER";
 
   const refresh = useCallback(() => {
     if (!profile?.role) return;
     if (isDriver) {
       api.getDriverPendingRequests().then((list: any[]) => setPendingRequestCount(list.length)).catch(() => {});
-      // Same filter UpcomingTripsScreen itself uses — the badge counts
-      // exactly what you'd see if you tapped through, same as every
-      // other badge in this app.
-      api.getDriverActiveBookings()
-        .then((list: any[]) => setUpcomingTripsCount(list.filter((t) => ["AWAITING_PAYMENT", "CONFIRMED", "IN_PROGRESS"].includes(t.status)).length))
-        .catch(() => {});
     } else {
       api.getMyBookings()
         .then((list: any[]) => setMyRequestsCount(list.filter((b) => ["BOOKED", "AWAITING_PAYMENT", "PAYMENT_PENDING"].includes(b.status)).length))
@@ -82,7 +63,7 @@ export function AppBottomNav({ navigation, profile, active = "", unreadCountOver
   // what read as confusing. Each count instead shows on the specific
   // row it belongs to: pending requests / my requests here on the
   // bottom nav (they have their own tab), and unread notifications on
-  // the Notifications row inside the side menu.
+  // the Notifications row on the Menu page itself (AccountScreen).
   const navTabs = isDriver
     ? [
         { key: "home", label: t("navTabs.home"), icon: "home-outline" as const, iconActive: "home" as const },
@@ -103,20 +84,8 @@ export function AppBottomNav({ navigation, profile, active = "", unreadCountOver
     else if (key === "requests") navigation.navigate("BookingRequests");
     else if (key === "myRequests") navigation.navigate("MyRequests");
     else if (key === "bookings") navigation.navigate("History", { role: profile?.role });
-    else if (key === "menu") setMenuVisible(true);
+    else if (key === "menu") navigation.navigate("Account");
   }
 
-  return (
-    <>
-      <BottomNavBar tabs={navTabs} active={active} onTabPress={handleTabPress} />
-      <SideMenu
-        visible={menuVisible}
-        onClose={() => setMenuVisible(false)}
-        navigation={navigation}
-        profile={profile}
-        unreadCount={unreadCountOverride ?? unreadCount}
-        upcomingTripsCount={upcomingTripsCount}
-      />
-    </>
-  );
+  return <BottomNavBar tabs={navTabs} active={active} onTabPress={handleTabPress} />;
 }

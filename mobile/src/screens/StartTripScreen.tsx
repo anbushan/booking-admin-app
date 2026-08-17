@@ -228,8 +228,8 @@ const styles = StyleSheet.create({
     width: 56, height: 56, borderRadius: 28, backgroundColor: colors.accentBg,
     alignItems: "center", justifyContent: "center", marginBottom: spacing.md,
   },
-  title: { ...typography.title, fontSize: 18, textAlign: "center" },
-  subtitle: { ...typography.small, color: colors.textMuted, textAlign: "center", marginTop: 4, marginBottom: spacing.lg, lineHeight: 18, maxWidth: 280 },
+  title: { ...typography.titleCompact, textAlign: "center" },
+  subtitle: { ...typography.small, color: colors.textMuted, textAlign: "center", marginTop: spacing.xs, marginBottom: spacing.lg, lineHeight: 18, maxWidth: 280 },
   inputWrap: {
     flexDirection: "row", alignItems: "center", gap: spacing.sm, width: "100%",
     backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border,

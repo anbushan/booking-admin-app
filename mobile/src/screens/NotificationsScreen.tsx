@@ -9,7 +9,6 @@ import { SkeletonSectionHeader, SkeletonAvatarRow } from "../components/Skeleton
 import { EmptyState } from "../components/EmptyState";
 import { ErrorState } from "../components/ErrorState";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { AppBottomNav } from "../components/AppBottomNav";
 import { resolveNotificationTarget } from "../lib/notificationTargets";
 import { syncBadgeCount } from "../lib/pushNotifications";
 import { useScreenView } from "../lib/useScreenView";
@@ -124,11 +123,20 @@ export default function NotificationsScreen({ navigation }: any) {
   }
 
   return (
-    <SafeAreaView style={styles.screen} edges={["top"]}>
+    <SafeAreaView style={styles.screen} edges={["top", "bottom"]}>
       <View style={styles.titleRow}>
-        <View>
-          <Text style={styles.pageTitle}>{t("notifications.title")}</Text>
-          {unreadCount > 0 && <Text style={styles.pageSubtitle}>{t("notifications.unreadCount", { count: unreadCount })}</Text>}
+        <View style={{ flexDirection: "row", alignItems: "flex-start", gap: spacing.xs }}>
+          {/* Reached only by pushing in from AccountScreen (the "Menu"
+              tab's page) — not one of the 4 persistent bottom-nav tabs
+              itself — so unlike Home/OfferRide/etc. this is a dead end
+              without an explicit way back. */}
+          <Pressable onPress={() => navigation.goBack()} hitSlop={8} style={styles.backButton} accessibilityRole="button" accessibilityLabel={t("common.back")}>
+            <Ionicons name="chevron-back" size={22} color={colors.textPrimary} />
+          </Pressable>
+          <View>
+            <Text style={styles.pageTitle}>{t("notifications.title")}</Text>
+            {unreadCount > 0 && <Text style={styles.pageSubtitle}>{t("notifications.unreadCount", { count: unreadCount })}</Text>}
+          </View>
         </View>
         {unreadCount > 0 && (
           <Pressable style={styles.markAllButton} onPress={markAllRead} disabled={markingAll} hitSlop={4}>
@@ -187,7 +195,6 @@ export default function NotificationsScreen({ navigation }: any) {
         }
       />
       )}
-      <AppBottomNav navigation={navigation} profile={profile} active="menu" unreadCountOverride={unreadCount} />
     </SafeAreaView>
   );
 }
@@ -195,9 +202,10 @@ export default function NotificationsScreen({ navigation }: any) {
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.bg },
   titleRow: { flexDirection: "row", alignItems: "flex-start", justifyContent: "space-between", padding: spacing.lg, paddingBottom: spacing.sm },
+  backButton: { width: 28, height: 28, borderRadius: 14, alignItems: "center", justifyContent: "center", marginTop: -3, marginLeft: -6 },
   pageTitle: { ...typography.title },
   pageSubtitle: { ...typography.small, color: colors.textMuted, marginTop: 2 },
-  markAllButton: { flexDirection: "row", alignItems: "center", gap: 4, marginTop: 4 },
+  markAllButton: { flexDirection: "row", alignItems: "center", gap: spacing.xs, marginTop: spacing.xs },
   markAllText: { ...typography.small, color: colors.accentText, fontWeight: "700", fontFamily: FONT.bold },
   sectionHeader: { ...typography.small, color: colors.textMuted, fontWeight: "700", fontFamily: FONT.bold, textTransform: "uppercase", letterSpacing: 0.5, marginTop: spacing.sm, marginBottom: spacing.xs },
   card: {
@@ -222,5 +230,5 @@ const styles = StyleSheet.create({
   cardTitle: { ...typography.title, fontSize: 13, flex: 1 },
   cardTime: { ...typography.small, color: colors.textMuted, fontSize: 10.5 },
   cardText: { ...typography.small, color: colors.textSecondary, marginTop: 2 },
-  unreadDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: colors.accent, marginTop: 4, flexShrink: 0 },
+  unreadDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: colors.accent, marginTop: spacing.xs, flexShrink: 0 },
 });

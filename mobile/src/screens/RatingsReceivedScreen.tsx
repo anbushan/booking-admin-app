@@ -9,7 +9,7 @@ import { SkeletonList } from "../components/Skeleton";
 import { EmptyState } from "../components/EmptyState";
 import { ErrorState } from "../components/ErrorState";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { AppBottomNav } from "../components/AppBottomNav";
+import { BackHeader } from "../components/BackHeader";
 import { useScreenView } from "../lib/useScreenView";
 import { useTranslation } from "../lib/i18n/I18nContext";
 
@@ -42,8 +42,8 @@ export default function RatingsReceivedScreen({ navigation }: any) {
   useFocusEffect(useCallback(load, []));
 
   return (
-    <SafeAreaView style={styles.screen} edges={["top"]}>
-      <Text style={{ ...typography.title, padding: spacing.lg, paddingBottom: spacing.sm }}>{t("settings.yourRatings")}</Text>
+    <SafeAreaView style={styles.screen} edges={["top", "bottom"]}>
+      <BackHeader title={t("settings.yourRatings")} onBack={() => navigation.goBack()} />
 
       {loading ? (
         <SkeletonList />
@@ -87,7 +87,6 @@ export default function RatingsReceivedScreen({ navigation }: any) {
           />
         </>
       )}
-      <AppBottomNav navigation={navigation} profile={profile} active="menu" />
     </SafeAreaView>
   );
 }
@@ -96,10 +95,10 @@ const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.bg },
   summary: { alignItems: "center", padding: spacing.lg },
   summaryValue: { fontSize: 32, fontWeight: "700", fontFamily: FONT.bold, color: colors.warning },
-  summaryLabel: { ...typography.caption, color: colors.textMuted, marginTop: 4 },
+  summaryLabel: { ...typography.caption, color: colors.textMuted, marginTop: spacing.xs },
   card: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: radius.sm, padding: spacing.md },
   stars: { color: colors.warning, fontSize: 14 },
-  comment: { ...typography.caption, marginTop: 4 },
-  fromRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: 4 },
+  comment: { ...typography.caption, marginTop: spacing.xs },
+  fromRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: spacing.xs },
   from: { ...typography.small, color: colors.textMuted },
 });

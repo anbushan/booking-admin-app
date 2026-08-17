@@ -46,7 +46,12 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingLeft: spacing.sm,
     paddingRight: spacing.lg,
-    paddingTop: spacing.sm,
+    // Matches the plain `padding: spacing.lg` title text every
+    // bottom-nav-tab screen (Home, MyRequests, ...) still uses — without
+    // this, a BackHeader-based screen's content sat a visible 8px higher
+    // than a tab screen's, an inconsistency that showed up every time
+    // navigation crossed between the two header styles.
+    paddingTop: spacing.lg,
     paddingBottom: spacing.sm,
     gap: spacing.xs,
   },

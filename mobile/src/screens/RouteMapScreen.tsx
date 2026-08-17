@@ -84,9 +84,10 @@ export default function RouteMapScreen({ route, navigation }: any) {
           showTraffic={showTraffic}
           onToggleTraffic={() => setShowTraffic((v) => !v)}
           showWeather={showWeather}
-          onToggleWeather={() => setShowWeather((v) => !v)}
+          onToggleWeather={() => (weather.error ? weather.retry() : setShowWeather((v) => !v))}
           weatherLoading={showWeather && weather.loading}
           weatherTempC={weather.tempC}
+          weatherError={showWeather && weather.error}
         />
       </View>
 

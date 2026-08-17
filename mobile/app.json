@@ -13,7 +13,11 @@
     "newArchEnabled": false,
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.carpool.app"
+      "bundleIdentifier": "com.carpool.app",
+      "infoPlist": {
+        "LSApplicationQueriesSchemes": ["tez", "phonepe", "paytmmp"],
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "package": "com.carpool.app",
@@ -53,7 +57,8 @@
         "expo-location",
         {
           "locationAlwaysAndWhenInUsePermission": "We use your location during an active trip so the other rider can track progress and to power the SOS button.",
-          "isAndroidBackgroundLocationEnabled": true
+          "isAndroidBackgroundLocationEnabled": true,
+          "isIosBackgroundLocationEnabled": true
         }
       ],
       [

@@ -137,7 +137,6 @@ export default function EditRideScreen({ route, navigation }: any) {
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.bg },
   header: { flexDirection: "row", alignItems: "center", gap: spacing.md, padding: spacing.lg, borderBottomWidth: 1, borderBottomColor: colors.border, backgroundColor: colors.surface },
-  back: { fontSize: 18 },
   title: typography.title,
   body: { padding: spacing.lg },
   routeLabel: { ...typography.title, fontSize: 14, marginBottom: spacing.md },
@@ -147,7 +146,7 @@ const styles = StyleSheet.create({
   hint: { ...typography.small, color: colors.textMuted, marginTop: spacing.xs },
   saveButton: { backgroundColor: colors.textPrimary, height: 46, borderRadius: radius.sm, alignItems: "center", justifyContent: "center", marginTop: spacing.xl },
   saveButtonText: { ...typography.title, color: "#FFFFFF" },
-  cancelRideRow: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 4, marginTop: spacing.lg },
+  cancelRideRow: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: spacing.xs, marginTop: spacing.lg },
   cancelRideButton: { alignItems: "center" },
   cancelRideButtonText: { ...typography.caption, color: colors.danger },
   infoIconButton: { width: 28, height: 28, borderRadius: 14, alignItems: "center", justifyContent: "center" },

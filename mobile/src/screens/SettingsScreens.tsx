@@ -8,8 +8,7 @@ import { checkPushPermission } from "../lib/pushNotifications";
 import { logout } from "../lib/api";
 import { Analytics } from "../lib/analytics";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { AppBottomNav } from "../components/AppBottomNav";
-import { api } from "../lib/api";
+import { BackHeader } from "../components/BackHeader";
 import { useScreenView } from "../lib/useScreenView";
 import { useTranslation } from "../lib/i18n/I18nContext";
 
@@ -39,11 +38,9 @@ export function SettingsScreen({ navigation }: any) {
   useScreenView("SettingsScreen");
   const { t } = useTranslation();
   const [pushGranted, setPushGranted] = useState(true);
-  const [profile, setProfile] = useState<any>(null);
 
   useEffect(() => {
     checkPushPermission().then(setPushGranted);
-    api.getMyProfile().then(setProfile).catch(() => {});
   }, []);
 
   async function handleShare() {
@@ -57,11 +54,12 @@ export function SettingsScreen({ navigation }: any) {
     }
   }
 
+  // Your ratings/Payment history/Emergency contacts moved to AccountScreen
+  // (the Menu tab's own page) — they applied to either role and were
+  // listed there too, so this was a straight duplicate, not a second
+  // legitimate path to a role-specific screen.
   const rows: { key: string; label: string; icon: keyof typeof Ionicons.glyphMap; onPress: () => void }[] = [
     { key: "profile", label: t("settings.profile"), icon: "person-outline", onPress: () => navigation.navigate("Profile") },
-    { key: "ratings", label: t("settings.yourRatings"), icon: "star-outline", onPress: () => navigation.navigate("RatingsReceived") },
-    { key: "paymentHistory", label: t("settings.paymentHistory"), icon: "receipt-outline", onPress: () => navigation.navigate("PaymentHistory") },
-    { key: "emergencyContacts", label: t("settings.emergencyContacts"), icon: "shield-checkmark-outline", onPress: () => navigation.navigate("EmergencyContacts") },
     { key: "loginPasscode", label: t("settings.loginPasscode"), icon: "key-outline", onPress: () => navigation.navigate("LoginPasscode") },
     { key: "language", label: t("settings.language"), icon: "language-outline", onPress: () => navigation.navigate("LanguageSelection") },
     { key: "notifications", label: t("sideMenu.notifications"), icon: "notifications-outline", onPress: () => navigation.navigate("Notifications") },
@@ -92,8 +90,8 @@ export function SettingsScreen({ navigation }: any) {
   }
 
   return (
-    <SafeAreaView style={styles.screen} edges={["top"]}>
-      <Text style={{ ...typography.title, padding: spacing.lg, paddingBottom: spacing.sm }}>{t("settings.title")}</Text>
+    <SafeAreaView style={styles.screen} edges={["top", "bottom"]}>
+      <BackHeader title={t("settings.title")} onBack={() => navigation.goBack()} />
 
       <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: spacing.xl }}>
         {!pushGranted && (
@@ -126,7 +124,6 @@ export function SettingsScreen({ navigation }: any) {
           <Text style={styles.deleteAccountLinkText}>{t("settings.deleteAccount")}</Text>
         </Pressable>
       </ScrollView>
-      <AppBottomNav navigation={navigation} profile={profile} active="menu" />
     </SafeAreaView>
   );
 }
@@ -138,7 +135,7 @@ export function HelpSupportScreen({ navigation }: any) {
     // "bottom" included — a pushed sub-screen, no AppBottomNav here to
     // pad for the device's own inset the way the hub screens do.
     <SafeAreaView style={styles.screen} edges={["top", "bottom"]}>
-      <Text style={{ ...typography.title, padding: spacing.lg, paddingBottom: spacing.sm }}>{t("settings.helpSupport")}</Text>
+      <BackHeader title={t("settings.helpSupport")} onBack={() => navigation.goBack()} />
       <View style={styles.body}>
         <Text style={styles.paragraph}>{t("settings.helpBody")}</Text>
         <Pressable style={styles.contactRow} onPress={() => Linking.openURL(`mailto:${SUPPORT_EMAIL}`)}>
@@ -157,7 +154,7 @@ export function AboutScreen({ navigation }: any) {
   return (
     // "bottom" included — same reasoning as HelpSupportScreen above.
     <SafeAreaView style={styles.screen} edges={["top", "bottom"]}>
-      <Text style={{ ...typography.title, padding: spacing.lg, paddingBottom: spacing.sm }}>{t("settings.aboutTerms")}</Text>
+      <BackHeader title={t("settings.aboutTerms")} onBack={() => navigation.goBack()} />
       <View style={styles.body}>
         <Text style={styles.paragraph}>NanbaGO v0.1.0</Text>
         <Pressable style={styles.linkRow} onPress={() => Linking.openURL(TERMS_URL)}>

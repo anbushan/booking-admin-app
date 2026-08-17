@@ -160,7 +160,6 @@ export default function ChatListScreen({ navigation, route }: any) {
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.bg },
   header: { flexDirection: "row", alignItems: "center", gap: spacing.md, padding: spacing.lg, borderBottomWidth: 1, borderBottomColor: colors.border, backgroundColor: colors.surface },
-  back: { fontSize: 18 },
   title: typography.title,
   row: {
     flexDirection: "row",

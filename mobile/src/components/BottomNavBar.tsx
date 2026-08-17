@@ -11,7 +11,8 @@ import { colors, spacing, typography, FONT } from "../theme/theme";
 // "Booking requests" matter to a driver the way "My requests" does to
 // a passenger; a generic "Bookings" tab served neither well). The full
 // menu (settings, vehicles, account, logout — everything that doesn't
-// fit here) still lives in SideMenu; "menu" just opens that same modal.
+// fit here) lives on AccountScreen; "menu" navigates there like any
+// other tab (a real page, Rapido/Zomato style — not a slide-out drawer).
 export type NavTab = {
   key: string;
   label: string;

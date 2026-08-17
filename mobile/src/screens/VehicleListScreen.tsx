@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useState } from "react";
 import { View, Text, FlatList, StyleSheet, RefreshControl } from "react-native";
 import { Pressable } from "../components/Pressable";
 import { useFocusEffect } from "@react-navigation/native";
@@ -11,7 +11,7 @@ import { EmptyState } from "../components/EmptyState";
 import { ErrorState } from "../components/ErrorState";
 import { useToast } from "../components/Toast";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { AppBottomNav } from "../components/AppBottomNav";
+import { BackHeader } from "../components/BackHeader";
 import { VerifiedBadge } from "../components/VerifiedBadge";
 import { VerificationBanner } from "../components/VerificationBanner";
 import { useScreenView } from "../lib/useScreenView";
@@ -33,7 +33,6 @@ export default function VehicleListScreen({ navigation }: any) {
   useScreenView("VehicleListScreen");
   const { t } = useTranslation();
   const [vehicles, setVehicles] = useState<VehicleRow[]>([]);
-  const [profile, setProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(false);
@@ -42,10 +41,6 @@ export default function VehicleListScreen({ navigation }: any) {
   // unknown, so the banner doesn't flash before the first fetch resolves.
   const [licenseStatus, setLicenseStatus] = useState<string | null>(null);
   const { showSuccess, showError } = useToast();
-
-  useEffect(() => {
-    api.getMyProfile().then(setProfile).catch(() => {});
-  }, []);
 
   function load(isRefresh = false) {
     if (isRefresh) setRefreshing(true);
@@ -86,8 +81,8 @@ export default function VehicleListScreen({ navigation }: any) {
   }
 
   return (
-    <SafeAreaView style={styles.screen} edges={["top"]}>
-      <Text style={{ ...typography.title, padding: spacing.lg, paddingBottom: spacing.sm }}>{t("vehicle.yourVehicles")}</Text>
+    <SafeAreaView style={styles.screen} edges={["top", "bottom"]}>
+      <BackHeader title={t("vehicle.yourVehicles")} onBack={() => navigation.goBack()} />
 
       {/* Driver-level Eko verification — separate from (and faster than)
           the per-vehicle RC badges below. Verified once, this reads the
@@ -163,7 +158,6 @@ export default function VehicleListScreen({ navigation }: any) {
         <Ionicons name="add-circle-outline" size={18} color="#FFFFFF" />
         <Text style={styles.addButtonText}>{t("vehicle.addVehicle")}</Text>
       </Pressable>
-      <AppBottomNav navigation={navigation} profile={profile} active="menu" />
     </SafeAreaView>
   );
 }
@@ -179,7 +173,7 @@ const styles = StyleSheet.create({
   name: { ...typography.title, fontSize: 14 },
   meta: { ...typography.small, color: colors.textMuted, marginTop: 2 },
   badgeRow: { flexDirection: "row", marginTop: spacing.xs },
-  rejectedTag: { flexDirection: "row", alignItems: "center", gap: 4, alignSelf: "flex-start", backgroundColor: colors.dangerBg, paddingVertical: 2, paddingHorizontal: 7, borderRadius: 999 },
+  rejectedTag: { flexDirection: "row", alignItems: "center", gap: spacing.xs, alignSelf: "flex-start", backgroundColor: colors.dangerBg, paddingVertical: 2, paddingHorizontal: 7, borderRadius: 999 },
   rejectedTagText: { ...typography.small, color: colors.danger, fontWeight: "700", fontFamily: FONT.bold },
   addButton: { flexDirection: "row", gap: spacing.xs, backgroundColor: colors.textPrimary, height: 46, borderRadius: radius.sm, alignItems: "center", justifyContent: "center", margin: spacing.lg },
   addButtonText: { ...typography.title, color: "#FFFFFF" },

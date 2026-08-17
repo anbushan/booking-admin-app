@@ -1,5 +1,5 @@
 import React, { useEffect } from "react";
-import { View } from "react-native";
+import { View, Text, TextInput } from "react-native";
 // Namespace import, not a named one — this file already has its own
 // `SplashScreen` (the JS screen component from SplashOnboardingScreens
 // below); importing expo-splash-screen's own SplashScreen export under
@@ -99,6 +99,8 @@ import LoginPasscodeScreen from "./src/screens/LoginPasscodeScreen";
 import LanguageSelectionScreen from "./src/screens/LanguageSelectionScreen";
 
 import RatingsReceivedScreen from "./src/screens/RatingsReceivedScreen";
+import RewardsScreen from "./src/screens/RewardsScreen";
+import AccountScreen from "./src/screens/AccountScreen";
 import BookingRequestDetailScreen from "./src/screens/BookingRequestDetailScreen";
 import CompleteTripConfirmationScreen from "./src/screens/CompleteTripConfirmationScreen";
 import PaymentHistoryScreen from "./src/screens/PaymentHistoryScreen";
@@ -108,6 +110,21 @@ import BookingDetailScreen from "./src/screens/BookingDetailScreen";
 import PaymentQueueScreen from "./src/screens/PaymentQueueScreen";
 import MyRequestsScreen from "./src/screens/MyRequestsScreen";
 import AlertModalHost from "./src/components/AlertModalHost";
+
+// Every screen sizes its buttons/badges/pills against this app's own
+// fixed type scale (theme.ts) — none of them account for a user's OS
+// text-size accessibility setting, since RN's default is to scale font
+// size with zero ceiling. At a large accessibility text size, that's a
+// 44px-tall button or a small status pill trying to fit text at 2x its
+// designed size, which clips or wraps somewhere nobody chose for it to.
+// Capping the multiplier (not disabling scaling outright, which would
+// be a real accessibility regression for users who need larger text)
+// keeps every fixed-height element usable while still growing text
+// noticeably for anyone with the setting on. Set once, globally, via
+// defaultProps rather than passed to every individual Text/TextInput —
+// the standard RN pattern for an app-wide default like this.
+(Text as any).defaultProps = { ...(Text as any).defaultProps, maxFontSizeMultiplier: 1.3 };
+(TextInput as any).defaultProps = { ...(TextInput as any).defaultProps, maxFontSizeMultiplier: 1.3 };
 
 const Stack = createNativeStackNavigator();
 
@@ -246,6 +263,8 @@ function App() {
 
         {/* Newly closed gaps */}
         <Stack.Screen name="RatingsReceived" component={RatingsReceivedScreen} />
+        <Stack.Screen name="Rewards" component={RewardsScreen} />
+        <Stack.Screen name="Account" component={AccountScreen} />
         <Stack.Screen name="BookingRequestDetail" component={BookingRequestDetailScreen} />
         <Stack.Screen name="CompleteTripConfirmation" component={CompleteTripConfirmationScreen} />
         <Stack.Screen name="PaymentHistory" component={PaymentHistoryScreen} />

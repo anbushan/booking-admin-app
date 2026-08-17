@@ -186,7 +186,7 @@ export default function TripOtpScreen({ route, navigation }: any) {
       <View style={styles.driverBar}>
         <Avatar uri={driverPhoto} name={driverName} size={44} />
         <View style={{ flex: 1 }}>
-          <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: spacing.xs }}>
             <Text style={styles.driverName}>{driverName}</Text>
             <VerifiedBadge verified={driverVerified} size="sm" />
           </View>

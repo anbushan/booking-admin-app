@@ -325,7 +325,7 @@ function HomeScreenContent({ navigation }: any) {
     // layout shell throughout, only the body swaps.
     return (
       <View style={styles.screen}>
-        <View style={{ height: insets.top, backgroundColor: colors.successBg }} />
+        <View style={{ height: insets.top, backgroundColor: colors.bg }} />
         <View style={[styles.scroll, { alignItems: "center", justifyContent: "center" }]}>
           <CarLoader size="lg" />
         </View>
@@ -363,9 +363,11 @@ function HomeScreenContent({ navigation }: any) {
         deprecated. The only way to get a colored status bar area is to
         paint the app's own content that color, since it shows through:
         this strip sits exactly under the status bar/notch (insets.top
-        tall) so that's what actually reads as "the status bar is
-        green", not a real OS-level status bar color. */}
-    <View style={{ height: insets.top, backgroundColor: colors.successBg }} />
+        tall) so that's what actually reads as "the status bar is white",
+        not a real OS-level status bar color. Was colors.successBg (a
+        leftover green from before the app-wide white/Rapido-style pass)
+        — matched colors.bg like every other screen now. */}
+    <View style={{ height: insets.top, backgroundColor: colors.bg }} />
     <ScrollView
       style={styles.scroll}
       contentContainerStyle={{ paddingBottom: spacing.xl }}
@@ -691,7 +693,7 @@ const styles = StyleSheet.create({
   },
   greeting: { color: "#FFFFFF", opacity: 0.8, fontSize: 13 },
   name: { color: "#FFFFFF", fontSize: 18, fontWeight: "700", fontFamily: FONT.bold, marginTop: 2 },
-  tourLink: { flexDirection: "row", alignItems: "center", gap: 4, marginTop: 6 },
+  tourLink: { flexDirection: "row", alignItems: "center", gap: spacing.xs, marginTop: 6 },
   tourLinkText: { color: "#FFFFFF", opacity: 0.85, fontSize: 11, fontWeight: "700", fontFamily: FONT.bold, textDecorationLine: "underline" },
   searchCard: {
     backgroundColor: colors.surface,
@@ -771,7 +773,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface, borderRadius: radius.sm, paddingVertical: spacing.xs, paddingHorizontal: spacing.sm,
   },
   idVerifyPreviewLabel: { ...typography.small, color: colors.textMuted },
-  idVerifyBenefits: { gap: 4 },
+  idVerifyBenefits: { gap: spacing.xs },
   idVerifyBenefitRow: { flexDirection: "row", alignItems: "center", gap: 6 },
   idVerifyBenefitText: { ...typography.small, color: colors.textSecondary, flex: 1 },
   howItWorksCard: {
@@ -787,9 +789,9 @@ const styles = StyleSheet.create({
   howItWorksPreviewRow: { flexDirection: "row", alignItems: "center", marginTop: spacing.sm },
   howItWorksIconWrap: { width: 26, height: 26, borderRadius: 8, backgroundColor: colors.accentBg, alignItems: "center", justifyContent: "center" },
   howItWorksConnector: { flex: 1, height: 1, backgroundColor: colors.border, marginHorizontal: 2 },
-  howItWorksLinkRow: { flexDirection: "row", alignItems: "center", gap: 4, marginTop: spacing.sm },
+  howItWorksLinkRow: { flexDirection: "row", alignItems: "center", gap: spacing.xs, marginTop: spacing.sm },
   howItWorksLinkLabel: { ...typography.small, color: colors.accentText, fontWeight: "700", fontFamily: FONT.bold, textDecorationLine: "underline" },
-  howItWorksLink: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 4, marginTop: spacing.sm },
+  howItWorksLink: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: spacing.xs, marginTop: spacing.sm },
   howItWorksLinkText: { ...typography.small, color: colors.accentText, fontWeight: "700", fontFamily: FONT.bold },
   sosBanner: {
     flexDirection: "row", alignItems: "center", gap: spacing.sm,

@@ -21,6 +21,7 @@ import { useTranslation } from "../lib/i18n/I18nContext";
 import { MapFeatureButtons } from "../components/MapFeatureButtons";
 import { WeatherEffectOverlay } from "../components/WeatherEffectOverlay";
 import { useRouteWeather } from "../lib/useRouteWeather";
+import { showTripNotification, dismissTripNotification } from "../lib/tripNotification";
 
 const STALE_THRESHOLD_MS = 90 * 1000;
 const SOS_HOLD_MS = 3000;
@@ -185,6 +186,7 @@ export default function LiveTrackingScreen({ route, navigation }: any) {
         // though polling continues.
         if (!navigatedAway.current && track.status === "COMPLETED") {
           navigatedAway.current = true;
+          dismissTripNotification();
           if (role === "PASSENGER") {
             showAlert(t("liveTracking.tripCompletedTitle"), t("liveTracking.payDirectly", { amount: track.amount ?? 0 }));
             // Straight into rating the driver now, rather than relying on
@@ -201,6 +203,7 @@ export default function LiveTrackingScreen({ route, navigation }: any) {
           }
         } else if (!navigatedAway.current && track.status === "STOPPED") {
           navigatedAway.current = true;
+          dismissTripNotification();
           showAlert(t("liveTracking.rideClosedTitle"), t("liveTracking.rideClosedBody"));
           navigation.replace("History", { role });
         }
@@ -291,6 +294,25 @@ export default function LiveTrackingScreen({ route, navigation }: any) {
   );
   const traveledCoords = routeCoords.slice(0, progressIndex + 1);
   const remainingCoords = routeCoords.slice(progressIndex);
+
+  // Google Maps/Uber-style persistent notification while this trip is
+  // actually moving — this screen only ever mounts once IN_PROGRESS
+  // (see the polling effect's own comment above), so "the trip started"
+  // and "this screen is up" are the same moment. Re-presenting with the
+  // same identifier (see tripNotification.ts) updates the existing tray
+  // entry instead of stacking a new one on every ETA change; dismissed
+  // on COMPLETED/STOPPED below and on unmount as a safety net.
+  useEffect(() => {
+    if (!ride || isStale) return;
+    showTripNotification(
+      t("liveTracking.tripInProgress"),
+      t("liveTracking.notificationBody", { place: ride.destAddress, min: etaMinutes ?? "—" })
+    );
+  }, [ride?.destAddress, etaMinutes, isStale]);
+
+  useEffect(() => {
+    return () => { dismissTripNotification(); };
+  }, []);
 
   function startHold() {
     setHolding(true);
@@ -431,9 +453,10 @@ export default function LiveTrackingScreen({ route, navigation }: any) {
           showTraffic={showTraffic}
           onToggleTraffic={() => setShowTraffic((v) => !v)}
           showWeather={showWeather}
-          onToggleWeather={() => setShowWeather((v) => !v)}
+          onToggleWeather={() => (weather.error ? weather.retry() : setShowWeather((v) => !v))}
           weatherLoading={showWeather && weather.loading}
           weatherTempC={weather.tempC}
+          weatherError={showWeather && weather.error}
         />
 
         <View style={styles.etaBadge}>
@@ -473,7 +496,7 @@ export default function LiveTrackingScreen({ route, navigation }: any) {
           <View style={styles.driverRow}>
             <Avatar uri={driverPhoto} name={driverName || "D"} size={40} />
             <View style={{ flex: 1 }}>
-              <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+              <View style={{ flexDirection: "row", alignItems: "center", gap: spacing.xs }}>
                 <Text style={styles.driverName}>{driverName || t("liveTracking.driverFallback")}</Text>
                 <VerifiedBadge verified={driverVerified} size="sm" />
               </View>
@@ -614,7 +637,7 @@ const styles = StyleSheet.create({
   phaseStep: { alignItems: "center", width: 76 },
   phaseDot: { width: 20, height: 20, borderRadius: 10, backgroundColor: colors.border, alignItems: "center", justifyContent: "center" },
   phaseDotActive: { backgroundColor: colors.accent },
-  phaseLabel: { ...typography.small, color: colors.textMuted, marginTop: 4, textAlign: "center" },
+  phaseLabel: { ...typography.small, color: colors.textMuted, marginTop: spacing.xs, textAlign: "center" },
   phaseLabelActive: { color: colors.accentText, fontWeight: "700", fontFamily: FONT.bold },
   phaseConnector: { flex: 1, height: 2, backgroundColor: colors.border, marginTop: 9 },
   phaseConnectorActive: { backgroundColor: colors.accent },

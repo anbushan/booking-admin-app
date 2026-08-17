@@ -56,9 +56,9 @@ export function RouteTimeline({ departAt, arriveAt, sourceAddress, destAddress, 
 
 const styles = StyleSheet.create({
   row: { flexDirection: "row", gap: spacing.sm },
-  rail: { alignItems: "center", width: 12, paddingTop: 4 },
+  rail: { alignItems: "center", width: 12, paddingTop: spacing.xs },
   dot: { width: 8, height: 8, borderRadius: 4 },
-  line: { width: 1, flex: 1, minHeight: 20, backgroundColor: colors.border, marginVertical: 4 },
+  line: { width: 1, flex: 1, minHeight: 20, backgroundColor: colors.border, marginVertical: spacing.xs },
   points: { flex: 1, gap: spacing.xs },
   point: {},
   time: { ...typography.caption, fontWeight: "700", fontFamily: FONT.bold, color: colors.textPrimary },

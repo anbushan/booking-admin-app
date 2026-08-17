@@ -17,6 +17,7 @@ export function MapFeatureButtons({
   onToggleWeather,
   weatherLoading,
   weatherTempC,
+  weatherError,
 }: {
   showTraffic: boolean;
   onToggleTraffic: () => void;
@@ -24,6 +25,7 @@ export function MapFeatureButtons({
   onToggleWeather: () => void;
   weatherLoading: boolean;
   weatherTempC: number | null;
+  weatherError?: boolean;
 }) {
   const { t } = useTranslation();
   return (
@@ -38,17 +40,23 @@ export function MapFeatureButtons({
           <Text style={[styles.buttonText, showTraffic && styles.buttonTextActive]}>{t("mapFeatures.viewTraffic")}</Text>
         </Pressable>
         <Pressable
-          style={[styles.button, showWeather && styles.buttonActive]}
+          style={[styles.button, showWeather && styles.buttonActive, weatherError && styles.buttonError]}
           onPress={onToggleWeather}
           hitSlop={4}
         >
           {weatherLoading ? (
             <ActivityIndicator size="small" color={showWeather ? "#FFFFFF" : colors.textPrimary} />
+          ) : weatherError ? (
+            <Ionicons name="alert-circle-outline" size={16} color={colors.danger} />
           ) : (
             <Ionicons name="partly-sunny-outline" size={16} color={showWeather ? "#FFFFFF" : colors.textPrimary} />
           )}
-          <Text style={[styles.buttonText, showWeather && styles.buttonTextActive]}>
-            {showWeather && weatherTempC != null ? `${weatherTempC}°C` : t("mapFeatures.viewWeather")}
+          <Text style={[styles.buttonText, showWeather && styles.buttonTextActive, weatherError && styles.buttonTextError]}>
+            {weatherError
+              ? t("mapFeatures.weatherFailed")
+              : showWeather && weatherTempC != null
+              ? `${weatherTempC}°C`
+              : t("mapFeatures.viewWeather")}
           </Text>
         </Pressable>
       </View>
@@ -67,11 +75,13 @@ const styles = StyleSheet.create({
   button: {
     flexDirection: "row", alignItems: "center", gap: 6,
     backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border,
-    borderRadius: radius.md, paddingVertical: 8, paddingHorizontal: 12,
+    borderRadius: radius.md, paddingVertical: spacing.sm, paddingHorizontal: spacing.md,
     shadowColor: "#000", shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.12, shadowRadius: 6, elevation: 3,
   },
   buttonActive: { backgroundColor: colors.textPrimary, borderColor: colors.textPrimary },
+  buttonError: { backgroundColor: colors.dangerBg, borderColor: colors.danger },
   buttonText: { ...typography.small, fontWeight: "700", fontFamily: FONT.bold, color: colors.textPrimary },
   buttonTextActive: { color: "#FFFFFF" },
+  buttonTextError: { color: colors.danger },
   legendWrap: { maxWidth: 220 },
 });

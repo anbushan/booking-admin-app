@@ -650,7 +650,7 @@ const styles = StyleSheet.create({
   downloadButtonText: { ...typography.caption, color: colors.accentText, fontWeight: "700", fontFamily: FONT.bold },
   previewNote: { ...typography.small, lineHeight: 16 },
   rcVerifiedHint: { ...typography.small, color: colors.textMuted, textAlign: "center", marginTop: spacing.sm, lineHeight: 15 },
-  statusChip: { alignSelf: "flex-start", paddingVertical: 2, paddingHorizontal: 8, borderRadius: 999 },
+  statusChip: { alignSelf: "flex-start", paddingVertical: 2, paddingHorizontal: spacing.sm, borderRadius: 999 },
   statusChipGood: { backgroundColor: colors.successBg },
   statusChipBad: { backgroundColor: colors.dangerBg },
   statusChipText: { ...typography.small, fontWeight: "700", fontFamily: FONT.bold },

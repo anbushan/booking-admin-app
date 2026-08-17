@@ -139,7 +139,7 @@ const styles = StyleSheet.create({
     width: 56, height: 56, borderRadius: 28, backgroundColor: colors.dangerBg,
     alignItems: "center", justifyContent: "center", alignSelf: "center", marginBottom: spacing.md,
   },
-  title: { ...typography.title, fontSize: 18, textAlign: "center" },
+  title: { ...typography.titleCompact, textAlign: "center" },
   subtitle: { ...typography.caption, color: colors.textSecondary, textAlign: "center", marginTop: spacing.sm, lineHeight: 20 },
   confirmLabel: { ...typography.caption, color: colors.textSecondary, marginTop: spacing.xl, marginBottom: spacing.xs },
   input: {

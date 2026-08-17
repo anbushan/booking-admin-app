@@ -7,7 +7,7 @@ import { colors, spacing, radius, typography, FONT } from "../theme/theme";
 import { api } from "../lib/api";
 import { useToast } from "../components/Toast";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { AppBottomNav } from "../components/AppBottomNav";
+import { BackHeader } from "../components/BackHeader";
 import { KeyboardAvoider } from "../components/KeyboardAvoider";
 import { CarLoader } from "../components/CarLoader";
 import { useScreenView } from "../lib/useScreenView";
@@ -29,17 +29,14 @@ export function ProfileScreen({ navigation }: any) {
   }, []);
 
   if (!profile) {
-    // Same shell as the loaded return below (AppHeader + AppBottomNav
-    // both present), just a spinner where the profile content will go
-    // — otherwise the bottom nav is simply missing for this first beat
-    // and then pops in once the fetch resolves.
+    // Same shell as the loaded return below, just a spinner where the
+    // profile content will go.
     return (
-      <SafeAreaView style={styles.screen} edges={["top"]}>
-        <Text style={{ ...typography.title, padding: spacing.lg, paddingBottom: spacing.sm }}>{t("settings.profile")}</Text>
+      <SafeAreaView style={styles.screen} edges={["top", "bottom"]}>
+        <BackHeader title={t("settings.profile")} onBack={() => navigation.goBack()} />
         <View style={[{ flex: 1 }, { alignItems: "center", justifyContent: "center" }]}>
           <CarLoader />
         </View>
-        <AppBottomNav navigation={navigation} profile={null} active="menu" />
       </SafeAreaView>
     );
   }
@@ -47,10 +44,10 @@ export function ProfileScreen({ navigation }: any) {
   const isDriver = profile.role === "DRIVER";
   const since = memberSince(profile.createdAt);
 
+  // Your ratings/Payment history moved to AccountScreen (the Menu tab's
+  // own page) — listed there too, so this was a straight duplicate.
   const links: { icon: keyof typeof Ionicons.glyphMap; label: string; onPress: () => void }[] = [
     { icon: "pencil-outline", label: t("profile.editProfile"), onPress: () => navigation.navigate("EditProfile", { profile }) },
-    { icon: "star-outline", label: t("settings.yourRatings"), onPress: () => navigation.navigate("RatingsReceived") },
-    { icon: "receipt-outline", label: t("settings.paymentHistory"), onPress: () => navigation.navigate("PaymentHistory") },
     // Reachable by any role (an account can be both a driver and a
     // passenger) — purely a trust badge, never required to book, so
     // it's just a settings-style link rather than gated to one role.
@@ -65,8 +62,8 @@ export function ProfileScreen({ navigation }: any) {
   ];
 
   return (
-    <SafeAreaView style={styles.screen} edges={["top"]}>
-      <Text style={{ ...typography.title, padding: spacing.lg, paddingBottom: spacing.sm }}>{t("settings.profile")}</Text>
+    <SafeAreaView style={styles.screen} edges={["top", "bottom"]}>
+      <BackHeader title={t("settings.profile")} onBack={() => navigation.goBack()} />
       <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: spacing.xl }}>
         <View style={styles.hero}>
           <Pressable
@@ -122,7 +119,6 @@ export function ProfileScreen({ navigation }: any) {
           ))}
         </View>
       </ScrollView>
-      <AppBottomNav navigation={navigation} profile={profile} active="menu" />
     </SafeAreaView>
   );
 }
@@ -172,11 +168,10 @@ export function EditProfileScreen({ route, navigation }: any) {
   }
 
   return (
-    // "bottom" included here — this is a pushed sub-screen (no
-    // AppBottomNav, unlike ProfileScreen itself above), so the "Save"
-    // button needs its own protection from the device's bottom inset.
+    // "bottom" included — no bottom nav here to pad for the device's
+    // own inset itself, so the "Save" button needs its own protection.
     <SafeAreaView style={styles.screen} edges={["top", "bottom"]}>
-      <Text style={{ ...typography.title, padding: spacing.lg, paddingBottom: spacing.sm }}>{t("profile.editProfile")}</Text>
+      <BackHeader title={t("profile.editProfile")} onBack={() => navigation.goBack()} />
       <KeyboardAvoider>
       <View style={styles.body}>
         <Pressable style={styles.editAvatarWrap} onPress={handleChangePhoto} disabled={uploadingPhoto}>
@@ -260,11 +255,11 @@ const styles = StyleSheet.create({
     alignItems: "center", justifyContent: "center",
   },
   changePhotoText: { ...typography.small, color: colors.accentText, fontWeight: "700", fontFamily: FONT.bold, marginBottom: spacing.sm },
-  name: { ...typography.title, fontSize: 18, color: "#FFFFFF", marginTop: spacing.sm },
-  metaRow: { flexDirection: "row", alignItems: "center", gap: 4, marginTop: 2 },
+  name: { ...typography.titleCompact, color: "#FFFFFF", marginTop: spacing.sm },
+  metaRow: { flexDirection: "row", alignItems: "center", gap: spacing.xs, marginTop: 2 },
   meta: { ...typography.caption, color: "rgba(255,255,255,0.75)" },
   chipRow: { flexDirection: "row", flexWrap: "wrap", gap: spacing.xs, marginTop: spacing.md, justifyContent: "center" },
-  chip: { flexDirection: "row", alignItems: "center", gap: 4, backgroundColor: "rgba(255,255,255,0.16)", borderRadius: radius.sm, paddingVertical: 4, paddingHorizontal: spacing.sm },
+  chip: { flexDirection: "row", alignItems: "center", gap: spacing.xs, backgroundColor: "rgba(255,255,255,0.16)", borderRadius: radius.sm, paddingVertical: spacing.xs, paddingHorizontal: spacing.sm },
   chipText: { ...typography.small, color: "#FFFFFF", fontWeight: "700", fontFamily: FONT.bold },
   list: { padding: spacing.md, gap: spacing.sm, marginTop: spacing.xs },
   row: { flexDirection: "row", alignItems: "center", gap: spacing.sm, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: radius.md, padding: spacing.md },

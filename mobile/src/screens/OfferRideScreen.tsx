@@ -410,7 +410,6 @@ const styles = StyleSheet.create({
     borderBottomColor: colors.border,
     backgroundColor: colors.surface,
   },
-  back: { fontSize: 18 },
   title: typography.title,
   body: { padding: spacing.lg },
   // Used both as a plain View style (the initial loading spinner) and

@@ -16,6 +16,7 @@ import { UnreadBadge } from "../components/UnreadBadge";
 import { StatusBadge } from "../components/StatusBadge";
 import { StepTracker, bookingJourneySteps } from "../components/StepTracker";
 import { AppBottomNav } from "../components/AppBottomNav";
+import { BackHeader } from "../components/BackHeader";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { appEvents } from "../lib/appEvents";
 import { useScreenView } from "../lib/useScreenView";
@@ -160,8 +161,18 @@ export default function HistoryScreen({ navigation, route }: any) {
   }
 
   return (
-    <SafeAreaView style={styles.screen} edges={["top"]}>
-      <Text style={{ ...typography.title, padding: spacing.lg, paddingBottom: spacing.sm }}>{role === "DRIVER" ? t("home.yourRides") : t("history.yourBookings")}</Text>
+    <SafeAreaView style={styles.screen} edges={role === "DRIVER" ? ["top", "bottom"] : ["top"]}>
+      {/* Driver only reaches this screen by pushing in from AccountScreen's
+          (the "Menu" tab's page) "My bookings" row — "bookings" isn't one of the driver's 4
+          bottom-nav tabs (home/offerRide/requests/menu), unlike the
+          passenger case below where this genuinely is the persistent
+          "bookings" tab, so a back button there would be redundant with
+          the tab bar itself. */}
+      {role === "DRIVER" ? (
+        <BackHeader title={t("home.yourRides")} onBack={() => navigation.goBack()} />
+      ) : (
+        <Text style={{ ...typography.title, padding: spacing.lg, paddingBottom: spacing.sm }}>{t("history.yourBookings")}</Text>
+      )}
       {loading ? (
         <SkeletonCardList />
       ) : error ? (
@@ -333,7 +344,11 @@ export default function HistoryScreen({ navigation, route }: any) {
         }
       />
       )}
-      <AppBottomNav navigation={navigation} profile={profile} active={role === "DRIVER" ? "menu" : "bookings"} />
+      {/* Driver got a BackHeader above instead (see the conditional
+          title block) — showing both would be duplicate navigation
+          chrome. Passenger keeps this since "bookings" genuinely is
+          one of their 4 persistent tabs. */}
+      {role !== "DRIVER" && <AppBottomNav navigation={navigation} profile={profile} active="bookings" />}
     </SafeAreaView>
   );
 }

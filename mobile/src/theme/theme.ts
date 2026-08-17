@@ -2,7 +2,15 @@
 // place so the whole app stays visually consistent without hardcoding
 // hex values in every screen.
 export const colors = {
-  bg: "#F1EFE8",
+  // Was a warm cream (#F1EFE8) — switched to pure white to match
+  // Rapido's cleaner, flatter look. `surface` (cards/rows) was already
+  // white, so cards no longer sit on a visibly different background —
+  // they still read as distinct because every one of them already
+  // carries its own border (colors.border) and/or shadow, the same way
+  // a plain white iOS grouped list relies on separators, not a
+  // background-color difference, to show where one card ends and the
+  // next begins.
+  bg: "#FFFFFF",
   surface: "#FFFFFF",
   border: "#E3E1D8",
   textPrimary: "#1A1A18",
@@ -77,14 +85,27 @@ export const FONT = {
 // read the background of. That's exactly the "labels are invisible in
 // the built APK" bug — an explicit color here means there's nothing
 // ambiguous left for either the OS or a missed style to guess at.
+// 17/14/12/11 -> 19/16/13/12: bumped a tier up across the board to match
+// Rapido's noticeably bigger, bolder type — this app's old scale was
+// comparatively compact/conservative. Kept the same four tiers and the
+// same relative gaps between them (title still clearly the biggest step
+// up, small still clearly the smallest) rather than introducing new
+// sizes, so this is a proportional resize of the existing hierarchy, not
+// a new one — every screen that composes `{...typography.body}` etc.
+// picks the new size up automatically with no per-screen changes needed.
 export const typography = {
-  // 16->17: Zomato's own hierarchy leans on one confidently-sized bold
-  // header rather than a wide size range — this is the one tier used
-  // for nearly every screen/card title across the app.
-  title: { fontSize: 17, fontFamily: FONT.bold, fontWeight: "700" as const, color: colors.textPrimary },
-  body: { fontSize: 14, fontFamily: FONT.regular, fontWeight: "400" as const, color: colors.textPrimary },
-  caption: { fontSize: 12, fontFamily: FONT.regular, fontWeight: "400" as const, color: colors.textPrimary },
-  small: { fontSize: 11, fontFamily: FONT.regular, fontWeight: "400" as const, color: colors.textMuted },
+  title: { fontSize: 19, fontFamily: FONT.bold, fontWeight: "700" as const, color: colors.textPrimary },
+  // A second, smaller title tier — every centered confirmation/action
+  // screen (delete account, switch role, login passcode, start trip...)
+  // independently arrived at the same `{ ...typography.title, fontSize:
+  // 18 }` override, 11 times over, which is really a real second scale
+  // step that just never got named. Naming it means those screens now
+  // read as "using the compact title," not "each redefining the same
+  // one-off tweak."
+  titleCompact: { fontSize: 18, fontFamily: FONT.bold, fontWeight: "700" as const, color: colors.textPrimary },
+  body: { fontSize: 16, fontFamily: FONT.regular, fontWeight: "400" as const, color: colors.textPrimary },
+  caption: { fontSize: 13, fontFamily: FONT.regular, fontWeight: "400" as const, color: colors.textPrimary },
+  small: { fontSize: 12, fontFamily: FONT.regular, fontWeight: "400" as const, color: colors.textMuted },
 };
 
 // One entry per ride/booking status string this app actually uses

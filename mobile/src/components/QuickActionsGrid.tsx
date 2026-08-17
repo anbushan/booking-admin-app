@@ -29,8 +29,8 @@ const TINTS: Record<NonNullable<QuickAction["tint"]>, { bg: string; fg: string }
 // "quick actions" grid pattern most everyday apps use (Paytm/PhonePe/
 // Zomato-style dashboards) for the handful of things someone reaches
 // for constantly. Reuses the exact same badge visual language as
-// BottomNavBar/SideMenu (red circle, white bold count, "9+" cap) so a
-// number here means the same thing it does everywhere else in the app.
+// BottomNavBar/AccountScreen (red circle, white bold count, "9+" cap)
+// so a number here means the same thing it does everywhere else.
 // 3 tiles per row — 6 actions fills exactly two rows with nothing
 // dangling on its own.
 export function QuickActionsGrid({ actions }: { actions: QuickAction[] }) {

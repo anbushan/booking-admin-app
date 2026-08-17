@@ -153,21 +153,33 @@ function RideResultCard({
           sourceAddress={item.sourceAddress}
           destAddress={item.destAddress}
         />
-        {/* Nested inside the card's own Pressable — same pattern
-            MyRequestsScreen already uses for its per-status action
-            button, so this doesn't also trigger the card's own
-            navigate-to-BookingConfirm handler. */}
-        <Pressable
-          style={styles.mapLinkButton}
-          onPress={() => navigation.navigate("RouteMap", {
-            sourceLat: item.sourceLat, sourceLng: item.sourceLng, sourceAddress: item.sourceAddress,
-            destLat: item.destLat, destLng: item.destLng, destAddress: item.destAddress,
-            routePolyline: item.routePolyline,
-          })}
-        >
-          <Ionicons name="expand-outline" size={13} color={colors.accentText} />
-          <Text style={styles.mapLinkText}>{t("routeMap.viewInMap")}</Text>
-        </Pressable>
+        {/* The card itself has always navigated to BookingConfirm on tap
+            (see the outer Pressable above) — this button doesn't change
+            that, it just makes it explicit. Now that each card also
+            holds a real interactive map (pan/zoom, Traffic/Weather
+            toggles), "tap anywhere to proceed" reads more like "tap
+            anywhere to interact with the map" than a clear next step —
+            a labeled button says plainly what happens and where it
+            leads, matching every other "here's what this does" button
+            already in this app rather than relying on implicit
+            whole-card tap. */}
+        {!item.seatsFull && !item.isOwnRide && (
+          <Pressable
+            style={styles.detailsButton}
+            onPress={() => navigation.navigate("BookingConfirm", {
+              rideId: item.id,
+              pickupLat: sourceLat,
+              pickupLng: sourceLng,
+              pickupAddress: sourceAddress,
+              ...(destLat != null && destLng != null
+                ? { dropLat: destLat, dropLng: destLng, dropAddress: destAddress }
+                : {}),
+            })}
+          >
+            <Text style={styles.detailsButtonText}>{t("search.viewDetails")}</Text>
+            <Ionicons name="arrow-forward" size={14} color="#FFFFFF" />
+          </Pressable>
+        )}
       </View>
     </Pressable>
   );
@@ -330,15 +342,18 @@ const styles = StyleSheet.create({
   cardTop: { flexDirection: "row", gap: spacing.sm, alignItems: "flex-start" },
   preferencesWrap: { marginTop: spacing.sm },
   timelineWrap: { marginTop: spacing.md, paddingTop: spacing.md, borderTopWidth: 1, borderTopColor: colors.border },
-  mapLinkButton: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, borderWidth: 1, borderColor: colors.border, height: 34, borderRadius: radius.sm, marginTop: spacing.sm },
-  mapLinkText: { ...typography.small, color: colors.accentText, fontWeight: "700", fontFamily: FONT.bold },
+  detailsButton: {
+    flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6,
+    backgroundColor: colors.textPrimary, height: 40, borderRadius: radius.sm, marginTop: spacing.sm,
+  },
+  detailsButtonText: { ...typography.caption, color: "#FFFFFF", fontWeight: "700", fontFamily: FONT.bold },
   nameRow: { flexDirection: "row", alignItems: "center", gap: spacing.xs },
   driverName: { ...typography.title, fontSize: 14 },
   verifiedBadge: { flexDirection: "row", alignItems: "center", gap: 2, backgroundColor: colors.successBg, borderRadius: 4, paddingVertical: 1, paddingHorizontal: 5 },
   verifiedBadgeText: { fontSize: 10, color: colors.success, fontWeight: "700", fontFamily: FONT.bold },
   meta: { ...typography.small, color: colors.textMuted, marginTop: 2 },
   price: { ...typography.title, color: colors.textPrimary, fontVariant: ["tabular-nums"] },
-  seatsPill: { flexDirection: "row", alignItems: "center", gap: 3, backgroundColor: colors.successBg, borderRadius: 6, paddingVertical: 2, paddingHorizontal: 6, marginTop: 4 },
+  seatsPill: { flexDirection: "row", alignItems: "center", gap: 3, backgroundColor: colors.successBg, borderRadius: 6, paddingVertical: 2, paddingHorizontal: 6, marginTop: spacing.xs },
   seatsPillFull: { backgroundColor: colors.dangerBg },
   seatsPillText: { fontSize: 10, fontWeight: "700", fontFamily: FONT.bold },
 });

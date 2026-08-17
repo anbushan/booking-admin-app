@@ -65,7 +65,7 @@ const styles = StyleSheet.create({
   addressRow: { flexDirection: "row", alignItems: "flex-start", gap: spacing.sm },
   pinBadge: { width: 32, height: 32, borderRadius: 16, backgroundColor: colors.marigoldBg, alignItems: "center", justifyContent: "center" },
   addressLabel: { ...typography.caption, color: colors.textSecondary },
-  address: { ...typography.title, marginTop: 4 },
+  address: { ...typography.title, marginTop: spacing.xs },
   hint: { ...typography.small, color: colors.textMuted, marginTop: spacing.sm },
   confirmButton: {
     flexDirection: "row",

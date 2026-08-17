@@ -35,6 +35,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.sm,
     borderRadius: radius.lg,
   },
-  pillSmall: { paddingVertical: 3, paddingHorizontal: 7, gap: 4 },
+  pillSmall: { paddingVertical: 3, paddingHorizontal: 7, gap: spacing.xs },
   label: { fontWeight: "700", fontFamily: FONT.bold },
 });

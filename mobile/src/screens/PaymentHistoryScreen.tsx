@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useCallback } from "react";
 import { View, Text, FlatList, StyleSheet, RefreshControl } from "react-native";
 import { Pressable } from "../components/Pressable";
 import { useFocusEffect } from "@react-navigation/native";
@@ -8,7 +8,7 @@ import { SkeletonList } from "../components/Skeleton";
 import { EmptyState } from "../components/EmptyState";
 import { ErrorState } from "../components/ErrorState";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { AppBottomNav } from "../components/AppBottomNav";
+import { BackHeader } from "../components/BackHeader";
 import { useScreenView } from "../lib/useScreenView";
 import { useTranslation } from "../lib/i18n/I18nContext";
 
@@ -16,14 +16,9 @@ export default function PaymentHistoryScreen({ navigation }: any) {
   useScreenView("PaymentHistoryScreen");
   const { t } = useTranslation();
   const [payments, setPayments] = useState<any[]>([]);
-  const [profile, setProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(false);
-
-  useEffect(() => {
-    api.getMyProfile().then(setProfile).catch(() => {});
-  }, []);
 
   function load(isRefresh = false) {
     if (isRefresh) setRefreshing(true);
@@ -35,8 +30,8 @@ export default function PaymentHistoryScreen({ navigation }: any) {
   useFocusEffect(useCallback(load, []));
 
   return (
-    <SafeAreaView style={styles.screen} edges={["top"]}>
-      <Text style={{ ...typography.title, padding: spacing.lg, paddingBottom: spacing.sm }}>{t("payment.historyTitle")}</Text>
+    <SafeAreaView style={styles.screen} edges={["top", "bottom"]}>
+      <BackHeader title={t("payment.historyTitle")} onBack={() => navigation.goBack()} />
       {loading ? (
         <SkeletonList />
       ) : error ? (
@@ -76,7 +71,6 @@ export default function PaymentHistoryScreen({ navigation }: any) {
         ListEmptyComponent={<EmptyState icon="receipt-outline" title={t("payment.noPaymentsYet")} subtitle={t("payment.completedTripsShowHere")} />}
       />
       )}
-      <AppBottomNav navigation={navigation} profile={profile} active="menu" />
     </SafeAreaView>
   );
 }

@@ -85,7 +85,7 @@ const styles = StyleSheet.create({
   body: { padding: spacing.xl, alignItems: "center" },
   iconCircle: { width: 64, height: 64, borderRadius: 32, backgroundColor: colors.successBg, alignItems: "center", justifyContent: "center", marginBottom: spacing.lg },
   iconText: { fontSize: 28, color: colors.success },
-  title: { ...typography.title, fontSize: 18, textAlign: "center" },
+  title: { ...typography.titleCompact, textAlign: "center" },
   description: { ...typography.caption, color: colors.textSecondary, textAlign: "center", marginTop: spacing.sm, lineHeight: 20 },
   confirmButton: { backgroundColor: colors.textPrimary, height: 46, borderRadius: radius.sm, alignItems: "center", justifyContent: "center", marginTop: spacing.xl, alignSelf: "stretch" },
   confirmButtonText: { ...typography.title, color: "#FFFFFF" },

@@ -43,8 +43,8 @@ export function RidePreferences({ preferences, size = "md" }: { preferences?: Re
 const styles = StyleSheet.create({
   row: { flexDirection: "row", flexWrap: "wrap", gap: spacing.xs },
   chip: {
-    flexDirection: "row", alignItems: "center", gap: 4,
-    paddingVertical: 4, paddingHorizontal: spacing.sm, borderRadius: 999,
+    flexDirection: "row", alignItems: "center", gap: spacing.xs,
+    paddingVertical: spacing.xs, paddingHorizontal: spacing.sm, borderRadius: 999,
     borderWidth: 1,
   },
   chipSm: { paddingVertical: 3, paddingHorizontal: spacing.xs },

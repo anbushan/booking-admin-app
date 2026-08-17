@@ -11,7 +11,7 @@ import { ErrorState } from "../components/ErrorState";
 import { primeLocationIfNeeded } from "../lib/locationPriming";
 import { UnreadBadge } from "../components/UnreadBadge";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { AppBottomNav } from "../components/AppBottomNav";
+import { BackHeader } from "../components/BackHeader";
 import { groupByRide } from "../lib/groupByRide";
 import { appEvents } from "../lib/appEvents";
 import { useScreenView } from "../lib/useScreenView";
@@ -38,14 +38,9 @@ export default function UpcomingTripsScreen({ navigation }: any) {
   useScreenView("UpcomingTripsScreen");
   const { t } = useTranslation();
   const [trips, setTrips] = useState<Trip[]>([]);
-  const [profile, setProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(false);
-
-  useEffect(() => {
-    api.getMyProfile().then(setProfile).catch(() => {});
-  }, []);
 
   function load(isRefresh = false) {
     if (isRefresh) setRefreshing(true);
@@ -92,8 +87,8 @@ export default function UpcomingTripsScreen({ navigation }: any) {
   const sections = groupByRide(trips);
 
   return (
-    <SafeAreaView style={styles.screen} edges={["top"]}>
-      <Text style={{ ...typography.title, padding: spacing.lg, paddingBottom: spacing.sm }}>{t("home.startTripNow")}</Text>
+    <SafeAreaView style={styles.screen} edges={["top", "bottom"]}>
+      <BackHeader title={t("home.startTripNow")} onBack={() => navigation.goBack()} />
 
       {loading ? (
         <View style={{ flex: 1, paddingBottom: spacing.md }}>
@@ -180,7 +175,6 @@ export default function UpcomingTripsScreen({ navigation }: any) {
           }
         />
       )}
-      <AppBottomNav navigation={navigation} profile={profile} active="menu" />
     </SafeAreaView>
   );
 }
@@ -188,7 +182,7 @@ export default function UpcomingTripsScreen({ navigation }: any) {
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.bg },
   card: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: radius.md, padding: spacing.md },
-  sectionHeader: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: spacing.sm, paddingHorizontal: 2 },
+  sectionHeader: { flexDirection: "row", alignItems: "center", gap: spacing.sm, marginBottom: spacing.sm, paddingHorizontal: 2 },
   sectionTitle: { ...typography.title, fontSize: 13, color: colors.accentText },
   sectionSubtitle: { ...typography.small, color: colors.textMuted, marginTop: 1 },
   rowBetween: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginTop: spacing.xs },

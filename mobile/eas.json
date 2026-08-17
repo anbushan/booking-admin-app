@@ -1,6 +1,7 @@
 {
   "cli": {
-    "version": ">= 5.9.3"
+    "version": ">= 5.9.3",
+    "appVersionSource": "remote"
   },
   "build": {
     "base": {
@@ -22,7 +23,8 @@
       }
     },
     "production": {
-      "extends": "base"
+      "extends": "base",
+      "autoIncrement": true
     }
   },
   "submit": {

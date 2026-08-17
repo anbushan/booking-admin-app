@@ -37,7 +37,7 @@ const styles = StyleSheet.create({
     width: 64, height: 64, borderRadius: 32, backgroundColor: colors.dangerBg,
     alignItems: "center", justifyContent: "center", marginBottom: spacing.lg,
   },
-  title: { ...typography.title, fontSize: 18, textAlign: "center" },
+  title: { ...typography.titleCompact, textAlign: "center" },
   subtitle: { ...typography.small, color: colors.textMuted, textAlign: "center", marginTop: spacing.sm, marginBottom: spacing.xl, maxWidth: 280, lineHeight: 18 },
   button: {
     flexDirection: "row", gap: spacing.xs,

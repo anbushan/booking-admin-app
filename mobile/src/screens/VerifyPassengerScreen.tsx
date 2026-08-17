@@ -282,9 +282,11 @@ export default function VerifyPassengerScreen({ navigation }: any) {
         setOtpSentLocally(false);
         showSuccess(t("verification.aadhaarConfirmedToast"));
       } else {
-        // Failed OTP/e-KYC attempt — back to the Aadhaar-number step;
-        // no reset/re-payment needed, the backend allows retrying
-        // send-otp on anything short of an already-VERIFIED record.
+        // Failed OTP/e-KYC attempt — this payment already spent its one
+        // covered attempt (see verification.routes.js), so this does
+        // NOT go back to a free retry. The FAILED-status render branch
+        // below now shows a reset-and-pay-again prompt instead of the
+        // plain Aadhaar-number form.
         setOtpSentLocally(false);
         setOtp("");
         showAlert(t("verification.couldntVerify"), res.error || t("verification.aadhaarFailed"));
@@ -424,22 +426,34 @@ export default function VerifyPassengerScreen({ navigation }: any) {
                 <Pressable style={styles.button} onPress={handleVerifyOtp} disabled={verifyingOtp}>
                   <Text style={styles.buttonText}>{verifyingOtp ? t("verification.verifyingOtp") : t("verification.verifyOtp")}</Text>
                 </Pressable>
-                <Pressable
-                  style={styles.linkButton}
-                  onPress={() => { setOtpSentLocally(false); setOtp(""); setOtpError(""); }}
-                  disabled={verifyingOtp}
-                >
-                  <Text style={styles.linkButtonText}>{t("verification.changeAadhaarNumber")}</Text>
+                {/* This now goes through the same reset-and-pay-again
+                    flow as a FAILED/VERIFIED retry — the payment
+                    already covers exactly one Aadhaar+OTP attempt (see
+                    verification.routes.js), so switching to a different
+                    number mid-attempt needs a fresh one too, not just a
+                    local form reset. */}
+                <Pressable style={styles.linkButton} onPress={handleReset} disabled={verifyingOtp || resetting}>
+                  <Text style={styles.linkButtonText}>{resetting ? t("verification.resetting") : t("verification.changeAadhaarNumber")}</Text>
+                </Pressable>
+              </>
+            ) : passengerVerification?.aadhaarStatus === "FAILED" ? (
+              // This payment already spent its one covered attempt (see
+              // verification.routes.js's send-otp gate) — retyping the
+              // number and tapping "Send OTP" here would now just fail
+              // server-side, so the only real option is reset + pay
+              // again, same flow as an already-VERIFIED "verify again."
+              <>
+                <View style={styles.failedRow}>
+                  <Ionicons name="close-circle" size={18} color={colors.danger} />
+                  <Text style={styles.failedText}>{t("verification.aadhaarFailed")}</Text>
+                </View>
+                <Text style={styles.cardHint}>{t("verification.aadhaarFailedRetryHint")}</Text>
+                <Pressable style={styles.button} onPress={handleReset} disabled={resetting}>
+                  <Text style={styles.buttonText}>{resetting ? t("verification.resetting") : t("verification.resetAndPayAgain")}</Text>
                 </Pressable>
               </>
             ) : (
               <>
-                {passengerVerification?.aadhaarStatus === "FAILED" && (
-                  <View style={styles.failedRow}>
-                    <Ionicons name="close-circle" size={18} color={colors.danger} />
-                    <Text style={styles.failedText}>{t("verification.aadhaarFailed")}</Text>
-                  </View>
-                )}
                 <Text style={styles.label}>{t("verification.aadhaarNumber")}</Text>
                 <TextInput
                   style={[styles.input, aadhaarError && styles.inputError]}
@@ -495,7 +509,7 @@ const styles = StyleSheet.create({
   downloadButton: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, borderWidth: 1, borderColor: colors.border, height: 40, borderRadius: radius.sm, marginTop: spacing.sm },
   downloadButtonText: { ...typography.caption, color: colors.accentText, fontWeight: "700", fontFamily: FONT.bold },
   previewNote: { ...typography.small, lineHeight: 16 },
-  statusChip: { alignSelf: "flex-start", paddingVertical: 2, paddingHorizontal: 8, borderRadius: 999 },
+  statusChip: { alignSelf: "flex-start", paddingVertical: 2, paddingHorizontal: spacing.sm, borderRadius: 999 },
   statusChipGood: { backgroundColor: colors.successBg },
   statusChipBad: { backgroundColor: colors.dangerBg },
   statusChipText: { ...typography.small, fontWeight: "700", fontFamily: FONT.bold },

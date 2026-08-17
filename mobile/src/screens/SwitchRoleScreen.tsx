@@ -129,13 +129,13 @@ const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.bg },
   body: { padding: spacing.lg, flex: 1, justifyContent: "center" },
   brandIcon: {
-    width: 56, height: 56, borderRadius: 18, backgroundColor: "#FFFFFF", padding: 8,
+    width: 56, height: 56, borderRadius: 18, backgroundColor: "#FFFFFF", padding: spacing.sm,
     borderWidth: 1, borderColor: colors.border,
     alignItems: "center", justifyContent: "center", alignSelf: "center", marginBottom: spacing.md,
   },
   brandIconImage: { width: "100%", height: "100%" },
-  title: { ...typography.title, fontSize: 18, textAlign: "center" },
-  subtitle: { ...typography.small, color: colors.textMuted, textAlign: "center", marginTop: 4, marginBottom: spacing.lg, lineHeight: 18 },
+  title: { ...typography.titleCompact, textAlign: "center" },
+  subtitle: { ...typography.small, color: colors.textMuted, textAlign: "center", marginTop: spacing.xs, marginBottom: spacing.lg, lineHeight: 18 },
   roleRow: { flexDirection: "row", gap: spacing.sm, marginTop: spacing.sm },
   roleCard: {
     flex: 1,

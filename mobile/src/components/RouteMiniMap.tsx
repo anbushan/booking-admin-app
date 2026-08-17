@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useRef, useState } from "react";
 import { View, StyleSheet } from "react-native";
 import MapView, { Marker, Polyline, PROVIDER_GOOGLE } from "react-native-maps";
 import { Ionicons } from "@expo/vector-icons";
@@ -30,6 +30,7 @@ type Props = {
 // as the fallback, means none of the three screens above ever import
 // react-native-maps themselves.
 export function RouteMiniMap({ sourceLat, sourceLng, destLat, destLng, routePolyline, height = 160 }: Props) {
+  const mapRef = useRef<MapView>(null);
   const [showTraffic, setShowTraffic] = useState(false);
   const [showWeather, setShowWeather] = useState(false);
   const midLat = (sourceLat + destLat) / 2;
@@ -37,9 +38,24 @@ export function RouteMiniMap({ sourceLat, sourceLng, destLat, destLng, routePoly
   const weather = useRouteWeather(showWeather, midLat, midLng);
   const coords = routePolyline ? decodePolyline(routePolyline) : [];
 
+  // The naive initialRegion delta below (source/dest midpoint ± a fixed
+  // multiplier) uses the same multiplier for both lat and lng regardless
+  // of this view's actual aspect ratio — a mini map is wide and short
+  // (full card width, ~150-170px tall), so an east-west route and a
+  // north-south route need very different framing to both fit, and the
+  // naive version silently doesn't give either one enough room, cutting
+  // a pin off outside the visible area. fitToCoordinates on layout is
+  // what RouteMapScreen already does for exactly this reason — this was
+  // missing here, which is the actual bug, not just a smaller version of
+  // the same math.
+  const fitCoords = coords.length > 1
+    ? coords
+    : [{ latitude: sourceLat, longitude: sourceLng }, { latitude: destLat, longitude: destLng }];
+
   return (
     <View style={[styles.wrap, { height }]}>
       <MapView
+        ref={mapRef}
         style={styles.map}
         provider={PROVIDER_GOOGLE}
         showsTraffic={showTraffic}
@@ -49,6 +65,10 @@ export function RouteMiniMap({ sourceLat, sourceLng, destLat, destLng, routePoly
           latitudeDelta: Math.max(Math.abs(sourceLat - destLat) * 1.6, 0.03),
           longitudeDelta: Math.max(Math.abs(sourceLng - destLng) * 1.6, 0.03),
         }}
+        onLayout={() => mapRef.current?.fitToCoordinates(fitCoords, {
+          edgePadding: { top: 28, right: 28, bottom: 28, left: 28 },
+          animated: false,
+        })}
       >
         {coords.length > 1 && <Polyline coordinates={coords} strokeColor={colors.accent} strokeWidth={4} />}
         <Marker coordinate={{ latitude: sourceLat, longitude: sourceLng }} anchor={{ x: 0.5, y: 0.5 }}>
@@ -65,9 +85,10 @@ export function RouteMiniMap({ sourceLat, sourceLng, destLat, destLng, routePoly
         showTraffic={showTraffic}
         onToggleTraffic={() => setShowTraffic((v) => !v)}
         showWeather={showWeather}
-        onToggleWeather={() => setShowWeather((v) => !v)}
+        onToggleWeather={() => (weather.error ? weather.retry() : setShowWeather((v) => !v))}
         weatherLoading={showWeather && weather.loading}
         weatherTempC={weather.tempC}
+        weatherError={showWeather && weather.error}
       />
     </View>
   );

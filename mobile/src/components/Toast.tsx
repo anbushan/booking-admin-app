@@ -54,8 +54,8 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
     >
       {children}
       {toast && (
-        // Wrapped in its own transparent Modal — SideMenu (and any other
-        // overlay in this app) is itself a Modal, which on Android opens
+        // Wrapped in its own transparent Modal — every overlay sheet in
+        // this app is itself a Modal, which on Android opens
         // a separate native window above the whole app; a plain View here
         // only stacks via `elevation`, which can't compete with another
         // window at all. That mismatch was invisible in Expo Go's more

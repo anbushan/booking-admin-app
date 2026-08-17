@@ -49,9 +49,10 @@ export function HowItWorksSheet({ visible, role, onClose }: Props) {
   // Hand-rolled slide-up rather than Modal's own `animationType="slide"`
   // — RN's built-in modal transition is a fixed, non-interruptible
   // animation with no easing control, which is exactly what reads as
-  // "not that smooth" next to a custom-eased one. Same technique as
-  // SideMenu's slide-in: stay mounted through the close animation
-  // (`mounted` state) instead of letting `visible` unmount it instantly.
+  // "not that smooth" next to a custom-eased one. Same technique used
+  // by other hand-rolled slide sheets in this app: stay mounted through
+  // the close animation (`mounted` state) instead of letting `visible`
+  // unmount it instantly.
   const [mounted, setMounted] = useState(visible);
   const translateY = useRef(new Animated.Value(OFFSCREEN_Y)).current;
   const backdropOpacity = useRef(new Animated.Value(0)).current;

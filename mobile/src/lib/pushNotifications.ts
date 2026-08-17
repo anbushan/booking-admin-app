@@ -11,7 +11,10 @@ import { api } from "./api";
 // push testing needs a dev client or standalone build either way), so
 // the right move is detecting it and skipping the attempt quietly
 // rather than letting the error surface as if something's wrong.
-const isExpoGo = Constants.executionEnvironment === ExecutionEnvironment.StoreClient;
+// Exported — the same restriction hits ANY expo-notifications call in
+// Expo Go on Android SDK 53+, not just remote push, so tripNotification.ts
+// (a purely local/scheduled notification) needs this same guard too.
+export const isExpoGo = Constants.executionEnvironment === ExecutionEnvironment.StoreClient;
 
 // Persists across logout/login — this is what actually stops the OS
 // permission dialog from reappearing. requestPermissionsAsync() is

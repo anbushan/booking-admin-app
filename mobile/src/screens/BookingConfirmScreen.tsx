@@ -248,17 +248,6 @@ export default function BookingConfirmScreen({ route, navigation }: any) {
                 destAddress={ride.destAddress}
               />
             )}
-            <Pressable
-              style={styles.mapLinkButton}
-              onPress={() => navigation.navigate("RouteMap", {
-                sourceLat: ride.sourceLat, sourceLng: ride.sourceLng, sourceAddress: ride.sourceAddress,
-                destLat: ride.destLat, destLng: ride.destLng, destAddress: ride.destAddress,
-                routePolyline: ride.routePolyline,
-              })}
-            >
-              <Ionicons name="map-outline" size={14} color={colors.accentText} />
-              <Text style={styles.mapLinkText}>{t("routeMap.viewInMap")}</Text>
-            </Pressable>
           </View>
 
           <View style={styles.sectionCard}>
@@ -383,12 +372,12 @@ const styles = StyleSheet.create({
   driverRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm, marginTop: spacing.md, paddingTop: spacing.md, borderTopWidth: 1, borderTopColor: colors.border },
   driverName: { ...typography.caption, color: colors.textSecondary, fontWeight: "700", fontFamily: FONT.bold },
   driverRatingRow: { flexDirection: "row", alignItems: "center", gap: 3 },
-  badgeRow: { flexDirection: "row", gap: 6, marginTop: 4 },
+  badgeRow: { flexDirection: "row", gap: 6, marginTop: spacing.xs },
   preferencesRow: { marginTop: spacing.sm, paddingTop: spacing.sm, borderTopWidth: 1, borderTopColor: colors.border },
   reviewsWrap: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: radius.md, padding: spacing.md },
   reviewsHeaderRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
-  reviewsTitle: { ...typography.caption, color: colors.textSecondary, fontWeight: "700" },
-  reviewsSeeAll: { ...typography.small, color: colors.accentText, fontWeight: "700" },
+  reviewsTitle: { ...typography.caption, color: colors.textSecondary, fontWeight: "700", fontFamily: FONT.bold },
+  reviewsSeeAll: { ...typography.small, color: colors.accentText, fontWeight: "700", fontFamily: FONT.bold },
   reviewCard: { backgroundColor: colors.bg, borderWidth: 1, borderColor: colors.border, borderRadius: radius.sm, padding: spacing.sm, marginTop: spacing.xs },
   reviewStars: { color: colors.marigold, fontSize: 12 },
   reviewComment: { ...typography.caption, marginTop: 3, color: colors.textPrimary },
@@ -396,8 +385,6 @@ const styles = StyleSheet.create({
   timelineCard: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: radius.md, padding: spacing.md },
   sectionCard: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: radius.md, padding: spacing.md },
   miniMapWrap: { marginBottom: spacing.sm },
-  mapLinkButton: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, borderWidth: 1, borderColor: colors.border, height: 38, borderRadius: radius.sm, marginTop: spacing.sm },
-  mapLinkText: { ...typography.caption, color: colors.accentText, fontWeight: "700", fontFamily: FONT.bold },
   row: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -406,7 +393,7 @@ const styles = StyleSheet.create({
   labelRow: { flexDirection: "row", alignItems: "center", gap: 6 },
   label: { ...typography.caption, color: colors.textSecondary },
   value: { ...typography.title, fontVariant: ["tabular-nums"] },
-  availabilityHint: { ...typography.small, color: colors.textMuted, marginTop: 4 },
+  availabilityHint: { ...typography.small, color: colors.textMuted, marginTop: spacing.xs },
   stepper: { flexDirection: "row", alignItems: "center", gap: spacing.md },
   stepperButton: {
     width: 32,
@@ -444,7 +431,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg, paddingTop: spacing.sm, paddingBottom: spacing.md,
   },
   footerLabel: { ...typography.small, color: colors.textMuted },
-  footerAmount: { ...typography.title, fontSize: 18, fontVariant: ["tabular-nums"] },
+  footerAmount: { ...typography.titleCompact, fontVariant: ["tabular-nums"] },
   button: {
     flexDirection: "row",
     gap: spacing.xs,

@@ -9,7 +9,7 @@ import { SkeletonSectionHeader, SkeletonCard } from "../components/Skeleton";
 import { EmptyState } from "../components/EmptyState";
 import { ErrorState } from "../components/ErrorState";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { AppBottomNav } from "../components/AppBottomNav";
+import { BackHeader } from "../components/BackHeader";
 import { CompactStepTracker } from "../components/CompactStepTracker";
 import { bookingJourneySteps } from "../components/StepTracker";
 import { groupByRide } from "../lib/groupByRide";
@@ -52,14 +52,9 @@ export default function PaymentQueueScreen({ navigation }: any) {
   useScreenView("PaymentQueueScreen");
   const { t } = useTranslation();
   const [bookings, setBookings] = useState<QueuedBooking[]>([]);
-  const [profile, setProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(false);
-
-  useEffect(() => {
-    api.getMyProfile().then(setProfile).catch(() => {});
-  }, []);
 
   function load(isRefresh = false) {
     if (isRefresh) setRefreshing(true);
@@ -88,8 +83,8 @@ export default function PaymentQueueScreen({ navigation }: any) {
   const sections = groupByRide(bookings);
 
   return (
-    <SafeAreaView style={styles.screen} edges={["top"]}>
-      <Text style={{ ...typography.title, padding: spacing.lg, paddingBottom: spacing.sm }}>{t("payment.queueTitle")}</Text>
+    <SafeAreaView style={styles.screen} edges={["top", "bottom"]}>
+      <BackHeader title={t("payment.queueTitle")} onBack={() => navigation.goBack()} />
 
       {loading ? (
         <View style={{ flex: 1, paddingBottom: spacing.md }}>
@@ -173,7 +168,6 @@ export default function PaymentQueueScreen({ navigation }: any) {
           }
         />
       )}
-      <AppBottomNav navigation={navigation} profile={profile} active="menu" />
     </SafeAreaView>
   );
 }
@@ -182,7 +176,7 @@ const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.bg },
   notice: { flexDirection: "row", gap: spacing.sm, alignItems: "flex-start", backgroundColor: colors.accentBg, borderRadius: radius.sm, padding: spacing.md, marginBottom: spacing.xs },
   noticeText: { ...typography.small, color: colors.accentText, flex: 1, lineHeight: 17 },
-  sectionHeader: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: spacing.sm, paddingHorizontal: 2 },
+  sectionHeader: { flexDirection: "row", alignItems: "center", gap: spacing.sm, marginBottom: spacing.sm, paddingHorizontal: 2 },
   sectionTitle: { ...typography.title, fontSize: 13, color: colors.accentText },
   sectionSubtitle: { ...typography.small, color: colors.textMuted, marginTop: 1 },
   card: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: radius.md, padding: spacing.md, gap: spacing.xs },
@@ -190,7 +184,7 @@ const styles = StyleSheet.create({
   meta: { ...typography.small, color: colors.textMuted },
   fee: { ...typography.caption, fontWeight: "700", fontFamily: FONT.bold, color: colors.textPrimary },
   trackerBlock: { paddingVertical: spacing.xs },
-  statusRow: { flexDirection: "row", alignItems: "center", gap: 4 },
+  statusRow: { flexDirection: "row", alignItems: "center", gap: spacing.xs },
   status: { ...typography.small, color: colors.warning, backgroundColor: colors.warningBg, paddingVertical: 2, paddingHorizontal: 6, borderRadius: 6 },
   countdown: { ...typography.small, color: colors.textMuted },
 });

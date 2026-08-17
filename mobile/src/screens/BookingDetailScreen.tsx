@@ -206,7 +206,6 @@ export default function BookingDetailScreen({ route, navigation }: any) {
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.bg },
   header: { flexDirection: "row", alignItems: "center", gap: spacing.md, padding: spacing.lg, borderBottomWidth: 1, borderBottomColor: colors.border, backgroundColor: colors.surface },
-  back: { fontSize: 18 },
   title: typography.title,
   body: { padding: spacing.lg },
   route: { ...typography.title, fontSize: 15 },
@@ -214,7 +213,7 @@ const styles = StyleSheet.create({
   card: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: radius.md, padding: spacing.md },
   row: { flexDirection: "row", justifyContent: "space-between", paddingVertical: spacing.sm, borderBottomWidth: 1, borderBottomColor: colors.border },
   label: { ...typography.caption, color: colors.textSecondary },
-  valueRow: { flexDirection: "row", alignItems: "center", gap: 4 },
+  valueRow: { flexDirection: "row", alignItems: "center", gap: spacing.xs },
   value: typography.body,
   actionButton: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, height: 44, borderRadius: radius.sm, alignItems: "center", justifyContent: "center", marginTop: spacing.md },
   actionButtonText: { ...typography.body, color: colors.accentText },

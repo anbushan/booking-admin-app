@@ -20,6 +20,17 @@ type Bundle = Record<string, string>;
 const BUNDLED: Record<string, Bundle> = { en, hi, ta, kn, mr, bn };
 const FALLBACK_LOCALE = "en";
 const LOCALE_STORAGE_KEY = "locale";
+// The live i18n fetch below is already non-blocking (bundled copy
+// renders first), but with no cache it still re-hit the network on
+// every single app launch for content that, in practice, changes rarely
+// — an admin fixing a typo, not something users' hit patterns need
+// checked every open. 24h means at most one fetch per locale per day
+// instead of one per launch, while still catching up on a real edit
+// within a day without needing a build.
+const REMOTE_CACHE_MS = 24 * 60 * 60 * 1000;
+function remoteCacheKey(loc: string) {
+  return `i18n:remote:${loc}`;
+}
 
 type I18nContextValue = {
   locale: string;
@@ -55,6 +66,22 @@ export function I18nProvider({ children }: { children: React.ReactNode }) {
     // least as complete as whatever shipped with this build.
     setLocaleState(loc);
     setBundle(BUNDLED[loc] || BUNDLED[FALLBACK_LOCALE]);
+    // A cached remote copy from within the last 24h skips the network
+    // call entirely — still merged over the bundled copy the same way a
+    // fresh fetch below would be.
+    try {
+      const cachedRaw = await AsyncStorage.getItem(remoteCacheKey(loc));
+      if (cachedRaw) {
+        const cached = JSON.parse(cachedRaw);
+        if (Date.now() - cached.cachedAt < REMOTE_CACHE_MS) {
+          setBundle((prev) => ({ ...(BUNDLED[loc] || BUNDLED[FALLBACK_LOCALE]), ...cached.data }));
+          return;
+        }
+      }
+    } catch {
+      // Corrupt/unreadable cache entry — fall through to a live fetch.
+    }
+
     // Then a live fetch on top — picks up any translation added/fixed
     // server-side after this build shipped, without an app update.
     // Merged over the bundled copy (not replacing it) so a key the
@@ -72,6 +99,7 @@ export function I18nProvider({ children }: { children: React.ReactNode }) {
       if (!res.ok) return;
       const remote = await res.json();
       setBundle((prev) => ({ ...(BUNDLED[loc] || BUNDLED[FALLBACK_LOCALE]), ...remote }));
+      AsyncStorage.setItem(remoteCacheKey(loc), JSON.stringify({ data: remote, cachedAt: Date.now() })).catch(() => {});
     } catch {
       // Offline or the request failed — the bundled copy set above already stands.
     }

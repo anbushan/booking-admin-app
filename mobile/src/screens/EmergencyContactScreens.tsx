@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useState } from "react";
 import { View, Text, TextInput, FlatList, StyleSheet, RefreshControl } from "react-native";
 import { Pressable } from "../components/Pressable";
 import { Ionicons } from "@expo/vector-icons";
@@ -14,7 +14,7 @@ import { Analytics } from "../lib/analytics";
 import { validateEmergencyContact } from "../lib/validators";
 import { FieldError } from "../components/FieldError";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { AppBottomNav } from "../components/AppBottomNav";
+import { BackHeader } from "../components/BackHeader";
 import { KeyboardAvoider } from "../components/KeyboardAvoider";
 import { useScreenView } from "../lib/useScreenView";
 import { useTranslation } from "../lib/i18n/I18nContext";
@@ -25,15 +25,10 @@ export function EmergencyContactsScreen({ navigation }: any) {
   useScreenView("EmergencyContactsScreen");
   const { t } = useTranslation();
   const [contacts, setContacts] = useState<Contact[]>([]);
-  const [profile, setProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(false);
   const { showSuccess, showError } = useToast();
-
-  useEffect(() => {
-    api.getMyProfile().then(setProfile).catch(() => {});
-  }, []);
 
   function load(isRefresh = false) {
     if (isRefresh) setRefreshing(true);
@@ -58,8 +53,8 @@ export function EmergencyContactsScreen({ navigation }: any) {
   }
 
   return (
-    <SafeAreaView style={styles.screen} edges={["top"]}>
-      <Text style={{ ...typography.title, padding: spacing.lg, paddingBottom: spacing.sm }}>{t("emergencyContacts.title")}</Text>
+    <SafeAreaView style={styles.screen} edges={["top", "bottom"]}>
+      <BackHeader title={t("emergencyContacts.title")} onBack={() => navigation.goBack()} />
 
       {loading ? (
         <SkeletonList count={3} />
@@ -98,7 +93,6 @@ export function EmergencyContactsScreen({ navigation }: any) {
       <Pressable style={styles.addButton} onPress={() => navigation.navigate("AddEmergencyContact")}>
         <Text style={styles.addButtonText}>{t("emergencyContacts.addContact")}</Text>
       </Pressable>
-      <AppBottomNav navigation={navigation} profile={profile} active="menu" />
     </SafeAreaView>
   );
 }
@@ -133,14 +127,12 @@ export function AddEmergencyContactScreen({ navigation }: any) {
   }
 
   return (
-    // "bottom" included here, unlike the list screen above — that one
-    // renders AppBottomNav, which pads for the device's own bottom
-    // inset itself; this is a pushed sub-screen with no bottom nav to
-    // do that, so without this the "Save contact" button had nothing
-    // protecting it from the gesture bar/nav buttons on a device with
-    // tight bottom insets.
+    // "bottom" included — no bottom nav here to pad for the device's
+    // own inset itself, so without this the "Save contact" button had
+    // nothing protecting it from the gesture bar/nav buttons on a
+    // device with tight bottom insets.
     <SafeAreaView style={styles.screen} edges={["top", "bottom"]}>
-      <Text style={{ ...typography.title, padding: spacing.lg, paddingBottom: spacing.sm }}>{t("emergencyContacts.addTitle")}</Text>
+      <BackHeader title={t("emergencyContacts.addTitle")} onBack={() => navigation.goBack()} />
 
       <KeyboardAvoider>
       <View style={styles.body}>
@@ -201,7 +193,6 @@ const styles = StyleSheet.create({
     borderBottomColor: colors.border,
     backgroundColor: colors.surface,
   },
-  back: { fontSize: 18 },
   title: typography.title,
   body: { padding: spacing.lg, gap: spacing.sm },
   row: {

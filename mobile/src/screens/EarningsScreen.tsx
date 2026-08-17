@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useCallback } from "react";
 import { View, Text, FlatList, StyleSheet, RefreshControl } from "react-native";
 import { Pressable } from "../components/Pressable";
 import { useFocusEffect } from "@react-navigation/native";
@@ -10,7 +10,7 @@ import { EmptyState } from "../components/EmptyState";
 import { ErrorState } from "../components/ErrorState";
 import { useToast } from "../components/Toast";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { AppBottomNav } from "../components/AppBottomNav";
+import { BackHeader } from "../components/BackHeader";
 import { useScreenView } from "../lib/useScreenView";
 import { useTranslation } from "../lib/i18n/I18nContext";
 
@@ -44,15 +44,10 @@ export default function EarningsScreen({ navigation }: any) {
   useScreenView("EarningsScreen");
   const { t } = useTranslation();
   const [data, setData] = useState<Earnings | null>(null);
-  const [profile, setProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(false);
   const { showError } = useToast();
-
-  useEffect(() => {
-    api.getMyProfile().then(setProfile).catch(() => {});
-  }, []);
 
   function load(isRefresh = false) {
     if (isRefresh) setRefreshing(true);
@@ -73,8 +68,8 @@ export default function EarningsScreen({ navigation }: any) {
   }
 
   return (
-    <SafeAreaView style={styles.screen} edges={["top"]}>
-      <Text style={{ ...typography.title, padding: spacing.lg, paddingBottom: spacing.sm }}>{t("home.earnings")}</Text>
+    <SafeAreaView style={styles.screen} edges={["top", "bottom"]}>
+      <BackHeader title={t("home.earnings")} onBack={() => navigation.goBack()} />
 
       {loading ? (
         <View style={{ flex: 1 }}>
@@ -203,7 +198,6 @@ export default function EarningsScreen({ navigation }: any) {
           />
         </>
       )}
-      <AppBottomNav navigation={navigation} profile={profile} active="menu" />
     </SafeAreaView>
   );
 }
@@ -227,14 +221,14 @@ const styles = StyleSheet.create({
   sectionLabel: { ...typography.title, fontSize: 13, marginHorizontal: spacing.lg, marginTop: spacing.lg, marginBottom: spacing.xs },
   tripRow: { flexDirection: "row", gap: spacing.sm, paddingVertical: spacing.sm, borderBottomWidth: 1, borderBottomColor: colors.border },
   tripTopRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: spacing.xs },
-  tripBottomRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: spacing.xs, marginTop: 4 },
+  tripBottomRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: spacing.xs, marginTop: spacing.xs },
   tripIconWrap: { width: 30, height: 30, borderRadius: 10, backgroundColor: colors.bg, alignItems: "center", justifyContent: "center", marginTop: 2 },
   tripRoute: { ...typography.caption, fontWeight: "700", fontFamily: FONT.bold, flex: 1 },
   tripDate: { ...typography.small, color: colors.textMuted },
   tripPassenger: { ...typography.small, color: colors.textMuted, marginTop: 1 },
-  collectedChip: { flexDirection: "row", alignItems: "center", gap: 4, backgroundColor: colors.successBg, paddingVertical: 3, paddingHorizontal: 8, borderRadius: 999 },
+  collectedChip: { flexDirection: "row", alignItems: "center", gap: spacing.xs, backgroundColor: colors.successBg, paddingVertical: 3, paddingHorizontal: spacing.sm, borderRadius: 999 },
   collectedText: { ...typography.small, color: colors.success, fontWeight: "700", fontFamily: FONT.bold },
-  collectChip: { flexDirection: "row", alignItems: "center", gap: 4, backgroundColor: colors.warningBg, paddingVertical: 3, paddingHorizontal: 8, borderRadius: 999 },
+  collectChip: { flexDirection: "row", alignItems: "center", gap: spacing.xs, backgroundColor: colors.warningBg, paddingVertical: 3, paddingHorizontal: spacing.sm, borderRadius: 999 },
   collectChipText: { ...typography.small, color: colors.warning, fontWeight: "700", fontFamily: FONT.bold },
   rateLink: { ...typography.small, color: colors.accentText, fontWeight: "700", fontFamily: FONT.bold },
 });

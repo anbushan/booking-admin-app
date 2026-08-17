@@ -29,13 +29,12 @@ type RouteOption = { summary: string; polyline: string; distanceKm: number; dura
 // picking a route to publish, not a screen you'd expect to detour away
 // from first.
 function RouteOptionCard({
-  item, rideForm, publishing, onSelectRoute, navigation, t,
+  item, rideForm, publishing, onSelectRoute, t,
 }: {
   item: RouteOption;
   rideForm: any;
   publishing: boolean;
   onSelectRoute: (alt: RouteOption) => void;
-  navigation: any;
   t: (key: string, params?: any) => string;
 }) {
   return (
@@ -53,17 +52,6 @@ function RouteOptionCard({
       />
 
       <RouteStopsList stops={item.stops} departAt={rideForm.travelDate} />
-      <Pressable
-        style={styles.mapLinkButton}
-        onPress={() => navigation.navigate("RouteMap", {
-          sourceLat: rideForm.sourceLat, sourceLng: rideForm.sourceLng, sourceAddress: rideForm.sourceAddress,
-          destLat: rideForm.destLat, destLng: rideForm.destLng, destAddress: rideForm.destAddress,
-          routePolyline: item.polyline,
-        })}
-      >
-        <Ionicons name="expand-outline" size={14} color={colors.accentText} />
-        <Text style={styles.mapLinkText}>{t("routeMap.viewInMap")}</Text>
-      </Pressable>
       <Pressable style={styles.button} onPress={() => onSelectRoute(item)} disabled={publishing}>
         <Text style={styles.buttonText}>{publishing ? t("routeOptions.publishing") : t("routeOptions.publishThisRoute")}</Text>
       </Pressable>
@@ -183,7 +171,6 @@ export default function RouteOptionsScreen({ route, navigation }: any) {
               rideForm={rideForm}
               publishing={publishing}
               onSelectRoute={selectRoute}
-              navigation={navigation}
               t={t}
             />
           )}
@@ -196,7 +183,6 @@ export default function RouteOptionsScreen({ route, navigation }: any) {
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.bg },
   header: { flexDirection: "row", alignItems: "center", gap: spacing.md, padding: spacing.lg, borderBottomWidth: 1, borderBottomColor: colors.border, backgroundColor: colors.surface },
-  back: { fontSize: 18 },
   title: typography.title,
   centerState: { flex: 1, alignItems: "center", justifyContent: "center", padding: spacing.lg, gap: spacing.md },
   emptyTitle: { ...typography.title, textAlign: "center" },
@@ -206,6 +192,4 @@ const styles = StyleSheet.create({
   meta: { ...typography.small, color: colors.textMuted },
   button: { backgroundColor: colors.textPrimary, height: 44, borderRadius: radius.sm, alignItems: "center", justifyContent: "center", marginTop: spacing.xs },
   buttonText: { ...typography.body, color: "#FFFFFF", fontWeight: "700", fontFamily: FONT.bold },
-  mapLinkButton: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, borderWidth: 1, borderColor: colors.border, height: 38, borderRadius: radius.sm },
-  mapLinkText: { ...typography.caption, color: colors.accentText, fontWeight: "700", fontFamily: FONT.bold },
 });

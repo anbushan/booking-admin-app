@@ -373,7 +373,7 @@ const styles = StyleSheet.create({
   bubbleText: { ...typography.caption, color: colors.textPrimary },
   timeText: { ...typography.small, color: colors.textMuted, fontSize: 10, marginTop: 2, alignSelf: "flex-end" },
   locationBubble: { minWidth: 160 },
-  imageBubble: { padding: 4 },
+  imageBubble: { padding: spacing.xs },
   imageContent: { width: 200, height: 200, borderRadius: radius.sm - 2 },
   imageFallback: { alignItems: "center", justifyContent: "center", backgroundColor: colors.bg },
   locationRow: { flexDirection: "row", alignItems: "center", gap: 5 },

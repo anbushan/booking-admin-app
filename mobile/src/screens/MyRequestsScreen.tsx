@@ -110,7 +110,7 @@ export default function MyRequestsScreen({ navigation }: any) {
               <Pressable style={styles.card} onPress={() => navigation.navigate("BookingDetail", { bookingId: item.id })}>
                 <Text style={styles.route}>{t("common.routeTo", { source: item.ride?.sourceAddress, dest: item.ride?.destAddress })}</Text>
                 <View style={styles.rowBetween}>
-                  <View style={{ flexDirection: "row", alignItems: "center", gap: 4, flexShrink: 1 }}>
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: spacing.xs, flexShrink: 1 }}>
                     <Text style={styles.meta} numberOfLines={1}>
                       {item.ride?.driver?.name || t("register.driver")} · {t("common.seatsCount", { count: item.seatsBooked })}
                     </Text>

@@ -84,4 +84,6 @@ export const Analytics = {
   appShared: () => logEvent("app_shared"),
   driverVerificationPaid: () => logEvent("driver_verification_paid"),
   driverVerificationChecked: () => logEvent("driver_verification_checked"),
+  referralShared: () => logEvent("referral_shared"),
+  codeRedeemed: (source: "referral" | "promo") => logEvent("code_redeemed", { source }),
 };

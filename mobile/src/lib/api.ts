@@ -51,6 +51,25 @@ async function request(path: string, options: RequestInit = {}) {
   return data;
 }
 
+// getMyProfile() is called from 18+ screens, many of them on every
+// useFocusEffect (every time that screen regains focus, not just once)
+// — hopping Home -> Account -> back to Home re-fetches the exact same
+// name/phone/role/photo three times in a few seconds. This is the only
+// endpoint worth an app-side cache for: it's small, read constantly,
+// and rarely changes. A short TTL (not "forever") is what keeps this
+// safe without needing to reason about every place a profile field
+// could change — invalidateProfileCache() is called explicitly right
+// after the handful of writes that do change it (updateProfile,
+// switchRole, a new photo upload, logout) so those always see fresh
+// data on the very next read; everything else just benefits from not
+// re-fetching what it already just fetched a few seconds ago.
+const PROFILE_CACHE_MS = 30 * 1000;
+let profileCache: { data: any; cachedAt: number } | null = null;
+
+function invalidateProfileCache() {
+  profileCache = null;
+}
+
 export const api = {
   // Public, no auth — checked once at launch (SplashScreen) so a
   // maintenance-mode toggle in admin blocks the app without needing an
@@ -74,7 +93,7 @@ export const api = {
     request("/api/auth/passcode/revoke", { method: "POST" }),
 
   updateProfile: (payload: { name: string; email?: string; role: "PASSENGER" | "DRIVER"; whatsappOptIn?: boolean }) =>
-    request("/api/users/me", { method: "PUT", body: JSON.stringify(payload) }),
+    request("/api/users/me", { method: "PUT", body: JSON.stringify(payload) }).then((res) => { invalidateProfileCache(); return res; }),
 
   // Lets DeleteAccountScreen show exactly what's blocking deletion (if
   // anything) before the user reaches the confirm step.
@@ -85,7 +104,7 @@ export const api = {
   // Switches which profile is active on this phone number, or sets up
   // the other one for the first time — see users.routes.js PUT /me/role.
   switchRole: (role: "PASSENGER" | "DRIVER") =>
-    request("/api/users/me/role", { method: "PUT", body: JSON.stringify({ role }) }),
+    request("/api/users/me/role", { method: "PUT", body: JSON.stringify({ role }) }).then((res) => { invalidateProfileCache(); return res; }),
 
   addVehicle: (payload: {
     make: string; model: string; regNumber: string; color?: string; seatCapacity?: number;
@@ -155,8 +174,11 @@ export const api = {
   resetPassengerVerification: () =>
     request("/api/verification/passenger/reset", { method: "POST" }),
 
+  // Writes photoR2Key on the User row eagerly, server-side (see
+  // users.routes.js) — a cached profile would keep showing the old
+  // photoViewUrl without this.
   getProfilePhotoUploadUrl: () =>
-    request("/api/users/me/photo-upload-url", { method: "POST" }),
+    request("/api/users/me/photo-upload-url", { method: "POST" }).then((res) => { invalidateProfileCache(); return res; }),
 
   createRide: (payload: {
     sourceLat: number; sourceLng: number; sourceAddress: string;
@@ -433,10 +455,28 @@ export const api = {
 
   getPublicProfile: (userId: string) => request(`/api/users/${userId}/public`),
 
-  getMyProfile: () => request("/api/users/me"),
+  getMyProfile: () => {
+    if (profileCache && Date.now() - profileCache.cachedAt < PROFILE_CACHE_MS) {
+      return Promise.resolve(profileCache.data);
+    }
+    return request("/api/users/me").then((data) => {
+      profileCache = { data, cachedAt: Date.now() };
+      return data;
+    });
+  },
 
   getDocumentUploadUrl: (docType: string) =>
     request("/api/documents/upload-url", { method: "POST", body: JSON.stringify({ docType }) }),
+
+  // Refer-a-friend + first-ride promo codes — both just grant a UserCredit,
+  // spent automatically (see backend's lib/credits.js) the next time a
+  // platform fee is charged. getReferralInfo also lazily creates this
+  // user's own shareable code on first call.
+  getReferralInfo: () => request("/api/referrals/me"),
+  redeemReferralCode: (code: string) =>
+    request("/api/referrals/redeem", { method: "POST", body: JSON.stringify({ code }) }),
+  redeemPromoCode: (code: string) =>
+    request("/api/promo-codes/redeem", { method: "POST", body: JSON.stringify({ code }) }),
 };
 
 export async function setAuthToken(token: string) {
@@ -451,12 +491,13 @@ export async function logout() {
   } catch {
     // Ignore — logging out should never get blocked by a network call.
   }
-  // Both call sites (SettingsScreens, SideMenu) already call
+  // Both call sites (SettingsScreens, AccountScreen) already call
   // Analytics.logout() right after this — clearing the error-tracking
   // user here, once, means neither has to remember to also do it, and a
   // crash after logout (e.g. on the PhoneEntry screen it lands back on)
   // doesn't get misattributed to whoever was just signed out.
   setErrorTrackingUser(null);
+  invalidateProfileCache();
   await AsyncStorage.removeItem("authToken");
   // A signed-out device shouldn't keep offering a long-press-app-icon
   // shortcut into a screen that'll just bounce back to login anyway.

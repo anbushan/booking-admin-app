@@ -267,7 +267,7 @@ const styles = StyleSheet.create({
   phaseStep: { alignItems: "center", width: 76 },
   phaseDot: { width: 20, height: 20, borderRadius: 10, backgroundColor: colors.border, alignItems: "center", justifyContent: "center" },
   phaseDotActive: { backgroundColor: colors.accent },
-  phaseLabel: { ...typography.small, color: colors.textMuted, marginTop: 4, textAlign: "center" },
+  phaseLabel: { ...typography.small, color: colors.textMuted, marginTop: spacing.xs, textAlign: "center" },
   phaseLabelActive: { color: colors.accentText, fontWeight: "700", fontFamily: FONT.bold },
   phaseConnector: { flex: 1, height: 2, backgroundColor: colors.border, marginTop: 9 },
   phaseConnectorActive: { backgroundColor: colors.accent },
