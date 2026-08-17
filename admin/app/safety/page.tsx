@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { KeyRound, ShieldCheck, Car, Star, MessageCircle, Wallet, AlertTriangle, PhoneCall, Share2 } from "lucide-react";
 import { MarketingShell } from "../../components/MarketingShell";
+import { FloatingIconCluster } from "../../components/marketing/FloatingIconCluster";
 import { SITE_URL, BRAND_NAME } from "../../lib/siteContent";
 
 const TITLE = "Safety";
@@ -76,12 +77,17 @@ export default function SafetyPage() {
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
 
       <section className="mkt-section-tight">
-        <span className="mkt-eyebrow">Safety, in detail</span>
-        <h1 className="mkt-h1" style={{ fontSize: "clamp(28px, 4vw, 40px)" }}>Trust that doesn't rely on luck</h1>
-        <p className="mkt-lede" style={{ maxWidth: "none" }}>
-          None of this is a settings toggle you have to remember to turn on. It's built into the shape of the
-          booking flow itself, so it's there whether or not anyone's thinking about it in the moment.
-        </p>
+        <div className="mkt-hero-with-icons">
+          <div>
+            <span className="mkt-eyebrow">Safety, in detail</span>
+            <h1 className="mkt-h1" style={{ fontSize: "clamp(28px, 4vw, 40px)" }}>Trust that doesn't rely on luck</h1>
+            <p className="mkt-lede" style={{ maxWidth: "none" }}>
+              None of this is a settings toggle you have to remember to turn on. It's built into the shape of the
+              booking flow itself, so it's there whether or not anyone's thinking about it in the moment.
+            </p>
+          </div>
+          <FloatingIconCluster icons={[ShieldCheck, KeyRound, AlertTriangle]} />
+        </div>
       </section>
 
       <section className="mkt-section">

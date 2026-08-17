@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Heart, ShieldCheck, Wallet, Users } from "lucide-react";
 import { MarketingShell } from "../../components/MarketingShell";
+import { FloatingIconCluster } from "../../components/marketing/FloatingIconCluster";
 import { SITE_URL, BRAND_NAME, BRAND_TAGLINE } from "../../lib/siteContent";
 
 const TITLE = "About us";
@@ -36,21 +37,26 @@ export default function AboutPage() {
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
 
       <section className="mkt-section-tight">
-        <span className="mkt-eyebrow">About {BRAND_NAME}</span>
-        <h1 className="mkt-h1" style={{ fontSize: "clamp(28px, 4vw, 40px)" }}>{BRAND_TAGLINE}</h1>
-        <p className="mkt-lede" style={{ maxWidth: "none" }}>
-          Most ride apps in India are taxi apps wearing a different name — the driver is still working, the fare
-          is still a commercial rate, and the "sharing" is just marketing copy. {BRAND_NAME} is trying to build
-          the thing carpooling actually promises: two people who were already going the same way, splitting a
-          real cost, with the trust and safety pieces that make that comfortable for both sides.
-        </p>
-        <p className="mkt-lede" style={{ maxWidth: "none", marginTop: 16 }}>
-          "Dosti" means friendship — the idea being that a shared ride works best when it feels closer to
-          getting a lift from someone you know than to hailing a stranger. That shapes what we actually built:
-          who you're riding with is visible before you ever meet, a pickup can't be faked, and if something's
-          wrong there's a real safety flow, not just a support ticket after the fact. We're currently live in
-          Chennai and Bengaluru, growing city by city rather than everywhere at once.
-        </p>
+        <div className="mkt-hero-with-icons">
+          <div>
+            <span className="mkt-eyebrow">About {BRAND_NAME}</span>
+            <h1 className="mkt-h1" style={{ fontSize: "clamp(28px, 4vw, 40px)" }}>{BRAND_TAGLINE}</h1>
+            <p className="mkt-lede" style={{ maxWidth: "none" }}>
+              Most ride apps in India are taxi apps wearing a different name — the driver is still working, the fare
+              is still a commercial rate, and the "sharing" is just marketing copy. {BRAND_NAME} is trying to build
+              the thing carpooling actually promises: two people who were already going the same way, splitting a
+              real cost, with the trust and safety pieces that make that comfortable for both sides.
+            </p>
+            <p className="mkt-lede" style={{ maxWidth: "none", marginTop: 16 }}>
+              "Dosti" means friendship — the idea being that a shared ride works best when it feels closer to
+              getting a lift from someone you know than to hailing a stranger. That shapes what we actually built:
+              who you're riding with is visible before you ever meet, a pickup can't be faked, and if something's
+              wrong there's a real safety flow, not just a support ticket after the fact. We're currently live in
+              Chennai and Bengaluru, growing city by city rather than everywhere at once.
+            </p>
+          </div>
+          <FloatingIconCluster icons={[Heart, ShieldCheck, Users]} />
+        </div>
       </section>
 
       <section className="mkt-section">

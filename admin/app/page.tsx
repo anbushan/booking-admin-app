@@ -22,6 +22,8 @@ import {
 } from "lucide-react";
 import { MarketingShell } from "../components/MarketingShell";
 import { JourneyMockup, type MockupKind } from "../components/JourneyMockup";
+import { HeroTilt } from "../components/marketing/HeroTilt";
+import { ScrollReveal3D } from "../components/marketing/ScrollReveal3D";
 import { SITE_URL, BRAND_NAME, BRAND_TAGLINE, STORE_LINKS_READY } from "../lib/siteContent";
 
 // Was: `export default function RootPage() { redirect(getSession() ?
@@ -134,7 +136,13 @@ function JourneySection({ id, eyebrow, heading, lede, steps }: {
               <h3>{step.title}</h3>
               <p>{step.body}</p>
             </div>
-            <JourneyMockup kind={step.mockup} />
+            {/* Staggered per-step delay (each mockup a beat behind the
+                one before it) rather than every mockup in a section
+                popping in at once the moment they cross the same
+                scroll threshold. */}
+            <ScrollReveal3D delayMs={i * 80}>
+              <JourneyMockup kind={step.mockup} />
+            </ScrollReveal3D>
           </div>
         ))}
       </div>
@@ -180,28 +188,33 @@ export default function LandingPage() {
           </div>
 
           <div className="mkt-hero-visual" aria-hidden="true">
-            <div className="mkt-hero-visual-card">
-              <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}>
-                <div style={{ width: 36, height: 36, borderRadius: 10, background: "#E6F1FB", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                  <KeyRound size={18} color="#0C447C" />
-                </div>
-                <div>
-                  <div style={{ fontSize: 13, fontWeight: 700, color: "#1A1A18" }}>Pickup code</div>
-                  <div style={{ fontSize: 11, color: "#888780" }}>Share with your driver</div>
-                </div>
-              </div>
-              <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
-                {["4", "8", "1", "2"].map((d, i) => (
-                  <div key={i} style={{ width: 40, height: 46, borderRadius: 10, background: "#E6F1FB", border: "1px solid #185FA5", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, fontWeight: 700, color: "#0C447C" }}>
-                    {d}
+            {/* Idle float + mouse-parallax tilt (HeroTilt/globals.css's
+                .mkt-tilt/.mkt-float) — the card previously just sat flat
+                on the gradient backdrop with no motion at all. */}
+            <HeroTilt>
+              <div className="mkt-hero-visual-card">
+                <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}>
+                  <div style={{ width: 36, height: 36, borderRadius: 10, background: "#E6F1FB", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                    <KeyRound size={18} color="#0C447C" />
                   </div>
-                ))}
+                  <div>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: "#1A1A18" }}>Pickup code</div>
+                    <div style={{ fontSize: 11, color: "#888780" }}>Share with your driver</div>
+                  </div>
+                </div>
+                <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
+                  {["4", "8", "1", "2"].map((d, i) => (
+                    <div key={i} style={{ width: 40, height: 46, borderRadius: 10, background: "#E6F1FB", border: "1px solid #185FA5", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, fontWeight: 700, color: "#0C447C" }}>
+                      {d}
+                    </div>
+                  ))}
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 12px", background: "#EAF3DE", borderRadius: 10 }}>
+                  <ShieldCheck size={16} color="#3B6D11" />
+                  <span style={{ fontSize: 12, fontWeight: 600, color: "#3B6D11" }}>Trip verified — ride started</span>
+                </div>
               </div>
-              <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 12px", background: "#EAF3DE", borderRadius: 10 }}>
-                <ShieldCheck size={16} color="#3B6D11" />
-                <span style={{ fontSize: 12, fontWeight: 600, color: "#3B6D11" }}>Trip verified — ride started</span>
-              </div>
-            </div>
+            </HeroTilt>
           </div>
         </div>
       </section>

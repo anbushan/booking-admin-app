@@ -26,18 +26,30 @@ export default function Pagination({
   if (totalPages <= 1) return null;
   return (
     <div style={{ display: "flex", gap: 8, marginTop: 16, fontSize: 13, alignItems: "center" }}>
-      {page > 1 && (
-        <a href={buildHref(basePath, page - 1, extraParams)} style={{ color: "#0C447C" }}>
+      {/* Bare text links before — no visible affordance that these were
+          clickable buttons versus just colored text. `.admin-btn-*` is
+          the same pill/hover treatment every other action in the admin
+          already uses, so paging finally looks like the rest of the UI. */}
+      {page > 1 ? (
+        <a href={buildHref(basePath, page - 1, extraParams)} className="admin-btn admin-btn-secondary admin-btn-sm">
           Previous
         </a>
+      ) : (
+        <span className="admin-btn admin-btn-secondary admin-btn-sm" style={{ opacity: 0.4, pointerEvents: "none" }}>
+          Previous
+        </span>
       )}
       <span style={{ color: "#888780" }}>
         Page {page} of {totalPages}
       </span>
-      {page < totalPages && (
-        <a href={buildHref(basePath, page + 1, extraParams)} style={{ color: "#0C447C" }}>
+      {page < totalPages ? (
+        <a href={buildHref(basePath, page + 1, extraParams)} className="admin-btn admin-btn-secondary admin-btn-sm">
           Next
         </a>
+      ) : (
+        <span className="admin-btn admin-btn-secondary admin-btn-sm" style={{ opacity: 0.4, pointerEvents: "none" }}>
+          Next
+        </span>
       )}
     </div>
   );

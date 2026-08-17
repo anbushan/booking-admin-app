@@ -83,6 +83,14 @@ model User {
   driverVerification    DriverVerification?
   passengerVerification PassengerVerification?
   recurringRideTemplates RecurringRideTemplate[]
+
+  // Referral/promo-code credit ledger — see UserCredit/Referral/PromoCode
+  // below. Mirrored from backend/prisma/schema.prisma, same shared DB.
+  referralCode         String?   @unique
+  credits              UserCredit[]
+  referralsMade        Referral[] @relation("ReferralsMade")
+  referralReceived     Referral?  @relation("ReferralReceived")
+  promoCodeRedemptions PromoCodeRedemption[]
 }
 
 model Vehicle {
@@ -425,6 +433,10 @@ model AppConfig {
   maintenanceMode    Boolean @default(false)
   maintenanceMessage String?
 
+  // Referral/first-ride promo code rewards — see UserCredit/Referral below.
+  referralRewardInr Float @default(30)
+  refereeRewardInr  Float @default(30)
+
   updatedAt           DateTime @updatedAt
 }
 
@@ -571,6 +583,68 @@ model RecurringRideTemplate {
 
   @@index([driverId])
   @@index([active])
+}
+
+// Referral/first-ride promo code credit ledger — mirrored verbatim from
+// backend/prisma/schema.prisma. See backend's src/lib/credits.js for the
+// spend/completion logic; admin only reads and manages PromoCode rows here.
+model UserCredit {
+  id              String    @id @default(cuid())
+  userId          String
+  user            User      @relation(fields: [userId], references: [id])
+  amountInr       Decimal
+  source          String    // REFERRAL_REFERRER, REFERRAL_REFEREE, PROMO_CODE
+  sourceId        String?
+  status          String    @default("AVAILABLE") // AVAILABLE, USED
+  usedOnBookingId String?
+  usedAt          DateTime?
+  createdAt       DateTime  @default(now())
+
+  @@index([userId, status])
+}
+
+model Referral {
+  id               String    @id @default(cuid())
+  referrerId       String
+  referrer         User      @relation("ReferralsMade", fields: [referrerId], references: [id])
+  refereeId        String    @unique
+  referee          User      @relation("ReferralReceived", fields: [refereeId], references: [id])
+  status           String    @default("PENDING") // PENDING, COMPLETED
+  refereeCreditId  String?
+  referrerCreditId String?
+  createdAt        DateTime  @default(now())
+  completedAt      DateTime?
+
+  @@index([referrerId])
+}
+
+// Admin-managed directly (create/toggle-active via a server action against
+// this same DB) — the backend's only involvement is validating + granting
+// the credit on redemption, see backend's promoCodes.routes.js.
+model PromoCode {
+  id              String    @id @default(cuid())
+  code            String    @unique
+  discountInr     Decimal
+  firstRideOnly   Boolean   @default(true)
+  maxRedemptions  Int?
+  redemptionCount Int       @default(0)
+  active          Boolean   @default(true)
+  expiresAt       DateTime?
+  createdAt       DateTime  @default(now())
+
+  redemptions     PromoCodeRedemption[]
+}
+
+model PromoCodeRedemption {
+  id          String    @id @default(cuid())
+  promoCodeId String
+  promoCode   PromoCode @relation(fields: [promoCodeId], references: [id])
+  userId      String
+  user        User      @relation(fields: [userId], references: [id])
+  creditId    String?
+  createdAt   DateTime  @default(now())
+
+  @@unique([promoCodeId, userId])
 }
 
 model AdminUser {

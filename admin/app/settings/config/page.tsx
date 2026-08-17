@@ -32,6 +32,8 @@ const NUMERIC_KEYS = [
   "licenseVerificationFeeInr",
   "vehicleRcFeeInr",
   "aadhaarVerificationFeeInr",
+  "referralRewardInr",
+  "refereeRewardInr",
 ] as const;
 
 async function saveConfig(formData: FormData) {
@@ -114,6 +116,13 @@ export default async function AppConfigPage() {
         { key: "licenseVerificationFeeInr", label: "License verification fee (Rs)", hint: "One-time charge for a driver's licence check (paid, self-serve Eko verification)" },
         { key: "vehicleRcFeeInr", label: "Vehicle RC verification fee (Rs)", hint: "Charged per vehicle for its RC check — every vehicle pays this, including the first" },
         { key: "aadhaarVerificationFeeInr", label: "Passenger Aadhaar verification fee (Rs)", hint: "One-time charge for a passenger's optional Aadhaar identity check (paid, self-serve Eko verification)" },
+      ],
+    },
+    {
+      heading: "Referrals",
+      fields: [
+        { key: "referralRewardInr", label: "Referrer reward (Rs)", hint: "Credit given to the referrer once the person they referred completes and pays for their first ride" },
+        { key: "refereeRewardInr", label: "New-rider reward (Rs)", hint: "Credit given immediately to a new rider when they redeem someone else's referral code" },
       ],
     },
     {

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Wallet, KeyRound, Car, ShieldCheck, Zap, ClipboardCheck } from "lucide-react";
 import { MarketingShell } from "../../components/MarketingShell";
+import { FloatingIconCluster } from "../../components/marketing/FloatingIconCluster";
 import { SITE_URL, BRAND_NAME } from "../../lib/siteContent";
 
 const TITLE = "Pricing";
@@ -32,13 +33,18 @@ export default function PricingPage() {
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
 
       <section className="mkt-section-tight">
-        <span className="mkt-eyebrow">Pricing</span>
-        <h1 className="mkt-h1" style={{ fontSize: "clamp(28px, 4vw, 40px)" }}>What actually gets charged, and when</h1>
-        <p className="mkt-lede" style={{ maxWidth: "none" }}>
-          Two completely separate things touch money on {BRAND_NAME}: a small platform fee passengers pay
-          to lock a seat, and optional verification fees drivers can pay for an instant trust badge. Nothing
-          else runs through the app — the rest of every fare is settled directly, in person.
-        </p>
+        <div className="mkt-hero-with-icons">
+          <div>
+            <span className="mkt-eyebrow">Pricing</span>
+            <h1 className="mkt-h1" style={{ fontSize: "clamp(28px, 4vw, 40px)" }}>What actually gets charged, and when</h1>
+            <p className="mkt-lede" style={{ maxWidth: "none" }}>
+              Two completely separate things touch money on {BRAND_NAME}: a small platform fee passengers pay
+              to lock a seat, and optional verification fees drivers can pay for an instant trust badge. Nothing
+              else runs through the app — the rest of every fare is settled directly, in person.
+            </p>
+          </div>
+          <FloatingIconCluster icons={[Wallet, KeyRound, ShieldCheck]} />
+        </div>
       </section>
 
       <section className="mkt-section" id="passengers">

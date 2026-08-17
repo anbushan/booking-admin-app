@@ -4,15 +4,33 @@ import { type LucideIcon } from "lucide-react";
 // + optional subtitle/count) instead of a bare `<h1>` per page — same
 // idea as the sidebar's icons, applied to the page itself so the icon
 // that got you here is the first thing you see once you land.
+//
+// `tone` defaults to the original hardcoded blue, so every existing
+// call site (all ~25 pages) renders unchanged unless it opts into a
+// different one — same tone vocabulary StatCard already uses, so a
+// page can now visually agree with its own stat cards (e.g. a danger
+// queue page passing tone="warning") instead of every page's header
+// being the same blue regardless of what it's about.
+const TONES = {
+  accent: { bg: "#E6F1FB", fg: "#0C447C" },
+  success: { bg: "#EAF3DE", fg: "#3B6D11" },
+  warning: { bg: "#FAEEDA", fg: "#854F0B" },
+  danger: { bg: "#FCEBEB", fg: "#A32D2D" },
+  neutral: { bg: "#F1EFE8", fg: "#5F5E5A" },
+};
+
 export function PageHeader({
   icon: Icon,
   title,
   subtitle,
+  tone = "accent",
 }: {
   icon: LucideIcon;
   title: string;
   subtitle?: string;
+  tone?: keyof typeof TONES;
 }) {
+  const { bg, fg } = TONES[tone];
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 20 }}>
       <div
@@ -20,8 +38,8 @@ export function PageHeader({
           width: 36,
           height: 36,
           borderRadius: 10,
-          background: "#E6F1FB",
-          color: "#0C447C",
+          background: `radial-gradient(circle at 30% 30%, ${bg} 0%, ${bg} 55%, ${fg}22 100%)`,
+          color: fg,
           display: "flex",
           alignItems: "center",
           justifyContent: "center",

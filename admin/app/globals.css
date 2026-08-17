@@ -578,9 +578,72 @@
   }
 }
 
-/* Any table rendered inside admin content becomes horizontally
-   scrollable on narrow viewports instead of overflowing the page —
-   applies globally so individual pages don't each need a wrapper div. */
+/* Large/ultra-wide desktops (27"+ monitors) — the 1440px rule above
+   only caps width, it doesn't do anything WITH the extra room. This
+   actually uses it: a wider content cap plus StatCard grids (see each
+   page's own `grid-template-columns: repeat(auto-fit, minmax(...))`
+   usage) naturally pick up more columns instead of just more
+   whitespace on either side. */
+@media (min-width: 1600px) {
+  .admin-main-inner {
+    max-width: 1600px;
+  }
+}
+
+/* Shared card look for every admin "box" — StatCards, panels, the
+   promo-codes/referrals list rows, etc. Previously every one of these
+   was hand-rolled inline per component (flat, no shadow, no hover),
+   so fixing it once here is what actually cascades the visual upgrade
+   to every page that uses it, no per-page edits needed. Shadow/lift
+   values match the marketing site's own `.mkt-card`/`.mkt-btn` hover
+   treatment below (same short 0.15s transform+shadow lift) rather than
+   inventing a second motion vocabulary for the same app. */
+.admin-card {
+  background: #FFFFFF;
+  border: 1px solid #E3E1D8;
+  border-radius: 10px;
+  box-shadow: 0 1px 2px rgba(26, 26, 24, 0.04), 0 8px 20px rgba(26, 26, 24, 0.05);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+.admin-card-hover:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 2px 4px rgba(26, 26, 24, 0.06), 0 14px 28px rgba(26, 26, 24, 0.09);
+}
+
+/* Any table rendered inside admin content — applies globally (bare
+   element selector, not a class) so every page's plain <table> picks
+   this up automatically, no per-page markup changes. Tinted header,
+   row separators, and a hover highlight so a dense data table reads as
+   designed rather than a bare browser-default grid; horizontal scroll
+   on narrow viewports is unchanged from before. */
+.admin-main table {
+  width: 100%;
+  border-collapse: collapse;
+  border: 1px solid #E3E1D8;
+  border-radius: 10px;
+  overflow: hidden;
+  font-size: 13px;
+}
+.admin-main table thead {
+  background: #F1EFE8;
+}
+.admin-main table th {
+  text-align: left;
+  padding: 10px 12px;
+  font-weight: 600;
+  color: #5F5E5A;
+  border-bottom: 1px solid #E3E1D8;
+}
+.admin-main table td {
+  padding: 10px 12px;
+  border-bottom: 1px solid #E3E1D8;
+}
+.admin-main table tbody tr:last-child td {
+  border-bottom: none;
+}
+.admin-main table tbody tr:hover {
+  background: #FAF9F6;
+}
 @media (max-width: 767px) {
   .admin-main table {
     display: block;
@@ -779,6 +842,20 @@
   }
 }
 
+/* Ultra-wide (1600px+) — one more step past the 1440px cap above,
+   same reasoning: a 32"+/4K display still reads as a narrow column
+   with excess whitespace on either side otherwise. Section text
+   columns (.mkt-section-tight, .mkt-lede) stay capped for readability
+   — only the wider layout containers (hero, grids, footer) get the
+   extra room, not running body text out to the full window width. */
+@media (min-width: 1600px) {
+  .mkt-section,
+  .mkt-header-inner,
+  .mkt-footer-inner {
+    max-width: 1480px;
+  }
+}
+
 .mkt-eyebrow {
   display: inline-flex;
   align-items: center;
@@ -917,6 +994,124 @@
   padding: 16px;
   width: 78%;
   box-shadow: 0 24px 48px rgba(26, 26, 24, 0.12);
+}
+
+/* ---------- 3D motion vocabulary (public pages only) ----------
+   Pure CSS — perspective + transform, no animation library. Kept in
+   the same short/subtle register as this file's existing motion
+   (.mkt-btn's 0.12s translateY lift, .admin-toast's slide-in) rather
+   than inventing a flashier, longer-running style just because it's
+   "3D": a slow float and a gentle scroll-reveal tilt, nothing that
+   spins or bounces.
+
+   Every rule below lives inside a `prefers-reduced-motion: no-preference`
+   guard — the one real gap this fixes: nothing in this file respected
+   that setting before (existing shimmer/spin/toast motion is left as
+   informational loading-state feedback, not decorative, so it isn't
+   gated the same way). */
+.mkt-3d-perspective {
+  perspective: 1200px;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  @keyframes mkt-float {
+    0%, 100% { transform: translateY(0) rotateX(0deg) rotateY(0deg); }
+    50% { transform: translateY(-10px) rotateX(2deg) rotateY(-3deg); }
+  }
+  .mkt-float {
+    animation: mkt-float 6s ease-in-out infinite;
+    transform-style: preserve-3d;
+  }
+  /* HeroTilt.tsx sets --rx/--ry via mousemove on pointer-capable
+     devices; this is the baseline transform they compose with — on a
+     device HeroTilt never attaches to (touch/no hover), --rx/--ry
+     simply stay at their 0deg default below and only the float runs. */
+  .mkt-tilt {
+    --rx: 0deg;
+    --ry: 0deg;
+    transform: perspective(900px) rotateX(var(--rx)) rotateY(var(--ry));
+    transition: transform 0.1s ease-out;
+    transform-style: preserve-3d;
+  }
+
+  /* ScrollReveal3D.tsx toggles -in on intersect; starts tilted back
+     and pushed into the screen (translateZ negative reads as "further
+     away"), settles flat as it enters view. */
+  .mkt-reveal {
+    opacity: 0;
+    transform: perspective(900px) rotateY(-14deg) translateZ(-60px) translateY(16px);
+    transition: opacity 0.6s ease-out, transform 0.6s ease-out;
+  }
+  .mkt-reveal-in {
+    opacity: 1;
+    transform: perspective(900px) rotateY(0deg) translateZ(0) translateY(0);
+  }
+}
+
+/* Without the media feature (reduced motion requested, or just no
+   animation support): everything renders in its final, settled state
+   immediately — .mkt-reveal never hides content behind a JS-dependent
+   class toggle that might not fire. */
+@media (prefers-reduced-motion: reduce) {
+  .mkt-reveal {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.mkt-float-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: absolute;
+  box-shadow: 0 10px 24px rgba(26, 26, 24, 0.1);
+}
+
+/* FloatingIconCluster's own sizing — fixed footprint the 3 absolutely-
+   positioned icon tiles (each placed by percentage, see
+   FloatingIconCluster.tsx's OFFSETS) scatter within. Fixed width, not
+   `width:100%` — inside a flex row with `flex-shrink:0`, 100% resolves
+   against the *container's* width, which stretched this into a huge
+   near-empty box with the 3 small tiles scattered across it instead of
+   a tight cluster sitting next to the heading. Hidden below 640px:
+   these are pure decoration next to a heading that already reads fine
+   on its own, and a narrow-viewport hero has better uses for that
+   vertical space than a scatter of small floating tiles competing
+   with the text for attention. */
+.mkt-float-icon-cluster {
+  width: 220px;
+  height: 200px;
+  flex-shrink: 0;
+}
+@media (max-width: 640px) {
+  .mkt-float-icon-cluster {
+    display: none;
+  }
+}
+
+/* Pairs a hero heading block with FloatingIconCluster — row on
+   desktop/tablet, the icon cluster hidden below 640px per above (so
+   this collapses to the same single-column text stack About/Safety/
+   Pricing already had, not a broken half-empty row). The text block
+   (first child) gets the actual remaining space now that the icon
+   cluster above is a fixed size instead of competing for 100% too. */
+.mkt-hero-with-icons {
+  display: flex;
+  align-items: center;
+  gap: 32px;
+}
+.mkt-hero-with-icons > *:first-child {
+  flex: 1;
+  min-width: 0;
+}
+@media (max-width: 860px) {
+  .mkt-hero-with-icons {
+    flex-direction: column;
+    align-items: stretch;
+  }
 }
 
 .mkt-grid-3 {

@@ -38,6 +38,12 @@ export function Badge({ children, tone }: { children: string; tone?: BadgeTone }
         fontWeight: 600,
         background: bg,
         color: fg,
+        // A faint tone-colored border — previously just a flat fill,
+        // which read fine on white but blurred together with adjacent
+        // pale backgrounds (a warning badge inside a warning-tinted
+        // row, e.g.). Cheap (no shadow/hover — these repeat dozens of
+        // times per table) but gives every pill real definition.
+        border: `1px solid ${fg}33`,
         whiteSpace: "nowrap",
       }}
     >

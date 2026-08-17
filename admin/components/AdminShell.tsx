@@ -21,6 +21,8 @@ import {
   Megaphone,
   Repeat,
   UserX,
+  Gift,
+  Share2,
   Menu,
   PanelLeftClose,
   PanelLeftOpen,
@@ -68,6 +70,13 @@ const SECTIONS: { label: string; links: { href: string; label: string; icon: Luc
     links: [
       { href: "/payments", label: "Payments", icon: CreditCard },
       { href: "/refunds", label: "Refunds", icon: RotateCcw },
+    ],
+  },
+  {
+    label: "Growth",
+    links: [
+      { href: "/referrals", label: "Referrals", icon: Share2 },
+      { href: "/promo-codes", label: "Promo codes", icon: Gift },
     ],
   },
   {

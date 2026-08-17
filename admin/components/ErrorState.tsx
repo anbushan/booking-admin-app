@@ -21,6 +21,7 @@ export function ErrorState({
           justifyContent: "center",
           margin: "0 auto 12px",
           fontWeight: 700,
+          boxShadow: "0 4px 10px rgba(163, 45, 45, 0.15)",
         }}
       >
         !
@@ -29,16 +30,8 @@ export function ErrorState({
       {onRetry && (
         <button
           onClick={onRetry}
-          style={{
-            marginTop: 12,
-            background: "#fff",
-            border: "1px solid #E3E1D8",
-            borderRadius: 6,
-            padding: "8px 16px",
-            fontSize: 13,
-            color: "#0C447C",
-            cursor: "pointer",
-          }}
+          className="admin-btn admin-btn-secondary admin-btn-sm"
+          style={{ marginTop: 12 }}
         >
           Try again
         </button>
