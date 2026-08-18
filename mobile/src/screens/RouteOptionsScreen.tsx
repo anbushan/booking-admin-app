@@ -59,7 +59,8 @@ function RouteOptionCard({
   );
 }
 
-// Always shown after OfferRideScreen, even for a plain point-to-point
+// Always shown after the offer-ride form (Home's driver panel — see
+// components/OfferRideForm.tsx), even for a plain point-to-point
 // trip with no meaningfully different alternative shape — Directions
 // returning just one route in that case is expected, not an error; this
 // screen just shows a single card. Publishing itself (api.createRide)
@@ -89,7 +90,7 @@ export default function RouteOptionsScreen({ route, navigation }: any) {
         routeDurationMinutes: alt.durationMinutes,
       } : {};
 
-      // OfferRideScreen's "Repeat this ride" toggle sends a `recurrence`
+      // OfferRideForm's "Repeat this ride" toggle sends a `recurrence`
       // param — everything else about the form (route/seats/price/
       // preferences/vehicle) is identical either way, so this is the
       // only branch point between publishing one ride and setting up a

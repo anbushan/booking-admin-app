@@ -63,7 +63,7 @@ export default function LocationSearchScreen({ navigation, route }: any) {
   // React Navigation warns the moment a function ends up in route params
   // ("non-serializable values were found in the navigation state"), since
   // that state is meant to be persistable/restorable. The caller
-  // (HomeScreen/OfferRideScreen) listens for appEvents' "location:selected"
+  // (HomeScreen/OfferRideForm) listens for appEvents' "location:selected"
   // instead — see finishSelection below.
   const { selectFor, skipMapConfirm } = route.params || {};
   const [query, setQuery] = useState("");

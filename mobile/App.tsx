@@ -62,7 +62,6 @@ import TripOtpScreen from "./src/screens/TripOtpScreen";
 import LiveTrackingScreen from "./src/screens/LiveTrackingScreen";
 
 import AddVehicleScreen from "./src/screens/AddVehicleScreen";
-import OfferRideScreen from "./src/screens/OfferRideScreen";
 import RouteOptionsScreen from "./src/screens/RouteOptionsScreen";
 import BookingRequestsScreen from "./src/screens/BookingRequestsScreen";
 import StartTripScreen from "./src/screens/StartTripScreen";
@@ -212,7 +211,6 @@ function App() {
 
         {/* Driver */}
         <Stack.Screen name="DriverOnboarding" component={AddVehicleScreen} />
-        <Stack.Screen name="OfferRide" component={OfferRideScreen} />
         <Stack.Screen name="RouteOptions" component={RouteOptionsScreen} />
         <Stack.Screen name="BookingRequests" component={BookingRequestsScreen} />
         <Stack.Screen name="StartTrip" component={StartTripScreen} />

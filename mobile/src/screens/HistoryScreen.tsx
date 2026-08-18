@@ -16,11 +16,11 @@ import { UnreadBadge } from "../components/UnreadBadge";
 import { StatusBadge } from "../components/StatusBadge";
 import { StepTracker, bookingJourneySteps } from "../components/StepTracker";
 import { AppBottomNav } from "../components/AppBottomNav";
-import { BackHeader } from "../components/BackHeader";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { appEvents } from "../lib/appEvents";
 import { useScreenView } from "../lib/useScreenView";
 import { useTranslation } from "../lib/i18n/I18nContext";
+import { formatInr } from "../lib/money";
 
 // CONFIRMED deliberately excluded — once the platform fee's paid, the
 // seat is locked in for real; self-cancelling never refunded it anyway
@@ -161,18 +161,15 @@ export default function HistoryScreen({ navigation, route }: any) {
   }
 
   return (
-    <SafeAreaView style={styles.screen} edges={role === "DRIVER" ? ["top", "bottom"] : ["top"]}>
-      {/* Driver only reaches this screen by pushing in from AccountScreen's
-          (the "Menu" tab's page) "My bookings" row — "bookings" isn't one of the driver's 4
-          bottom-nav tabs (home/offerRide/requests/menu), unlike the
-          passenger case below where this genuinely is the persistent
-          "bookings" tab, so a back button there would be redundant with
-          the tab bar itself. */}
-      {role === "DRIVER" ? (
-        <BackHeader title={t("home.yourRides")} onBack={() => navigation.goBack()} />
-      ) : (
-        <Text style={{ ...typography.title, padding: spacing.lg, paddingBottom: spacing.sm }}>{t("history.yourBookings")}</Text>
-      )}
+    <SafeAreaView style={styles.screen} edges={["top"]}>
+      {/* "My rides" is now one of the driver's 4 bottom-nav tabs (it took
+          the old "Offer ride" slot once that moved onto Home itself), so
+          this gets the same plain title + persistent tab bar treatment
+          the passenger "Bookings" case always had — a back button would
+          be redundant with the tab bar either way now. */}
+      <Text style={{ ...typography.title, padding: spacing.lg, paddingBottom: spacing.sm }}>
+        {role === "DRIVER" ? t("home.yourRides") : t("history.yourBookings")}
+      </Text>
       {loading ? (
         <SkeletonCardList />
       ) : error ? (
@@ -250,7 +247,7 @@ export default function HistoryScreen({ navigation, route }: any) {
                 <Text style={styles.route}>{t("common.routeTo", { source: item.ride?.sourceAddress, dest: item.ride?.destAddress })}</Text>
               </View>
               <View style={styles.rowBetween}>
-                <Text style={styles.fare}>{t("history.totalFare", { amount: Number(item.segmentPricePerSeat ?? item.ride?.pricePerSeat) * item.seatsBooked })}</Text>
+                <Text style={styles.fare}>{t("history.totalFare", { amount: formatInr(Number(item.segmentPricePerSeat ?? item.ride?.pricePerSeat) * item.seatsBooked) })}</Text>
                 {!IN_FLIGHT_BOOKING_STATUSES.includes(item.status) && <StatusBadge status={item.status} size="sm" />}
               </View>
 
@@ -344,11 +341,7 @@ export default function HistoryScreen({ navigation, route }: any) {
         }
       />
       )}
-      {/* Driver got a BackHeader above instead (see the conditional
-          title block) — showing both would be duplicate navigation
-          chrome. Passenger keeps this since "bookings" genuinely is
-          one of their 4 persistent tabs. */}
-      {role !== "DRIVER" && <AppBottomNav navigation={navigation} profile={profile} active="bookings" />}
+      <AppBottomNav navigation={navigation} profile={profile} active={role === "DRIVER" ? "myRides" : "bookings"} />
     </SafeAreaView>
   );
 }

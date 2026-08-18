@@ -1,9 +1,13 @@
 import React, { useEffect, useRef } from "react";
-import { Animated, View, StyleSheet, ViewStyle } from "react-native";
+import { Animated, View, StyleSheet, StyleProp, ViewStyle } from "react-native";
 import { colors, radius, spacing } from "../theme/theme";
 
 // Single shimmering block — compose these into skeleton layouts per screen.
-export function SkeletonBlock({ style }: { style?: ViewStyle }) {
+// StyleProp (not a bare ViewStyle) so callers can pass an array — e.g.
+// `[styles.someBase, { width: "45%" }]`, the normal RN way to layer a
+// one-off override onto a shared base style — the same flexibility a
+// plain View's own style prop already has.
+export function SkeletonBlock({ style }: { style?: StyleProp<ViewStyle> }) {
   const opacity = useRef(new Animated.Value(0.4)).current;
 
   useEffect(() => {

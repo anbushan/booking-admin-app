@@ -15,7 +15,8 @@ import { Platform } from "react-native";
 // up "what does tapping this thing do" regardless of whether it came
 // from a push notification or (here) a home-screen shortcut.
 export function resolveQuickActionTarget(id: string): { screen: string; params?: Record<string, any> } | null {
-  if (id === "offer-ride") return { screen: "OfferRide" };
+  // Offering a ride is now inline on Home itself, not its own screen.
+  if (id === "offer-ride") return { screen: "Home" };
   if (id === "booking-requests") return { screen: "BookingRequests" };
   if (id === "search-ride") return { screen: "Home" };
   if (id === "my-bookings") return { screen: "History", params: { role: "PASSENGER" } };

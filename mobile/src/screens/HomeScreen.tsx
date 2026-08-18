@@ -21,6 +21,7 @@ import { getRecentSearches, RecentLocation } from "../lib/recentSearches";
 import { useTranslation } from "../lib/i18n/I18nContext";
 import { hasSeenCopilotTour, markCopilotTourSeen } from "../lib/copilotOnboarding";
 import { appEvents } from "../lib/appEvents";
+import { OfferRideForm } from "../components/OfferRideForm";
 
 // `walkthroughable` just forwards a `copilot` ref/onLayout prop into the
 // wrapped component's own props — defined once at module scope (not
@@ -79,14 +80,6 @@ function HomeScreenContent({ navigation }: any) {
   const insets = useSafeAreaInsets();
   const [source, setSource] = useState<Point | null>(null);
   const [destination, setDestination] = useState<Point | null>(null);
-  // Driver-side "quick offer" card on this same screen (see driverPanel
-  // below) — its own destination field, separate from the passenger
-  // search's `destination` above since the two panels are mutually
-  // exclusive per role but shouldn't share state if a role switch ever
-  // happens without a full remount. Reuses `source` for its "from" field
-  // (GPS-filled below, same for both roles — where you are doesn't
-  // depend on which one you are).
-  const [offerDestination, setOfferDestination] = useState<Point | null>(null);
   const [travelDate, setTravelDate] = useState(() => {
     const d = new Date();
     d.setHours(18, 30, 0, 0);
@@ -138,13 +131,12 @@ function HomeScreenContent({ navigation }: any) {
   // moment a function ends up in route params, since that state is
   // meant to be persistable/restorable. "home-source"/"home-destination"
   // scope this listener to picks actually meant for this screen, in case
-  // another screen with its own location fields (OfferRideScreen) has a
+  // the driver panel's own embedded form (OfferRideForm) has a
   // listener alive at the same time.
   useEffect(() => {
     return appEvents.on("location:selected", (payload: { selectFor: string; location: Point }) => {
       if (payload.selectFor === "home-source") setSource(payload.location);
       else if (payload.selectFor === "home-destination") setDestination(payload.location);
-      else if (payload.selectFor === "home-offer-destination") setOfferDestination(payload.location);
     });
   }, []);
 
@@ -348,11 +340,17 @@ function HomeScreenContent({ navigation }: any) {
     return () => { cancelled = true; };
   }, [profile?.role, checkingActiveTrip]);
 
-  if (checkingActiveTrip) {
-    // AppBottomNav still renders here, not just in the loaded return
-    // below — otherwise the bar is simply absent for this first beat,
-    // then pops in the moment the active-trip check resolves. Same
-    // layout shell throughout, only the body swaps.
+  if (checkingActiveTrip || !profile) {
+    // Also gated on `profile` now, not just the active-trip check —
+    // `isDriver` below defaults false while profile is still null, so
+    // rendering the driver/passenger split before it resolves meant
+    // this always guessed "passenger" first, then visibly swapped to
+    // the driver panel the instant the real profile landed (most
+    // visible right after a role switch, which resets straight back to
+    // a blank Home). AppBottomNav still renders here, not just in the
+    // loaded return below — otherwise the bar is simply absent for this
+    // first beat, then pops in. Same layout shell throughout, only the
+    // body swaps.
     return (
       <View style={styles.screen}>
         <View style={{ height: insets.top, backgroundColor: colors.bg }} />
@@ -364,7 +362,7 @@ function HomeScreenContent({ navigation }: any) {
     );
   }
 
-  function openLocationSearch(selectFor: "home-source" | "home-destination" | "home-offer-destination") {
+  function openLocationSearch(selectFor: "home-source" | "home-destination") {
     navigation.navigate("LocationSearch", { selectFor, skipMapConfirm: true });
   }
 
@@ -410,6 +408,13 @@ function HomeScreenContent({ navigation }: any) {
       style={styles.scroll}
       contentContainerStyle={{ paddingBottom: spacing.xl }}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[colors.accent]} tintColor={colors.accent} />}
+      // The driver panel's offer-ride form (OfferRideForm) has its own
+      // price TextInput now that it's embedded here instead of its own
+      // screen — without this, a tap on any of this ScrollView's other
+      // Pressables while that field is focused gets eaten by the
+      // keyboard-dismiss instead of firing, the same reason
+      // OfferRideForm's old standalone screen always set this.
+      keyboardShouldPersistTaps="handled"
     >
       <View style={[styles.header, { paddingTop: spacing.lg }]}>
         <View style={styles.headerTopRow}>
@@ -448,52 +453,14 @@ function HomeScreenContent({ navigation }: any) {
         // ride as a driver account would just fail. This is the driver's
         // actual loop: publish, then respond to requests as they come in.
         <View style={styles.driverPanel}>
-          {/* Quick offer — lets a driver pick their route right here on
-              Home instead of only after tapping through to the full
-              OfferRide screen. Picking is optional: "Offer a ride" below
-              carries whatever's set here along as a prefill (OfferRide's
-              own GPS fallback covers "from" if this is skipped), so
-              nothing here blocks or changes what happens if the driver
-              just taps straight through like before. */}
-          <View style={styles.offerQuickCard}>
-            <Pressable style={styles.field} onPress={() => openLocationSearch("home-source")}>
-              <View style={[styles.dot, { backgroundColor: colors.accent }]} />
-              <Text style={[styles.fieldText, !source && { color: colors.textMuted }]}>
-                {source?.address || t("home.whereFrom")}
-              </Text>
-            </Pressable>
-            <Pressable
-              style={[styles.field, { borderBottomWidth: 0 }]}
-              onPress={() => openLocationSearch("home-offer-destination")}
-            >
-              <View style={[styles.dot, { backgroundColor: colors.marigold }]} />
-              <Text style={[styles.fieldText, !offerDestination && { color: colors.textMuted }]}>
-                {offerDestination?.address || t("home.whereTo")}
-              </Text>
-            </Pressable>
-            {!!source && !!offerDestination && (
-              <Pressable
-                style={styles.swapButton}
-                onPress={() => { const s = source; setSource(offerDestination); setOfferDestination(s); }}
-                hitSlop={8}
-                accessibilityRole="button"
-                accessibilityLabel={t("home.swapLocations")}
-              >
-                <Ionicons name="swap-vertical" size={16} color={colors.accentText} />
-              </Pressable>
-            )}
-          </View>
+          {/* The entire "offer a ride" flow lives right here now — no
+              more separate OfferRide screen to tap through to. See
+              components/OfferRideForm.tsx for why this is its own
+              component rather than inlined directly. */}
           <CopilotStep name="driverOfferRide" order={1} text={t("copilot.driver.step1")}>
-            <CopilotPressable
-              style={styles.ctaMarigold}
-              onPress={() => navigation.navigate("OfferRide", {
-                ...(source ? { initialSource: source } : {}),
-                ...(offerDestination ? { initialDestination: offerDestination } : {}),
-              })}
-            >
-              <Ionicons name="add-circle-outline" size={18} color="#FFFFFF" />
-              <Text style={styles.ctaText}>{t("home.offerARide")}</Text>
-            </CopilotPressable>
+            <CopilotView style={styles.offerFormCard}>
+              <OfferRideForm navigation={navigation} />
+            </CopilotView>
           </CopilotStep>
           <CopilotStep name="driverActions" order={2} text={t("copilot.driver.step2")}>
             <CopilotView>
@@ -578,19 +545,21 @@ function HomeScreenContent({ navigation }: any) {
                 </Text>
               </Pressable>
               {/* BlaBlaCar-style swap button — sits right on the divider
-                  between the two fields, only worth showing once both
-                  are actually set (nothing useful to swap otherwise). */}
-              {!!source && !!destination && (
-                <Pressable
-                  style={styles.swapButton}
-                  onPress={() => { setSource(destination); setDestination(source); }}
-                  hitSlop={8}
-                  accessibilityRole="button"
-                  accessibilityLabel={t("home.swapLocations")}
-                >
-                  <Ionicons name="swap-vertical" size={16} color={colors.accentText} />
-                </Pressable>
-              )}
+                  between the two fields. Always shown, not just once
+                  both happen to be set: gating it on that meant anyone
+                  whose GPS fix never resolved (denied permission, poor
+                  signal — "from" stays unset) never saw it at all.
+                  Swapping a null with a set value just moves the
+                  address to the other field. */}
+              <Pressable
+                style={styles.swapButton}
+                onPress={() => { setSource(destination); setDestination(source); }}
+                hitSlop={8}
+                accessibilityRole="button"
+                accessibilityLabel={t("home.swapLocations")}
+              >
+                <Ionicons name="swap-vertical" size={16} color={colors.accentText} />
+              </Pressable>
             </CopilotView>
           </CopilotStep>
 
@@ -856,35 +825,14 @@ const styles = StyleSheet.create({
     height: 46,
     borderRadius: radius.sm,
   },
-  // Was colors.marigold — the one splash of a second brand color on
-  // the app's most-viewed screen, but it made the driver and passenger
-  // Home read as two different products rather than two modes of the
-  // same one. Every primary button app-wide is colors.textPrimary now;
-  // this matches.
-  ctaMarigold: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: spacing.xs,
-    backgroundColor: colors.textPrimary,
-    height: 46,
-    borderRadius: radius.sm,
-  },
   ctaText: { ...typography.title, color: "#FFFFFF" },
   driverPanel: { marginHorizontal: spacing.lg, marginTop: -spacing.lg },
-  // Same look as the passenger searchCard, but without its own
-  // marginHorizontal/marginTop — driverPanel above already supplies
-  // that indent + overlap-the-header offset, so this just needs to be a
-  // plain card sitting inside it with a gap before the CTA button below.
-  offerQuickCard: {
-    backgroundColor: colors.surface,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: colors.border,
-    padding: spacing.md,
-    marginBottom: spacing.md,
-    position: "relative",
-  },
+  // No background/border of its own — OfferRideForm's internal pieces
+  // (route card, chips, price input) already carry their own surface
+  // styling, same as when this was its own screen sitting directly on
+  // the plain screen background. Just a gap before the quick-actions
+  // grid that follows it.
+  offerFormCard: { marginBottom: spacing.lg },
   driverHint: { ...typography.small, color: colors.textMuted, marginTop: spacing.lg, lineHeight: 18 },
   verifyBanner: {
     flexDirection: "row", alignItems: "center", gap: spacing.sm,

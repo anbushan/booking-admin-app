@@ -10,6 +10,7 @@ import { Analytics } from "../lib/analytics";
 import Avatar from "../components/Avatar";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { AppBottomNav } from "../components/AppBottomNav";
+import { SkeletonBlock } from "../components/Skeleton";
 import { useScreenView } from "../lib/useScreenView";
 import { useTranslation } from "../lib/i18n/I18nContext";
 
@@ -60,6 +61,43 @@ export default function AccountScreen({ navigation }: any) {
         },
       },
     ]);
+  }
+
+  // `profile` is null for one real beat — first load, or right after a
+  // role switch (SwitchRoleScreen resets the whole stack to a fresh
+  // Home/AccountScreen with no profile carried over). Rendering the
+  // real content immediately off that null meant `isDriver` defaulted
+  // false, so the driver-only section below was simply absent — then
+  // popped in the instant the real profile arrived if the role turned
+  // out to be DRIVER. A shimmer placeholder for that one beat means
+  // this page only ever renders once, already showing the right rows.
+  if (!profile) {
+    return (
+      <SafeAreaView style={styles.screen} edges={["top"]}>
+        {/* flex:1 here matters, not just cosmetic — without it this View
+            only takes its own content's height instead of filling the
+            screen the way the loaded state's ScrollView does, so
+            AppBottomNav (its sibling below) would sit wherever the
+            content happens to end instead of pinned to the bottom, then
+            visibly jump down the moment the real, full-height content
+            swaps in. */}
+        <View style={{ flex: 1, padding: spacing.lg, gap: spacing.lg }}>
+          <View style={styles.profileCard}>
+            <SkeletonBlock style={{ width: 52, height: 52, borderRadius: 26 }} />
+            <View style={{ flex: 1, marginLeft: spacing.md, gap: spacing.xs }}>
+              <SkeletonBlock style={{ width: "50%", height: 15, borderRadius: 4 }} />
+              <SkeletonBlock style={{ width: "30%", height: 12, borderRadius: 4 }} />
+            </View>
+          </View>
+          <View style={[styles.list, { paddingVertical: spacing.sm, gap: spacing.md }]}>
+            {[0, 1, 2, 3].map((i) => (
+              <SkeletonBlock key={i} style={{ height: 14, borderRadius: 4 }} />
+            ))}
+          </View>
+        </View>
+        <AppBottomNav navigation={navigation} profile={profile} active="menu" />
+      </SafeAreaView>
+    );
   }
 
   return (

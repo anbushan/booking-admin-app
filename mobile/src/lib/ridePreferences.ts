@@ -1,4 +1,4 @@
-// Shared between OfferRideScreen.tsx (where a driver sets these) and
+// Shared between OfferRideForm.tsx (where a driver sets these) and
 // components/RidePreferences.tsx (the read-only passenger-facing
 // display in SearchResultsScreen/BookingConfirmScreen) — one definition
 // of what each key means and how it's labeled, so the two can't quietly
