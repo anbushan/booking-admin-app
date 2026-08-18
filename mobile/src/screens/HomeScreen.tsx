@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback, useRef } from "react";
 import { View, Text, StyleSheet, ScrollView, RefreshControl, Platform } from "react-native";
 import { Pressable } from "../components/Pressable";
 import { useFocusEffect } from "@react-navigation/native";
@@ -89,6 +89,10 @@ function HomeScreenContent({ navigation }: any) {
   const [optionsVisible, setOptionsVisible] = useState(false);
   const [profile, setProfile] = useState<{ id?: string; name?: string; role?: string; photoViewUrl?: string | null } | null>(null);
   const [checkingActiveTrip, setCheckingActiveTrip] = useState(true);
+  // See the useFocusEffect below — tracks whether the very first
+  // active-trip check (on initial mount) has resolved yet, so every
+  // later refocus can skip re-blocking the screen with it.
+  const hasCheckedActiveTripRef = useRef(false);
   const [pendingRequestCount, setPendingRequestCount] = useState(0);
   // Same two counts AppBottomNav's own badges already fetch — mirrored
   // here (not lifted/shared) so the new quick-actions grid's tile
@@ -207,14 +211,29 @@ function HomeScreenContent({ navigation }: any) {
   // trace of an active trip. Checked on every visit to Home (not just
   // first launch), since navigating here after a trip via some other
   // path should also resolve to "nothing active" cleanly.
+  //
+  // Only actually blocks the screen with the loading gate on the very
+  // first check (initial mount) — every later refocus still runs this
+  // same check, just silently in the background, never flipping
+  // checkingActiveTrip back to true. It used to unconditionally
+  // re-block on every focus, including the one that fires the instant
+  // you navigate back from LocationSearch after picking a "from"/"to"
+  // address: that swapped the whole driver panel out for the loading
+  // spinner and back, which meant React fully unmounted and remounted
+  // OfferRideForm — a child component with its own local state — wiping
+  // out the address you'd just picked (and seats/price/preferences)
+  // every single time.
   useFocusEffect(
     useCallback(() => {
       let cancelled = false;
-      setCheckingActiveTrip(true);
+      if (!hasCheckedActiveTripRef.current) {
+        setCheckingActiveTrip(true);
+      }
       api
         .getActiveTrip()
         .then((active) => {
           if (cancelled) return;
+          hasCheckedActiveTripRef.current = true;
           if (active) {
             navigation.replace(active.role === "DRIVER" ? "ActiveTrip" : "LiveTracking", {
               bookingId: active.bookingId,
@@ -224,7 +243,10 @@ function HomeScreenContent({ navigation }: any) {
             setCheckingActiveTrip(false);
           }
         })
-        .catch(() => setCheckingActiveTrip(false));
+        .catch(() => {
+          hasCheckedActiveTripRef.current = true;
+          setCheckingActiveTrip(false);
+        });
       return () => { cancelled = true; };
     }, [])
   );
