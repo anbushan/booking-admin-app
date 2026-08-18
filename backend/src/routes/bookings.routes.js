@@ -3,6 +3,7 @@ import { prisma } from "../lib/prisma.js";
 import { redis, acquireLock } from "../lib/redis.js";
 import { requireAuth, requireRole } from "../middleware/auth.js";
 import { notify } from "../lib/notify.js";
+import { getIO } from "../lib/socket.js";
 import { refundIfPaid } from "../lib/refunds.js";
 import { getAppConfig } from "../lib/appConfig.js";
 import { issueDriverStrike, isDriverStrikeBlocked } from "../lib/strikes.js";
@@ -200,6 +201,13 @@ router.post("/", requireAuth, requireRole("PASSENGER"), async (req, res) => {
 
     await notify(ride.driverId, "NEW_BOOKING_REQUEST", "New booking request",
       `A passenger requested ${seatsBooked} seat(s) on your ride.`, booking.id);
+    // Reaches the driver's bottom-nav "Requests" badge (and anywhere
+    // else listening) wherever they are in the app right now — without
+    // this, a new request only ever showed up the next time that badge
+    // happened to refetch on its own (screen focus, an unrelated
+    // chat:new event), same class of staleness chat:new itself was
+    // built to fix for messages.
+    getIO()?.to(`user:${ride.driverId}`).emit("booking:updated");
 
     res.status(201).json(booking);
   } finally {
@@ -254,6 +262,7 @@ router.put("/:id/accept", requireAuth, requireRole("DRIVER"), async (req, res) =
     ? `The driver accepted your request. Rs ${creditAppliedInr.toFixed(0)} credit was applied — pay the remaining Rs ${platformFeeAmount.toFixed(0)} within ${config.paymentWindowMinutes} minutes to lock your seat.`
     : `The driver accepted your request. Pay the platform fee (Rs ${platformFeeAmount.toFixed(0)}) within ${config.paymentWindowMinutes} minutes to lock your seat.`;
   await notify(booking.passengerId, "BOOKING_ACCEPTED", "Booking accepted — pay to confirm", feeMessage, booking.id);
+  getIO()?.to(`user:${booking.passengerId}`).emit("booking:updated");
 
   res.json(updated);
 });
@@ -283,6 +292,7 @@ router.put("/:id/reject", requireAuth, requireRole("DRIVER"), async (req, res) =
 
   await notify(booking.passengerId, "BOOKING_REJECTED", "Booking rejected",
     "The driver couldn't accept your request. Search again for another ride.", booking.id);
+  getIO()?.to(`user:${booking.passengerId}`).emit("booking:updated");
 
   res.json({ success: true });
 });

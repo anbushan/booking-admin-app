@@ -56,11 +56,19 @@ export function AppBottomNav({ navigation, profile, active = "" }: Props) {
   // what "reset to 0 after viewing" needs.
   useFocusEffect(refresh);
 
-  // On top of that, a live "chat:new" (see AppSocketBridge) refreshes
-  // immediately even without leaving the current screen — previously a
-  // message arriving while sitting on Home just sat unreflected in the
-  // badge until the next navigation happened to trigger a refetch.
-  useEffect(() => appEvents.on("chat:new", refresh), [refresh]);
+  // On top of that, three live socket events (see AppSocketBridge)
+  // refresh immediately even without leaving the current screen —
+  // previously a new booking request, a driver's accept/reject, or a
+  // platform-fee payment clearing all just sat unreflected in the badge
+  // (a driver sitting on Home wouldn't see "Requests" tick up; a
+  // passenger wouldn't see "My requests" tick down once paid) until the
+  // next navigation happened to trigger a refetch.
+  useEffect(() => {
+    const offBooking = appEvents.on("booking:updated", refresh);
+    const offPayment = appEvents.on("payment:confirmed", refresh);
+    const offChat = appEvents.on("chat:new", refresh);
+    return () => { offBooking(); offPayment(); offChat(); };
+  }, [refresh]);
 
   // The "Menu" tab itself carries no badge — a number on the menu
   // button alone doesn't say what's waiting inside, which is exactly

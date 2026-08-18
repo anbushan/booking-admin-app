@@ -123,17 +123,21 @@ export default function AccountScreen({ navigation }: any) {
           <Row icon="shield-checkmark-outline" label={t("settings.emergencyContacts")} onPress={() => navigation.navigate("EmergencyContacts")} />
         </View>
 
-        {/* My bookings/Payment queue/Start trip now/My vehicles/Earnings
-            used to live here too, but every one of them is already a
-            tile on Home's driver quick-actions grid — this was a second,
-            further-to-reach copy of the exact same five destinations.
-            "Recurring rides" is the one genuine exception: it has no
-            Home tile of its own anywhere, so it's the only driver-only
-            row still worth a section here. */}
+        {/* My bookings/Payment queue/Start trip now/My vehicles used to
+            live here too, but every one of them is already a tile on
+            Home's driver quick-actions grid — this was a second,
+            further-to-reach copy of the same destinations. Earnings and
+            Recurring rides are the two exceptions: Earnings had its
+            Home tile repurposed for Messages, and Recurring rides never
+            had a Home tile of its own to begin with — both still need
+            a home, and this is it. */}
         {isDriver && (
           <>
             <Text style={styles.sectionLabel}>{t("sideMenu.driverSection")}</Text>
             <View style={styles.list}>
+              {/* Moved here from Home's quick-actions grid, which now
+                  points that tile at Messages instead. */}
+              <Row icon="wallet-outline" label={t("home.earnings")} onPress={() => navigation.navigate("Earnings")} />
               <Row icon="repeat-outline" label={t("sideMenu.recurringRides")} onPress={() => navigation.navigate("ManageRecurringRides")} />
             </View>
           </>

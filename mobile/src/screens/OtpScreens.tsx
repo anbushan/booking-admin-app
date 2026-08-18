@@ -195,15 +195,18 @@ export function PhoneEntryScreen({ navigation }: any) {
             </View>
           )}
 
-          {/* Asked once here regardless of mode, not repeated on the
-              next screen — OtpVerifyScreen carries this value forward
-              via route param instead of asking again. */}
+          {/* WhatsApp opt-in — commented out for now (not removed), per
+              request: "get WhatsApp update" isn't ready to launch yet.
+              whatsappOptIn keeps flowing through to verifyOtp/
+              verifyPasscode below at whatever it's defaulted to; re-
+              enabling this is just uncommenting the block.
           <Pressable style={styles.checkboxRow} onPress={() => setWhatsappOptIn((v) => !v)}>
             <View style={[styles.checkbox, whatsappOptIn && styles.checkboxChecked]}>
               {whatsappOptIn && <Ionicons name="checkmark" size={13} color="#FFFFFF" />}
             </View>
             <Text style={styles.checkboxLabel}>{t("auth.whatsappOptIn")}</Text>
           </Pressable>
+          */}
 
           {mode === "otp" ? (
             <Pressable style={[styles.button, phone.length !== 10 && styles.buttonDisabled]} onPress={handleSendOtp} disabled={sending || phone.length !== 10}>

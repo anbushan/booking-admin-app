@@ -504,7 +504,7 @@ const styles = StyleSheet.create({
   dot: { width: 8, height: 8, borderRadius: 4 },
   fieldText: typography.body,
   row: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginTop: spacing.md },
-  label: { ...typography.caption, color: colors.textSecondary },
+  label: { ...typography.caption, color: colors.textSecondary, fontWeight: "700", fontFamily: FONT.bold },
   input: {
     backgroundColor: colors.surface,
     borderWidth: 1,

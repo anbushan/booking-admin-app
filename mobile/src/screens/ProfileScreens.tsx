@@ -190,12 +190,18 @@ export function EditProfileScreen({ route, navigation }: any) {
         <TextInput style={styles.input} value={name} onChangeText={setName} />
         <Text style={styles.label}>{t("profile.email")}</Text>
         <TextInput style={styles.input} value={email} onChangeText={setEmail} keyboardType="email-address" autoCapitalize="none" />
+        {/* WhatsApp opt-in — commented out for now (not removed), per
+            request: "get WhatsApp update" isn't ready to launch yet.
+            whatsappOptIn itself still round-trips on save below with
+            whatever the account already had, so re-enabling this is
+            just uncommenting the block, no other change needed.
         <Pressable style={styles.checkboxRow} onPress={() => setWhatsappOptIn((v) => !v)}>
           <View style={[styles.checkbox, whatsappOptIn && styles.checkboxChecked]}>
             {whatsappOptIn && <Ionicons name="checkmark" size={13} color="#FFFFFF" />}
           </View>
           <Text style={styles.checkboxLabel}>{t("auth.whatsappOptIn")}</Text>
         </Pressable>
+        */}
         <Pressable style={styles.editButton} onPress={handleSave} disabled={submitting}>
           <Ionicons name="checkmark-outline" size={16} color="#FFFFFF" />
           <Text style={styles.editButtonText}>{submitting ? t("register.saving") : t("profile.save")}</Text>

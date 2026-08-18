@@ -110,9 +110,18 @@ function HomeScreenContent({ navigation }: any) {
   const [licenseStatus, setLicenseStatus] = useState<string | null>(null);
   const [aadhaarStatus, setAadhaarStatus] = useState<string | null>(null);
 
-  useEffect(() => {
-    api.getMyProfile().then(setProfile).catch(() => {});
-  }, []);
+  // Refetches on every focus, not just once on mount — a mount-once
+  // fetch meant Home's own avatar (and greeting name) went stale the
+  // instant you changed either on ProfileScreen/EditProfileScreen and
+  // came back: nothing ever told this already-mounted screen to look
+  // again, so the old photo kept showing until the app fully
+  // restarted. AccountScreen's own profile fetch already worked this
+  // way — this just brings Home in line with it.
+  useFocusEffect(
+    useCallback(() => {
+      api.getMyProfile().then(setProfile).catch(() => {});
+    }, [])
+  );
 
   // Best-effort real GPS fix for the "from" field on first load — silent
   // no-op on denial/failure (leaves source null, same as destination's
@@ -323,7 +332,13 @@ function HomeScreenContent({ navigation }: any) {
     { key: "requests", label: t("home.bookingRequests"), icon: "mail-unread-outline", onPress: () => navigation.navigate("BookingRequests"), badge: pendingRequestCount },
     { key: "startTrip", label: t("home.startTripNow"), icon: "navigate-outline", onPress: () => navigation.navigate("UpcomingTrips"), badge: upcomingTripsCount, tint: "marigold" },
     { key: "myRides", label: t("home.yourRides"), icon: "car-outline", onPress: () => navigation.navigate("History", { role: "DRIVER" }) },
-    { key: "earnings", label: t("home.earnings"), icon: "wallet-outline", onPress: () => navigation.navigate("Earnings"), tint: "success" },
+    // Was "Earnings" — moved to AccountScreen's driver section instead
+    // (still one tap away from Menu), since chat had no quick-actions
+    // entry point at all before this: a driver could only ever reach a
+    // conversation from that specific booking's own card, never a
+    // general "your conversations" link the way My rides/Payment queue
+    // already work.
+    { key: "messages", label: t("chatList.title"), icon: "chatbubbles-outline", onPress: () => navigation.navigate("ChatList") },
     { key: "vehicles", label: t("sideMenu.myVehicles"), icon: "car-sport-outline", onPress: () => navigation.navigate("VehicleList") },
     { key: "paymentQueue", label: t("sideMenu.paymentQueue"), icon: "cash-outline", onPress: () => navigation.navigate("PaymentQueue") },
   ];
