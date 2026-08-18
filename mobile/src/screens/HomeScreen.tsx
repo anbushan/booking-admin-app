@@ -836,12 +836,25 @@ const styles = StyleSheet.create({
   },
   ctaText: { ...typography.title, color: "#FFFFFF" },
   driverPanel: { marginHorizontal: spacing.lg, marginTop: -spacing.lg },
-  // No background/border of its own — OfferRideForm's internal pieces
-  // (route card, chips, price input) already carry their own surface
-  // styling, same as when this was its own screen sitting directly on
-  // the plain screen background. Just a gap before the quick-actions
-  // grid that follows it.
-  offerFormCard: { marginBottom: spacing.lg },
+  // Same card treatment as the passenger searchCard above (background,
+  // border, radius, padding) — driverPanel's negative marginTop pulls
+  // this whole block up to overlap the header's bottom edge, same trick
+  // searchCard uses, and that only reads right with an opaque surface
+  // sitting there to absorb it. Without one, whatever rendered first
+  // inside — the vehicle picker when there's more than one vehicle —
+  // had nothing behind it and visibly overlapped the header instead of
+  // floating over it. OfferRideForm's *other* internal pieces (route
+  // card, price input) already carry their own surface styling and
+  // would have been fine without this; the vehicle picker was the one
+  // gap.
+  offerFormCard: {
+    backgroundColor: colors.surface,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: spacing.md,
+    marginBottom: spacing.lg,
+  },
   driverHint: { ...typography.small, color: colors.textMuted, marginTop: spacing.lg, lineHeight: 18 },
   verifyBanner: {
     flexDirection: "row", alignItems: "center", gap: spacing.sm,
