@@ -2,10 +2,8 @@ import React, { useEffect, useState } from "react";
 import { View, Text, ScrollView, StyleSheet, Linking, Share } from "react-native";
 import { Pressable } from "../components/Pressable";
 import { Ionicons } from "@expo/vector-icons";
-import { showAlert } from "../lib/alert";
 import { colors, spacing, radius, typography } from "../theme/theme";
 import { checkPushPermission } from "../lib/pushNotifications";
-import { logout } from "../lib/api";
 import { Analytics } from "../lib/analytics";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { BackHeader } from "../components/BackHeader";
@@ -57,7 +55,10 @@ export function SettingsScreen({ navigation }: any) {
   // Your ratings/Payment history/Emergency contacts moved to AccountScreen
   // (the Menu tab's own page) — they applied to either role and were
   // listed there too, so this was a straight duplicate, not a second
-  // legitimate path to a role-specific screen.
+  // legitimate path to a role-specific screen. Logout and Delete account
+  // moved there too (this screen no longer has either) — both are
+  // account-level, not really "settings", and Logout was already
+  // duplicated on AccountScreen regardless.
   const rows: { key: string; label: string; icon: keyof typeof Ionicons.glyphMap; onPress: () => void }[] = [
     { key: "profile", label: t("settings.profile"), icon: "person-outline", onPress: () => navigation.navigate("Profile") },
     { key: "loginPasscode", label: t("settings.loginPasscode"), icon: "key-outline", onPress: () => navigation.navigate("LoginPasscode") },
@@ -73,21 +74,6 @@ export function SettingsScreen({ navigation }: any) {
     { key: "helpSupport", label: t("settings.helpSupport"), icon: "help-circle-outline", onPress: () => navigation.navigate("HelpSupport") },
     { key: "about", label: t("settings.aboutTerms"), icon: "document-text-outline", onPress: () => navigation.navigate("About") },
   ];
-
-  function handleLogout() {
-    showAlert(t("sideMenu.logOut"), t("sideMenu.logOutConfirm"), [
-      { text: t("sideMenu.cancel"), style: "cancel" },
-      {
-        text: t("sideMenu.logOut"),
-        style: "destructive",
-        onPress: async () => {
-          await logout();
-          Analytics.logout();
-          navigation.reset({ index: 0, routes: [{ name: "PhoneEntry" }] });
-        },
-      },
-    ]);
-  }
 
   return (
     <SafeAreaView style={styles.screen} edges={["top", "bottom"]}>
@@ -115,14 +101,6 @@ export function SettingsScreen({ navigation }: any) {
             </Pressable>
           ))}
         </View>
-
-        <Pressable style={styles.logoutButton} onPress={handleLogout}>
-          <Ionicons name="log-out-outline" size={17} color={colors.danger} />
-          <Text style={styles.logoutButtonText}>{t("sideMenu.logOut")}</Text>
-        </Pressable>
-        <Pressable style={styles.deleteAccountLink} onPress={() => navigation.navigate("DeleteAccount")}>
-          <Text style={styles.deleteAccountLinkText}>{t("settings.deleteAccount")}</Text>
-        </Pressable>
       </ScrollView>
     </SafeAreaView>
   );
@@ -178,10 +156,6 @@ const styles = StyleSheet.create({
   row: { flexDirection: "row", gap: spacing.sm, alignItems: "center", backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: radius.md, padding: spacing.md },
   rowIconWrap: { width: 32, height: 32, borderRadius: 10, backgroundColor: colors.accentBg, alignItems: "center", justifyContent: "center" },
   rowText: { ...typography.body, flex: 1 },
-  logoutButton: { flexDirection: "row", gap: spacing.xs, marginHorizontal: spacing.lg, marginTop: spacing.lg, alignItems: "center", justifyContent: "center", padding: spacing.md },
-  logoutButtonText: { ...typography.body, color: colors.danger },
-  deleteAccountLink: { alignItems: "center", justifyContent: "center", padding: spacing.sm, marginBottom: spacing.lg },
-  deleteAccountLinkText: { ...typography.small, color: colors.textMuted, textDecorationLine: "underline" },
   body: { padding: spacing.lg, gap: spacing.md },
   paragraph: { ...typography.caption, color: colors.textSecondary, lineHeight: 20 },
   contactRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: radius.sm, padding: spacing.md },

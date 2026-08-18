@@ -24,7 +24,6 @@ export default function AccountScreen({ navigation }: any) {
   const { t } = useTranslation();
   const [profile, setProfile] = useState<any>(null);
   const [unreadCount, setUnreadCount] = useState(0);
-  const [upcomingTripsCount, setUpcomingTripsCount] = useState(0);
 
   const isDriver = profile?.role === "DRIVER";
   const otherRoleHasProfile = isDriver ? profile?.isPassenger : profile?.isDriver;
@@ -34,18 +33,6 @@ export default function AccountScreen({ navigation }: any) {
       api.getMyProfile().then(setProfile).catch(() => {});
       api.getNotifications().then((list: any[]) => setUnreadCount(list.filter((n) => !n.read).length)).catch(() => {});
     }, [])
-  );
-
-  // Only a driver's row here (Start trip now) carries a badge — mirrors
-  // the same filter AppBottomNav/UpcomingTripsScreen use, so the number
-  // matches what tapping through actually shows.
-  useFocusEffect(
-    useCallback(() => {
-      if (!isDriver) return;
-      api.getDriverActiveBookings()
-        .then((list: any[]) => setUpcomingTripsCount(list.filter((t: any) => ["AWAITING_PAYMENT", "CONFIRMED", "IN_PROGRESS"].includes(t.status)).length))
-        .catch(() => {});
-    }, [isDriver])
   );
 
   function handleLogout() {
@@ -136,15 +123,17 @@ export default function AccountScreen({ navigation }: any) {
           <Row icon="shield-checkmark-outline" label={t("settings.emergencyContacts")} onPress={() => navigation.navigate("EmergencyContacts")} />
         </View>
 
+        {/* My bookings/Payment queue/Start trip now/My vehicles/Earnings
+            used to live here too, but every one of them is already a
+            tile on Home's driver quick-actions grid — this was a second,
+            further-to-reach copy of the exact same five destinations.
+            "Recurring rides" is the one genuine exception: it has no
+            Home tile of its own anywhere, so it's the only driver-only
+            row still worth a section here. */}
         {isDriver && (
           <>
             <Text style={styles.sectionLabel}>{t("sideMenu.driverSection")}</Text>
             <View style={styles.list}>
-              <Row icon="receipt-outline" label={t("sideMenu.myBookings")} onPress={() => navigation.navigate("History", { role: profile?.role })} />
-              <Row icon="hourglass-outline" label={t("sideMenu.paymentQueue")} onPress={() => navigation.navigate("PaymentQueue")} />
-              <Row icon="navigate-outline" label={t("home.startTripNow")} onPress={() => navigation.navigate("UpcomingTrips")} badge={upcomingTripsCount} />
-              <Row icon="car-sport-outline" label={t("sideMenu.myVehicles")} onPress={() => navigation.navigate("VehicleList")} />
-              <Row icon="wallet-outline" label={t("home.earnings")} onPress={() => navigation.navigate("Earnings")} />
               <Row icon="repeat-outline" label={t("sideMenu.recurringRides")} onPress={() => navigation.navigate("ManageRecurringRides")} />
             </View>
           </>
@@ -163,6 +152,10 @@ export default function AccountScreen({ navigation }: any) {
           />
           <Row icon="gift-outline" label={t("sideMenu.rewards")} onPress={() => navigation.navigate("Rewards")} />
           <Row icon="settings-outline" label={t("sideMenu.settings")} onPress={() => navigation.navigate("Settings")} />
+          {/* Moved here from Settings — this is the account-level "leave
+              the platform entirely" action, the same shelf Logout below
+              sits on, not really a settings toggle. */}
+          <Row icon="trash-outline" label={t("settings.deleteAccount")} onPress={() => navigation.navigate("DeleteAccount")} danger />
         </View>
 
         <Pressable style={styles.logoutRow} onPress={handleLogout}>
@@ -175,13 +168,13 @@ export default function AccountScreen({ navigation }: any) {
   );
 }
 
-function Row({ icon, label, onPress, badge }: { icon: string; label: string; onPress: () => void; badge?: number }) {
+function Row({ icon, label, onPress, badge, danger }: { icon: string; label: string; onPress: () => void; badge?: number; danger?: boolean }) {
   return (
     <Pressable style={styles.row} onPress={onPress}>
-      <View style={styles.rowIconWrap}>
-        <Ionicons name={icon as any} size={17} color={colors.accentText} />
+      <View style={[styles.rowIconWrap, danger && styles.rowIconWrapDanger]}>
+        <Ionicons name={icon as any} size={17} color={danger ? colors.danger : colors.accentText} />
       </View>
-      <Text style={styles.rowText}>{label}</Text>
+      <Text style={[styles.rowText, danger && styles.rowTextDanger]}>{label}</Text>
       {!!badge && (
         <View style={styles.rowBadge}>
           <Text style={styles.rowBadgeText}>{badge > 9 ? "9+" : badge}</Text>
@@ -224,7 +217,9 @@ const styles = StyleSheet.create({
   },
   row: { flexDirection: "row", alignItems: "center", gap: spacing.sm, paddingVertical: 11 },
   rowIconWrap: { width: 30, height: 30, borderRadius: 9, backgroundColor: colors.accentBg, alignItems: "center", justifyContent: "center" },
+  rowIconWrapDanger: { backgroundColor: colors.dangerBg },
   rowText: { ...typography.body, color: colors.textPrimary, flex: 1 },
+  rowTextDanger: { color: colors.danger },
   rowBadge: {
     minWidth: 18,
     height: 18,
