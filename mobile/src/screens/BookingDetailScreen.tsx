@@ -12,6 +12,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { BackHeader } from "../components/BackHeader";
 import { useScreenView } from "../lib/useScreenView";
 import { useTranslation } from "../lib/i18n/I18nContext";
+import { formatInr } from "../lib/money";
 import { showAlert } from "../lib/alert";
 
 // Google Calendar's "quick add" URL — no API key, no OAuth, no backend
@@ -134,12 +135,12 @@ export default function BookingDetailScreen({ route, navigation }: any) {
           </View>
           <View style={styles.row}>
             <Text style={styles.label}>{t("booking.fare")}</Text>
-            <Text style={styles.value}>Rs {amount}</Text>
+            <Text style={styles.value}>Rs {formatInr(amount)}</Text>
           </View>
           {booking.remainingFareAmount != null && (
             <View style={styles.row}>
               <Text style={styles.label}>{t("bookingDetail.cashUpiDue")}</Text>
-              <Text style={styles.value}>Rs {Number(booking.remainingFareAmount)}</Text>
+              <Text style={styles.value}>Rs {formatInr(booking.remainingFareAmount)}</Text>
             </View>
           )}
           <View style={[styles.row, { borderBottomWidth: 0 }]}>

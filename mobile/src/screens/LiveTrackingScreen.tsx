@@ -21,6 +21,7 @@ import { useTranslation } from "../lib/i18n/I18nContext";
 import { MapFeatureButtons } from "../components/MapFeatureButtons";
 import { WeatherEffectOverlay } from "../components/WeatherEffectOverlay";
 import { useRouteWeather } from "../lib/useRouteWeather";
+import { formatInr } from "../lib/money";
 import { showTripNotification, dismissTripNotification } from "../lib/tripNotification";
 
 const STALE_THRESHOLD_MS = 90 * 1000;
@@ -188,7 +189,7 @@ export default function LiveTrackingScreen({ route, navigation }: any) {
           navigatedAway.current = true;
           dismissTripNotification();
           if (role === "PASSENGER") {
-            showAlert(t("liveTracking.tripCompletedTitle"), t("liveTracking.payDirectly", { amount: track.amount ?? 0 }));
+            showAlert(t("liveTracking.tripCompletedTitle"), t("liveTracking.payDirectly", { amount: formatInr(track.amount ?? 0) }));
             // Straight into rating the driver now, rather than relying on
             // the passenger to dig up this COMPLETED booking later —
             // "My bookings" is active-trip-only and won't list it once

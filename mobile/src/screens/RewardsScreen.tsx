@@ -14,6 +14,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useScreenView } from "../lib/useScreenView";
 import { useTranslation } from "../lib/i18n/I18nContext";
 import { Analytics } from "../lib/analytics";
+import { formatInr } from "../lib/money";
 import { Share } from "react-native";
 
 type ReferralInfo = {
@@ -62,7 +63,7 @@ export default function RewardsScreen({ navigation }: any) {
   async function handleShare() {
     if (!info || Platform.OS === "web") return;
     try {
-      await Share.share({ message: t("rewards.shareMessage", { code: info.referralCode, amount: info.refereeRewardInr }) });
+      await Share.share({ message: t("rewards.shareMessage", { code: info.referralCode, amount: formatInr(info.refereeRewardInr) }) });
       Analytics.referralShared();
     } catch {
       // OS share sheet dismissed/cancelled — nothing to surface.
@@ -75,7 +76,7 @@ export default function RewardsScreen({ navigation }: any) {
     try {
       const res = await api.redeemReferralCode(referralCodeInput.trim());
       Analytics.codeRedeemed("referral");
-      showSuccess(t("rewards.referralRedeemed", { amount: res.creditAppliedInr }));
+      showSuccess(t("rewards.referralRedeemed", { amount: formatInr(res.creditAppliedInr) }));
       setReferralCodeInput("");
       load();
     } catch (err: any) {
@@ -95,7 +96,7 @@ export default function RewardsScreen({ navigation }: any) {
       // to report — their whole point is "the fee's free next time",
       // not a specific credit balance — so this gets its own message
       // rather than interpolating a null into the usual one.
-      showSuccess(res.fullWaiver ? t("rewards.promoRedeemedFullWaiver") : t("rewards.promoRedeemed", { amount: res.creditAppliedInr }));
+      showSuccess(res.fullWaiver ? t("rewards.promoRedeemedFullWaiver") : t("rewards.promoRedeemed", { amount: formatInr(res.creditAppliedInr) }));
       setPromoCodeInput("");
       load();
     } catch (err: any) {
@@ -134,14 +135,14 @@ export default function RewardsScreen({ navigation }: any) {
                   invisibly at the next accept-time, not spent by hand. */}
               <View style={styles.balanceCard}>
                 <Text style={styles.balanceLabel}>{t("rewards.availableCredit")}</Text>
-                <Text style={styles.balanceValue}>₹{info.availableCreditInr}</Text>
+                <Text style={styles.balanceValue}>₹{formatInr(info.availableCreditInr)}</Text>
                 <Text style={styles.balanceHint}>{t("rewards.creditHint")}</Text>
               </View>
 
               {/* Referrer side: this rider's own shareable code. */}
               <View style={styles.card}>
                 <Text style={styles.cardTitle}>{t("rewards.referAndEarn")}</Text>
-                <Text style={styles.cardSubtitle}>{t("rewards.referSubtitle", { amount: info.rewardInr, friendAmount: info.refereeRewardInr })}</Text>
+                <Text style={styles.cardSubtitle}>{t("rewards.referSubtitle", { amount: formatInr(info.rewardInr), friendAmount: formatInr(info.refereeRewardInr) })}</Text>
                 <View style={styles.codeRow}>
                   <Text selectable style={styles.codeText}>{info.referralCode}</Text>
                 </View>

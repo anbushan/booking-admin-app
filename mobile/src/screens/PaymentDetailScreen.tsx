@@ -6,6 +6,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { BackHeader } from "../components/BackHeader";
 import { useScreenView } from "../lib/useScreenView";
 import { useTranslation } from "../lib/i18n/I18nContext";
+import { formatInr } from "../lib/money";
 
 export default function PaymentDetailScreen({ route, navigation }: any) {
   useScreenView("PaymentDetailScreen");
@@ -37,7 +38,7 @@ export default function PaymentDetailScreen({ route, navigation }: any) {
           {remainingFare != null && (
             <View style={[styles.row, { borderBottomWidth: 0 }]}>
               <Text style={styles.label}>{t("payment.remainingFareCashUpi")}</Text>
-              <Text style={styles.value}>Rs {remainingFare}</Text>
+              <Text style={styles.value}>Rs {formatInr(remainingFare)}</Text>
             </View>
           )}
 

@@ -19,6 +19,7 @@ import Avatar from "../components/Avatar";
 import { VerifiedBadge } from "../components/VerifiedBadge";
 import { RidePreferences } from "../components/RidePreferences";
 import { useTranslation } from "../lib/i18n/I18nContext";
+import { formatInr } from "../lib/money";
 
 type RideDetails = {
   id: string;
@@ -298,13 +299,13 @@ export default function BookingConfirmScreen({ route, navigation }: any) {
           <View style={styles.billCard}>
             <Text style={styles.billTitle}>{t("booking.billTitle")}</Text>
             <View style={styles.billRow}>
-              <Text style={styles.billLabel}>{t("booking.farePerSeat", { amount: Number(ride.segmentPricePerSeat ?? ride.pricePerSeat) })}</Text>
+              <Text style={styles.billLabel}>{t("booking.farePerSeat", { amount: formatInr(ride.segmentPricePerSeat ?? ride.pricePerSeat) })}</Text>
               <Text style={styles.billValue}>× {seats}</Text>
             </View>
             <View style={styles.billDashedRule} />
             <View style={styles.billRow}>
               <Text style={styles.billTotalLabel}>{t("booking.toPayDriver")}</Text>
-              <Text style={styles.billTotalValue}>Rs {fare}</Text>
+              <Text style={styles.billTotalValue}>Rs {formatInr(fare)}</Text>
             </View>
             <View style={styles.notice}>
               <Ionicons name="information-circle-outline" size={16} color={colors.accentText} />
@@ -344,7 +345,7 @@ export default function BookingConfirmScreen({ route, navigation }: any) {
         <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, spacing.md) }]}>
           <View>
             <Text style={styles.footerLabel}>{t("booking.toPayDriver")}</Text>
-            <Text style={styles.footerAmount}>Rs {fare}</Text>
+            <Text style={styles.footerAmount}>Rs {formatInr(fare)}</Text>
           </View>
           <Pressable
             style={[styles.button, (submitting || full) && { opacity: 0.6 }]}

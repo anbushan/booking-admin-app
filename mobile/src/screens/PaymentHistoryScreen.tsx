@@ -11,6 +11,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { BackHeader } from "../components/BackHeader";
 import { useScreenView } from "../lib/useScreenView";
 import { useTranslation } from "../lib/i18n/I18nContext";
+import { formatInr } from "../lib/money";
 
 export default function PaymentHistoryScreen({ navigation }: any) {
   useScreenView("PaymentHistoryScreen");
@@ -61,7 +62,7 @@ export default function PaymentHistoryScreen({ navigation }: any) {
               <Text style={styles.date}>{item.platformFeePaidAt ? new Date(item.platformFeePaidAt).toLocaleDateString() : "—"}</Text>
             </View>
             <View style={{ alignItems: "flex-end" }}>
-              <Text style={styles.amount}>{item.platformFeeAmount != null ? `Rs ${Number(item.platformFeeAmount)}` : "—"}</Text>
+              <Text style={styles.amount}>{item.platformFeeAmount != null ? `Rs ${formatInr(item.platformFeeAmount)}` : "—"}</Text>
               <Text style={[styles.status, item.platformFeePaidAt ? styles.statusPaid : styles.statusPending]}>
                 {item.platformFeePaidAt ? t("payment.paid") : t("payment.pendingLabel")}
               </Text>

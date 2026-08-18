@@ -13,6 +13,7 @@ import { dialProxyNumber } from "../lib/callHelper";
 import { useScreenView } from "../lib/useScreenView";
 import Avatar from "../components/Avatar";
 import { useTranslation } from "../lib/i18n/I18nContext";
+import { formatInr } from "../lib/money";
 
 // Web build of LiveTrackingScreen — react-native-maps is a native-only
 // module (it imports RN's codegen internals directly), so importing it
@@ -65,7 +66,7 @@ export default function LiveTrackingScreen({ route, navigation }: any) {
         if (!navigatedAway.current && track.status === "COMPLETED") {
           navigatedAway.current = true;
           if (role === "PASSENGER") {
-            showAlert(t("liveTracking.tripCompletedTitle"), t("liveTracking.payDirectly", { amount: track.amount ?? 0 }));
+            showAlert(t("liveTracking.tripCompletedTitle"), t("liveTracking.payDirectly", { amount: formatInr(track.amount ?? 0) }));
             // Straight into rating the driver now, rather than relying on
             // the passenger to dig up this COMPLETED booking later —
             // "My bookings" is active-trip-only and won't list it once

@@ -15,6 +15,7 @@ import { bookingJourneySteps } from "../components/StepTracker";
 import { groupByRide } from "../lib/groupByRide";
 import { useScreenView } from "../lib/useScreenView";
 import { useTranslation } from "../lib/i18n/I18nContext";
+import { formatInr } from "../lib/money";
 
 // Bookings a driver has already accepted where the passenger still owes
 // the platform fee — a focused queue separate from "Upcoming trips"
@@ -139,7 +140,7 @@ export default function PaymentQueueScreen({ navigation }: any) {
                     {item.passenger?.name || t("register.passenger")} · {t("common.seatsCount", { count: item.seatsBooked })}
                   </Text>
                   <Text style={styles.fee}>
-                    {item.platformFeeAmount != null ? `Rs ${Number(item.platformFeeAmount)}` : "—"}
+                    {item.platformFeeAmount != null ? `Rs ${formatInr(item.platformFeeAmount)}` : "—"}
                   </Text>
                 </View>
 

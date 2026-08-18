@@ -18,6 +18,7 @@ import Avatar from "../components/Avatar";
 import { VerifiedBadge } from "../components/VerifiedBadge";
 import { RidePreferences } from "../components/RidePreferences";
 import { useTranslation } from "../lib/i18n/I18nContext";
+import { formatInr } from "../lib/money";
 
 type RideResult = {
   id: string;
@@ -108,7 +109,7 @@ function RideResultCard({
           </Text>
         </View>
         <View style={{ alignItems: "flex-end" }}>
-          <Text style={styles.price}>Rs {item.segmentPricePerSeat ?? item.pricePerSeat}</Text>
+          <Text style={styles.price}>Rs {formatInr(item.segmentPricePerSeat ?? item.pricePerSeat)}</Text>
           {item.isOwnRide ? (
             <View style={[styles.seatsPill, styles.seatsPillFull]}>
               <Ionicons name="person-circle-outline" size={11} color={colors.danger} />

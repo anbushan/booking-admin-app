@@ -13,6 +13,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { BackHeader } from "../components/BackHeader";
 import { useScreenView } from "../lib/useScreenView";
 import { useTranslation } from "../lib/i18n/I18nContext";
+import { formatInr } from "../lib/money";
 
 type Earnings = {
   totalThisMonth: number;
@@ -99,7 +100,7 @@ export default function EarningsScreen({ navigation }: any) {
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={styles.summaryLabel}>{t("earnings.earnedThisMonth")}</Text>
-                <Text style={styles.summaryValue}>Rs {data?.totalThisMonth ?? 0}</Text>
+                <Text style={styles.summaryValue}>Rs {formatInr(data?.totalThisMonth ?? 0)}</Text>
               </View>
             </View>
             <View style={styles.summaryStatsRow}>
@@ -109,7 +110,7 @@ export default function EarningsScreen({ navigation }: any) {
               </View>
               <View style={styles.summaryStat}>
                 <Ionicons name="trending-up-outline" size={14} color="#FFFFFF" />
-                <Text style={styles.summaryStatText}>{t("earnings.avgPerTrip", { amount: data?.avgPerTrip ?? 0 })}</Text>
+                <Text style={styles.summaryStatText}>{t("earnings.avgPerTrip", { amount: formatInr(data?.avgPerTrip ?? 0) })}</Text>
               </View>
             </View>
           </View>
@@ -124,7 +125,7 @@ export default function EarningsScreen({ navigation }: any) {
                 <Ionicons name="cash-outline" size={18} color={colors.warning} />
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={styles.pendingTitle}>{t("earnings.yetToCollect", { amount: data.pendingCollectionAmount })}</Text>
+                <Text style={styles.pendingTitle}>{t("earnings.yetToCollect", { amount: formatInr(data.pendingCollectionAmount) })}</Text>
                 <Text style={styles.pendingSub}>
                   {t("earnings.tripsWhereNotCollected", { count: data.pendingCollectionCount })}
                 </Text>
@@ -165,12 +166,12 @@ export default function EarningsScreen({ navigation }: any) {
                     {item.cashCollected ? (
                       <View style={styles.collectedChip}>
                         <Ionicons name="checkmark-circle" size={12} color={colors.success} />
-                        <Text style={styles.collectedText}>{t("earnings.collectedAmount", { amount: item.amount })}</Text>
+                        <Text style={styles.collectedText}>{t("earnings.collectedAmount", { amount: formatInr(item.amount) })}</Text>
                       </View>
                     ) : (
                       <Pressable style={styles.collectChip} onPress={() => markCollected(item.id)}>
                         <Ionicons name="cash-outline" size={12} color={colors.warning} />
-                        <Text style={styles.collectChipText}>{t("earnings.markCollected", { amount: item.amount })}</Text>
+                        <Text style={styles.collectChipText}>{t("earnings.markCollected", { amount: formatInr(item.amount) })}</Text>
                       </Pressable>
                     )}
                     {/* Only the most recent trip (index 0 — recentTrips

@@ -11,6 +11,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { BackHeader } from "../components/BackHeader";
 import { useScreenView } from "../lib/useScreenView";
 import { useTranslation } from "../lib/i18n/I18nContext";
+import { formatInr } from "../lib/money";
 
 // Hardcoded true rather than gated on `__DEV__` — that global isn't
 // reliably true across every way this app gets previewed (e.g. Expo
@@ -129,11 +130,11 @@ export default function PaymentScreen({ route, navigation }: any) {
         <View style={styles.summary}>
           <View style={styles.row}>
             <Text style={styles.label}>{description}</Text>
-            <Text style={[styles.value, amount === 0 && styles.freeValue]}>{amount === 0 ? t("payment.free") : `Rs ${amount}`}</Text>
+            <Text style={[styles.value, amount === 0 && styles.freeValue]}>{amount === 0 ? t("payment.free") : `Rs ${formatInr(amount)}`}</Text>
           </View>
           <View style={[styles.row, { borderBottomWidth: 0 }]}>
             <Text style={styles.totalLabel}>{t("payment.totalDue")}</Text>
-            <Text style={[styles.totalValue, amount === 0 && styles.freeValue]}>{amount === 0 ? t("payment.free") : `Rs ${amount}`}</Text>
+            <Text style={[styles.totalValue, amount === 0 && styles.freeValue]}>{amount === 0 ? t("payment.free") : `Rs ${formatInr(amount)}`}</Text>
           </View>
         </View>
 
@@ -144,8 +145,8 @@ export default function PaymentScreen({ route, navigation }: any) {
               : amount === 0
               ? t("payment.confirmFree")
               : retry
-              ? t("payment.retryPaymentAmount", { amount })
-              : t("payment.payAmount", { amount })}
+              ? t("payment.retryPaymentAmount", { amount: formatInr(amount) })
+              : t("payment.payAmount", { amount: formatInr(amount) })}
           </Text>
         </Pressable>
         <Text style={styles.securedBy}>{t("payment.securedBy")}</Text>

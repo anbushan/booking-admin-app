@@ -13,6 +13,7 @@ import { KeyboardAvoider } from "../components/KeyboardAvoider";
 import { BackHeader } from "../components/BackHeader";
 import { useScreenView } from "../lib/useScreenView";
 import { useTranslation } from "../lib/i18n/I18nContext";
+import { formatInr } from "../lib/money";
 
 export default function EditRideScreen({ route, navigation }: any) {
   useScreenView("EditRideScreen");
@@ -32,7 +33,7 @@ export default function EditRideScreen({ route, navigation }: any) {
   async function handleSave() {
     const validationErrors = validateRidePricing({ seats, price }, t);
     if (priceExceedsCap) {
-      validationErrors.price = t("offerRide.priceCapError", { cap: fareCap });
+      validationErrors.price = t("offerRide.priceCapError", { cap: formatInr(fareCap) });
     }
     setErrors(validationErrors);
     if (Object.keys(validationErrors).length > 0) return;
@@ -113,7 +114,7 @@ export default function EditRideScreen({ route, navigation }: any) {
         />
         <FieldError message={errors.price} />
         <Text style={[styles.hint, priceExceedsCap && { color: colors.danger }]}>
-          {t("offerRide.priceCapHint", { cap: fareCap })}
+          {t("offerRide.priceCapHint", { cap: formatInr(fareCap) })}
         </Text>
 
         <Pressable style={styles.saveButton} onPress={handleSave} disabled={submitting}>

@@ -5,6 +5,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { BackHeader } from "../components/BackHeader";
 import { useScreenView } from "../lib/useScreenView";
 import { useTranslation } from "../lib/i18n/I18nContext";
+import { formatInr } from "../lib/money";
 
 const STATUS_COPY_KEYS: Record<string, string> = {
   INITIATED: "payment.refundInitiated",
@@ -23,7 +24,7 @@ export default function RefundStatusScreen({ route, navigation }: any) {
       <BackHeader title={t("payment.refundStatus")} onBack={() => navigation.goBack()} />
 
       <View style={styles.body}>
-        <Text style={styles.amount}>Rs {Number(refund.amount)}</Text>
+        <Text style={styles.amount}>Rs {formatInr(refund.amount)}</Text>
         <Text style={styles.statusText}>
           {STATUS_COPY_KEYS[refund.status] ? t(STATUS_COPY_KEYS[refund.status]) : refund.status}
         </Text>
