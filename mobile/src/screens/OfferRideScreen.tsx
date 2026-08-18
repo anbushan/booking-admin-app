@@ -53,13 +53,22 @@ function endDateFor(option: EndOption, from: Date): Date | null {
 
 type Point = { lat: number; lng: number; address: string };
 
-const DEFAULT_SOURCE: Point = { lat: 12.9352, lng: 77.6146, address: "Koramangala, Bengaluru" };
-
-export default function OfferRideScreen({ navigation }: any) {
+export default function OfferRideScreen({ navigation, route }: any) {
   useScreenView("OfferRideScreen");
   const { t } = useTranslation();
-  const [source, setSource] = useState<Point>(DEFAULT_SOURCE);
-  const [destination, setDestination] = useState<Point | null>(null);
+  // HomeScreen's driver "Quick offer" card lets a driver pick From/To
+  // right there before ever navigating here — when it does, those picks
+  // arrive as route params so this screen opens already filled in
+  // instead of making the driver pick the same two locations twice.
+  const initialSource: Point | null = route?.params?.initialSource ?? null;
+  const initialDestination: Point | null = route?.params?.initialDestination ?? null;
+  // Used to default to a hardcoded "Koramangala, Bengaluru" regardless of
+  // where the driver actually was — same bug HomeScreen's "from" field
+  // had. Starts null (or the Home quick-offer card's pick, if opened
+  // that way) and gets filled from real GPS on mount otherwise — see
+  // the effect below.
+  const [source, setSource] = useState<Point | null>(initialSource);
+  const [destination, setDestination] = useState<Point | null>(initialDestination);
   const [travelDate, setTravelDate] = useState(() => {
     // A fixed "today at 18:30" default is in the past for a good chunk
     // of the day (anyone opening this after 6:30pm) — the backend
@@ -128,6 +137,20 @@ export default function OfferRideScreen({ navigation }: any) {
     api.getMyProfile().then(setProfile).catch(() => {});
   }, []);
 
+  // Same GPS auto-fill HomeScreen's own "from" field uses — only matters
+  // when this screen was opened directly (driver quick-actions grid,
+  // deep link) rather than via Home's quick-offer card, since that path
+  // already supplied a real, deliberately-picked source above. Silent
+  // no-op on denial/failure, same as Home.
+  useEffect(() => {
+    if (initialSource) return;
+    let cancelled = false;
+    api.getCurrentLocation()
+      .then((loc: Point) => { if (!cancelled) setSource((prev) => prev ?? loc); })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, []);
+
   // See HomeScreen.tsx's identical listener for why this is an event
   // instead of a callback threaded through navigation params — React
   // Navigation warns on function values in route params (they break
@@ -145,7 +168,7 @@ export default function OfferRideScreen({ navigation }: any) {
   // constraint for their actual route up front, instead of only finding
   // out after a rejected submit. A short route can have a cap well below
   // any flat default price.
-  const fareCap = destination
+  const fareCap = source && destination
     ? computeFareCap(source.lat, source.lng, destination.lat, destination.lng)
     : null;
   const priceExceedsCap = fareCap !== null && Number(price) > fareCap;
@@ -163,6 +186,10 @@ export default function OfferRideScreen({ navigation }: any) {
   // point-to-point trip) before the ride actually gets created. That
   // screen makes the real api.createRide() call once a route is picked.
   function handleContinue() {
+    if (!source) {
+      openLocationSearch("offerRide-source");
+      return;
+    }
     if (!destination) {
       showAlert(t("offerRide.addDestinationTitle"), t("offerRide.addDestinationBody"));
       return;
@@ -252,7 +279,9 @@ export default function OfferRideScreen({ navigation }: any) {
         <View style={styles.routeCard}>
           <Pressable style={styles.field} onPress={() => openLocationSearch("offerRide-source")}>
             <View style={[styles.dot, { backgroundColor: colors.accent }]} />
-            <Text style={styles.fieldText}>{source.address}</Text>
+            <Text style={[styles.fieldText, !source && { color: colors.textMuted }]}>
+              {source?.address || t("home.whereFrom")}
+            </Text>
           </Pressable>
           <Pressable
             style={[styles.field, { borderBottomWidth: 0 }]}

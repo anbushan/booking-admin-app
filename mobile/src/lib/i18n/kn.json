@@ -864,6 +864,7 @@
   "rewards.promoCodePlaceholder": "ಪ್ರೊಮೊ ಕೋಡ್ ನಮೂದಿಸಿ",
   "rewards.referralRedeemed": "ಕೋಡ್ ಅನ್ವಯಿಸಲಾಗಿದೆ — ನಿಮಗೆ ₹{amount} ಕ್ರೆಡಿಟ್ ಸಿಕ್ಕಿದೆ.",
   "rewards.promoRedeemed": "ಕೋಡ್ ಅನ್ವಯಿಸಲಾಗಿದೆ — ನಿಮಗೆ ₹{amount} ಕ್ರೆಡಿಟ್ ಸಿಕ್ಕಿದೆ.",
+  "rewards.promoRedeemedFullWaiver": "ಕೋಡ್ ಅನ್ವಯಿಸಲಾಗಿದೆ — ನಿಮ್ಮ ಮುಂದಿನ ಪ್ಲಾಟ್‌ಫಾರ್ಮ್ ಶುಲ್ಕ ಉಚಿತ!",
   "rewards.couldntRedeem": "ಆ ಕೋಡ್ ಅನ್ನು ರಿಡೀಮ್ ಮಾಡಲು ಸಾಧ್ಯವಾಗಲಿಲ್ಲ. ಮತ್ತೆ ಪ್ರಯತ್ನಿಸಿ.",
   "rewards.yourReferrals": "ನಿಮ್ಮ ರೆಫರಲ್‌ಗಳು",
   "rewards.paidOut": "ನಿಮಗೆ {date} ರಂದು ಕ್ರೆಡಿಟ್ ಸಿಕ್ಕಿದೆ",
@@ -875,5 +876,7 @@
   "locationPermission.benefit2": "ಸಹಾಯ ಬೇಕಾದಾಗ SOS ಬಟನ್ ಅನ್ನು ಸಕ್ರಿಯಗೊಳಿಸುತ್ತದೆ",
   "locationPermission.benefit3": "ಸಕ್ರಿಯ ಪ್ರಯಾಣದ ಹೊರತು ಎಂದಿಗೂ ಟ್ರ್ಯಾಕ್ ಮಾಡಲಾಗುವುದಿಲ್ಲ",
   "verification.aadhaarFailedRetryHint": "ಸಂಖ್ಯೆಯನ್ನು ಮರುಪರಿಶೀಲಿಸಿ, ನಂತರ ಮತ್ತೆ ಪ್ರಯತ್ನಿಸಲು ಮರುಹೊಂದಿಸಿ ಮತ್ತು ಮತ್ತೆ ಪಾವತಿಸಿ.",
-  "verification.resetAndPayAgain": "ಮರುಹೊಂದಿಸಿ ಮತ್ತು ಮತ್ತೆ ಪಾವತಿಸಿ"
+  "verification.resetAndPayAgain": "ಮರುಹೊಂದಿಸಿ ಮತ್ತು ಮತ್ತೆ ಪಾವತಿಸಿ",
+  "home.whereFrom": "ಎಲ್ಲಿಂದ?",
+  "home.swapLocations": "ಪಿಕಪ್ ಮತ್ತು ಡ್ರಾಪ್ ಬದಲಾಯಿಸಿ"
 }

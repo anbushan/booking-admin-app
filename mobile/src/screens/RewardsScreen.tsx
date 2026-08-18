@@ -91,7 +91,11 @@ export default function RewardsScreen({ navigation }: any) {
     try {
       const res = await api.redeemPromoCode(promoCodeInput.trim());
       Analytics.codeRedeemed("promo");
-      showSuccess(t("rewards.promoRedeemed", { amount: res.creditAppliedInr }));
+      // fullWaiver codes (MVP launch promos) don't carry a rupee amount
+      // to report — their whole point is "the fee's free next time",
+      // not a specific credit balance — so this gets its own message
+      // rather than interpolating a null into the usual one.
+      showSuccess(res.fullWaiver ? t("rewards.promoRedeemedFullWaiver") : t("rewards.promoRedeemed", { amount: res.creditAppliedInr }));
       setPromoCodeInput("");
       load();
     } catch (err: any) {

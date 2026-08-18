@@ -373,7 +373,22 @@ const styles = StyleSheet.create({
     flex: 1, flexDirection: "row", alignItems: "center", gap: spacing.sm,
     backgroundColor: colors.bg, borderRadius: radius.sm, paddingHorizontal: spacing.sm, height: 40,
   },
-  input: { flex: 1, ...typography.body, height: 40, color: colors.textPrimary },
+  // The wrapping inputWrap row above already fixes height:40 and
+  // centers its children — this input additionally fixing its own
+  // height:40 nested inside that meant Poppins' natural line-height
+  // (taller than fontSize:16) plus Android's own font padding had
+  // nowhere to go but get clipped: the placeholder/typed text visibly
+  // cropped top or bottom. Letting the input size itself within the
+  // row (paddingVertical:0 so it doesn't stretch further) and disabling
+  // Android's extra font padding fixes it without touching the layout.
+  input: {
+    flex: 1,
+    ...typography.body,
+    color: colors.textPrimary,
+    paddingVertical: 0,
+    includeFontPadding: false,
+    textAlignVertical: "center",
+  },
   currentLocationRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm, padding: spacing.md, borderBottomWidth: 1, borderBottomColor: colors.border },
   currentLocationIcon: { width: 24, alignItems: "center" },
   currentLocationText: { ...typography.body, color: colors.accentText, fontWeight: "700", fontFamily: FONT.bold },

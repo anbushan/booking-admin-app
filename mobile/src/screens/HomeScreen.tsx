@@ -36,7 +36,13 @@ type PopularRoute = {
   destAddress: string; destLat: number; destLng: number; count: number;
 };
 
-const DEFAULT_SOURCE: Point = { lat: 12.9352, lng: 77.6146, address: "Koramangala, Bengaluru" };
+// Used to default to a hardcoded "Koramangala, Bengaluru" regardless of
+// where the passenger actually was — every single person opening the
+// app in Chennai, Delhi, anywhere but that one Bengaluru neighborhood
+// saw a "from" address that was simply wrong until they noticed and
+// changed it. Source now starts unset (matches destination's own
+// null-until-picked pattern below) and gets filled in from the device's
+// real GPS position on mount instead — see the effect further down.
 
 
 // Wraps the actual screen in CopilotProvider so `useCopilot()` is
@@ -71,8 +77,16 @@ function HomeScreenContent({ navigation }: any) {
   const { t } = useTranslation();
   const { start } = useCopilot();
   const insets = useSafeAreaInsets();
-  const [source, setSource] = useState<Point>(DEFAULT_SOURCE);
+  const [source, setSource] = useState<Point | null>(null);
   const [destination, setDestination] = useState<Point | null>(null);
+  // Driver-side "quick offer" card on this same screen (see driverPanel
+  // below) — its own destination field, separate from the passenger
+  // search's `destination` above since the two panels are mutually
+  // exclusive per role but shouldn't share state if a role switch ever
+  // happens without a full remount. Reuses `source` for its "from" field
+  // (GPS-filled below, same for both roles — where you are doesn't
+  // depend on which one you are).
+  const [offerDestination, setOfferDestination] = useState<Point | null>(null);
   const [travelDate, setTravelDate] = useState(() => {
     const d = new Date();
     d.setHours(18, 30, 0, 0);
@@ -103,6 +117,21 @@ function HomeScreenContent({ navigation }: any) {
     api.getMyProfile().then(setProfile).catch(() => {});
   }, []);
 
+  // Best-effort real GPS fix for the "from" field on first load — silent
+  // no-op on denial/failure (leaves source null, same as destination's
+  // own unset state), never blocks or errors the screen over it. Only
+  // fires once: a functional state update with an internal "already
+  // set" guard would still be racy against a manual pick landing first,
+  // so this checks the ref instead of depending on `source` (which
+  // would otherwise re-fire this on every location:selected swap/pick).
+  useEffect(() => {
+    let cancelled = false;
+    api.getCurrentLocation()
+      .then((loc: Point) => { if (!cancelled) setSource((prev) => prev ?? loc); })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, []);
+
   // LocationSearchScreen reports a pick back via this event instead of a
   // callback passed through navigation params — React Navigation warns
   // ("non-serializable values were found in the navigation state") the
@@ -115,6 +144,7 @@ function HomeScreenContent({ navigation }: any) {
     return appEvents.on("location:selected", (payload: { selectFor: string; location: Point }) => {
       if (payload.selectFor === "home-source") setSource(payload.location);
       else if (payload.selectFor === "home-destination") setDestination(payload.location);
+      else if (payload.selectFor === "home-offer-destination") setOfferDestination(payload.location);
     });
   }, []);
 
@@ -334,11 +364,19 @@ function HomeScreenContent({ navigation }: any) {
     );
   }
 
-  function openLocationSearch(selectFor: "home-source" | "home-destination") {
+  function openLocationSearch(selectFor: "home-source" | "home-destination" | "home-offer-destination") {
     navigation.navigate("LocationSearch", { selectFor, skipMapConfirm: true });
   }
 
   function handleSearch() {
+    // Source can now be genuinely unset (no more fake hardcoded default,
+    // and a denied/slow GPS fix leaves it null) — same "send them to
+    // pick it" treatment destination already got below, not a silent
+    // fallback to some made-up address.
+    if (!source) {
+      openLocationSearch("home-source");
+      return;
+    }
     if (!destination) {
       openLocationSearch("home-destination");
       return;
@@ -410,8 +448,49 @@ function HomeScreenContent({ navigation }: any) {
         // ride as a driver account would just fail. This is the driver's
         // actual loop: publish, then respond to requests as they come in.
         <View style={styles.driverPanel}>
+          {/* Quick offer — lets a driver pick their route right here on
+              Home instead of only after tapping through to the full
+              OfferRide screen. Picking is optional: "Offer a ride" below
+              carries whatever's set here along as a prefill (OfferRide's
+              own GPS fallback covers "from" if this is skipped), so
+              nothing here blocks or changes what happens if the driver
+              just taps straight through like before. */}
+          <View style={styles.offerQuickCard}>
+            <Pressable style={styles.field} onPress={() => openLocationSearch("home-source")}>
+              <View style={[styles.dot, { backgroundColor: colors.accent }]} />
+              <Text style={[styles.fieldText, !source && { color: colors.textMuted }]}>
+                {source?.address || t("home.whereFrom")}
+              </Text>
+            </Pressable>
+            <Pressable
+              style={[styles.field, { borderBottomWidth: 0 }]}
+              onPress={() => openLocationSearch("home-offer-destination")}
+            >
+              <View style={[styles.dot, { backgroundColor: colors.marigold }]} />
+              <Text style={[styles.fieldText, !offerDestination && { color: colors.textMuted }]}>
+                {offerDestination?.address || t("home.whereTo")}
+              </Text>
+            </Pressable>
+            {!!source && !!offerDestination && (
+              <Pressable
+                style={styles.swapButton}
+                onPress={() => { const s = source; setSource(offerDestination); setOfferDestination(s); }}
+                hitSlop={8}
+                accessibilityRole="button"
+                accessibilityLabel={t("home.swapLocations")}
+              >
+                <Ionicons name="swap-vertical" size={16} color={colors.accentText} />
+              </Pressable>
+            )}
+          </View>
           <CopilotStep name="driverOfferRide" order={1} text={t("copilot.driver.step1")}>
-            <CopilotPressable style={styles.ctaMarigold} onPress={() => navigation.navigate("OfferRide")}>
+            <CopilotPressable
+              style={styles.ctaMarigold}
+              onPress={() => navigation.navigate("OfferRide", {
+                ...(source ? { initialSource: source } : {}),
+                ...(offerDestination ? { initialDestination: offerDestination } : {}),
+              })}
+            >
               <Ionicons name="add-circle-outline" size={18} color="#FFFFFF" />
               <Text style={styles.ctaText}>{t("home.offerARide")}</Text>
             </CopilotPressable>
@@ -485,7 +564,9 @@ function HomeScreenContent({ navigation }: any) {
             <CopilotView style={styles.searchCard}>
               <Pressable style={styles.field} onPress={() => openLocationSearch("home-source")}>
                 <View style={[styles.dot, { backgroundColor: colors.accent }]} />
-                <Text style={styles.fieldText}>{source.address}</Text>
+                <Text style={[styles.fieldText, !source && { color: colors.textMuted }]}>
+                  {source?.address || t("home.whereFrom")}
+                </Text>
               </Pressable>
               <Pressable
                 style={[styles.field, { borderBottomWidth: 0 }]}
@@ -496,6 +577,20 @@ function HomeScreenContent({ navigation }: any) {
                   {destination?.address || t("home.whereTo")}
                 </Text>
               </Pressable>
+              {/* BlaBlaCar-style swap button — sits right on the divider
+                  between the two fields, only worth showing once both
+                  are actually set (nothing useful to swap otherwise). */}
+              {!!source && !!destination && (
+                <Pressable
+                  style={styles.swapButton}
+                  onPress={() => { setSource(destination); setDestination(source); }}
+                  hitSlop={8}
+                  accessibilityRole="button"
+                  accessibilityLabel={t("home.swapLocations")}
+                >
+                  <Ionicons name="swap-vertical" size={16} color={colors.accentText} />
+                </Pressable>
+              )}
             </CopilotView>
           </CopilotStep>
 
@@ -703,6 +798,29 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
     padding: spacing.md,
+    position: "relative",
+  },
+  swapButton: {
+    position: "absolute",
+    right: spacing.md,
+    top: "50%",
+    marginTop: -16,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    alignItems: "center",
+    justifyContent: "center",
+    // Sits above the two field rows' own borders/backgrounds without
+    // needing an elevation hack — a plain absolute sibling already
+    // paints after them in document order.
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 3,
+    elevation: 2,
   },
   field: {
     flexDirection: "row",
@@ -754,6 +872,19 @@ const styles = StyleSheet.create({
   },
   ctaText: { ...typography.title, color: "#FFFFFF" },
   driverPanel: { marginHorizontal: spacing.lg, marginTop: -spacing.lg },
+  // Same look as the passenger searchCard, but without its own
+  // marginHorizontal/marginTop — driverPanel above already supplies
+  // that indent + overlap-the-header offset, so this just needs to be a
+  // plain card sitting inside it with a gap before the CTA button below.
+  offerQuickCard: {
+    backgroundColor: colors.surface,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: spacing.md,
+    marginBottom: spacing.md,
+    position: "relative",
+  },
   driverHint: { ...typography.small, color: colors.textMuted, marginTop: spacing.lg, lineHeight: 18 },
   verifyBanner: {
     flexDirection: "row", alignItems: "center", gap: spacing.sm,

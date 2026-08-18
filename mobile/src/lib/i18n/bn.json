@@ -864,6 +864,7 @@
   "rewards.promoCodePlaceholder": "প্রোমো কোড লিখুন",
   "rewards.referralRedeemed": "কোড প্রয়োগ হয়েছে — আপনি ₹{amount} ক্রেডিট পেয়েছেন।",
   "rewards.promoRedeemed": "কোড প্রয়োগ হয়েছে — আপনি ₹{amount} ক্রেডিট পেয়েছেন।",
+  "rewards.promoRedeemedFullWaiver": "কোড প্রয়োগ হয়েছে — আপনার পরবর্তী প্ল্যাটফর্ম ফি ফ্রি!",
   "rewards.couldntRedeem": "সেই কোড রিডিম করা যায়নি। আবার চেষ্টা করুন।",
   "rewards.yourReferrals": "আপনার রেফারেলসমূহ",
   "rewards.paidOut": "আপনি {date} তারিখে ক্রেডিট পেয়েছেন",
@@ -875,5 +876,7 @@
   "locationPermission.benefit2": "সাহায্য প্রয়োজন হলে SOS বোতাম সক্রিয় করে",
   "locationPermission.benefit3": "সক্রিয় ট্রিপের বাইরে কখনো ট্র্যাক করা হয় না",
   "verification.aadhaarFailedRetryHint": "নম্বরটি আবার যাচাই করুন, তারপর আবার চেষ্টা করতে রিসেট করে আবার টাকা দিন।",
-  "verification.resetAndPayAgain": "রিসেট করে আবার টাকা দিন"
+  "verification.resetAndPayAgain": "রিসেট করে আবার টাকা দিন",
+  "home.whereFrom": "কোথা থেকে?",
+  "home.swapLocations": "পিকআপ ও ড্রপ অদলবদল করুন"
 }
