@@ -613,6 +613,8 @@ model UserCredit {
   usedOnBookingId String?
   usedAt          DateTime?
   createdAt       DateTime  @default(now())
+  // Mirrored from backend/prisma/schema.prisma — see there for why.
+  fullWaiver      Boolean   @default(false)
 
   @@index([userId, status])
 }
@@ -640,6 +642,8 @@ model PromoCode {
   code            String    @unique
   discountInr     Decimal
   firstRideOnly   Boolean   @default(true)
+  // Mirrored from backend/prisma/schema.prisma — see there for why.
+  fullWaiver      Boolean   @default(false)
   maxRedemptions  Int?
   redemptionCount Int       @default(0)
   active          Boolean   @default(true)

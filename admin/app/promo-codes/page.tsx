@@ -19,6 +19,7 @@ const PAGE_SIZE = 25;
 async function createPromoCode(formData: FormData) {
   "use server";
   const code = String(formData.get("code") || "").toUpperCase().trim();
+  const fullWaiver = formData.get("fullWaiver") === "on";
   const discountInr = Number(formData.get("discountInr"));
   const firstRideOnly = formData.get("firstRideOnly") === "on";
   const maxRedemptionsRaw = String(formData.get("maxRedemptions") || "").trim();
@@ -27,12 +28,22 @@ async function createPromoCode(formData: FormData) {
   const expiresAt = expiresAtRaw ? new Date(expiresAtRaw) : null;
 
   try {
-    if (!code || !discountInr || discountInr <= 0) {
-      redirectWithToast("/promo-codes", "Enter a code and a discount amount greater than 0.", "error");
+    if (!code) {
+      redirectWithToast("/promo-codes", "Enter a code.", "error");
+      return;
+    }
+    // Full-waiver codes don't need a discount amount — the whole point
+    // is "the entire fee, whatever it is", not a fixed rupee figure —
+    // so that field is only required for the normal, partial-discount
+    // kind. discountInr still gets written (0) since the column is
+    // required; it's simply never read for a fullWaiver code — see
+    // lib/credits.js on the backend.
+    if (!fullWaiver && (!discountInr || discountInr <= 0)) {
+      redirectWithToast("/promo-codes", "Enter a discount amount greater than 0, or check \"Full waiver\".", "error");
       return;
     }
     await prisma.promoCode.create({
-      data: { code, discountInr, firstRideOnly, maxRedemptions, expiresAt },
+      data: { code, discountInr: fullWaiver ? 0 : discountInr, fullWaiver, firstRideOnly, maxRedemptions, expiresAt },
     });
     revalidatePath("/promo-codes");
     redirectWithToast("/promo-codes", `Created code "${code}".`);
@@ -105,10 +116,14 @@ export default async function PromoCodesPage({ searchParams }: { searchParams: {
               <label style={{ fontSize: 13, fontWeight: 500, display: "block", marginBottom: 4 }}>Code</label>
               <input name="code" placeholder="WELCOME50" className="admin-input" style={{ width: "100%", textTransform: "uppercase" }} required />
             </div>
+            <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, fontWeight: 600, background: "#FFF6E5", border: "1px solid #F0DBA0", borderRadius: 6, padding: "8px 10px" }}>
+              <input type="checkbox" name="fullWaiver" style={{ width: 16, height: 16 }} />
+              Full waiver — makes the platform fee entirely free (MVP launch promos)
+            </label>
             <div>
               <label style={{ fontSize: 13, fontWeight: 500, display: "block", marginBottom: 4 }}>Discount (Rs)</label>
-              <input name="discountInr" type="number" step="any" min="1" placeholder="50" className="admin-input" style={{ width: "100%" }} required />
-              <div style={{ fontSize: 11, color: "#888780", marginTop: 2 }}>Applied as credit toward the platform fee — same as a referral reward, not the ride fare itself.</div>
+              <input name="discountInr" type="number" step="any" min="1" placeholder="50" className="admin-input" style={{ width: "100%" }} />
+              <div style={{ fontSize: 11, color: "#888780", marginTop: 2 }}>Applied as credit toward the platform fee — same as a referral reward, not the ride fare itself. Ignored if "Full waiver" above is checked.</div>
             </div>
             <div>
               <label style={{ fontSize: 13, fontWeight: 500, display: "block", marginBottom: 4 }}>Max redemptions (optional)</label>
@@ -139,10 +154,11 @@ export default async function PromoCodesPage({ searchParams }: { searchParams: {
                     <Badge tone={c.active && !expired && !maxedOut ? "success" : "neutral"}>
                       {!c.active ? "Paused" : expired ? "Expired" : maxedOut ? "Fully claimed" : "Active"}
                     </Badge>
+                    {c.fullWaiver && <Badge tone="warning">Full waiver</Badge>}
                     {c.firstRideOnly && <Badge tone="info">First ride only</Badge>}
                   </div>
                   <div style={{ fontSize: 12, color: "#888780", marginTop: 4 }}>
-                    Rs {c.discountInr.toString()} off · {c.redemptionCount}{c.maxRedemptions != null ? ` / ${c.maxRedemptions}` : ""} redeemed
+                    {c.fullWaiver ? "Platform fee fully waived" : `Rs ${c.discountInr.toString()} off`} · {c.redemptionCount}{c.maxRedemptions != null ? ` / ${c.maxRedemptions}` : ""} redeemed
                     {c.expiresAt && ` · expires ${c.expiresAt.toLocaleDateString()}`}
                   </div>
                 </div>
