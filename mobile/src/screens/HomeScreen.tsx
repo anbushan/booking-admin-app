@@ -443,17 +443,6 @@ function HomeScreenContent({ navigation }: any) {
           <View>
             <Text style={styles.greeting}>{greeting}</Text>
             <Text style={styles.name}>{firstName || t("home.thereFallback")}</Text>
-            {/* Manual re-trigger — the auto-start (see the effect above)
-                only ever fires once per role, so this is the only way
-                back into the walkthrough after that first look. Hidden
-                on web for the same reason the auto-start is skipped
-                there — see that effect's comment. */}
-            {Platform.OS !== "web" && (
-              <Pressable style={styles.tourLink} onPress={() => start()} hitSlop={6}>
-                <Ionicons name="sparkles-outline" size={12} color="#FFFFFF" />
-                <Text style={styles.tourLinkText}>{t("home.takeTour")}</Text>
-              </Pressable>
-            )}
           </View>
           <Pressable style={styles.avatarButton} onPress={() => navigation.navigate("Profile")} hitSlop={8}>
             <Avatar
@@ -779,8 +768,6 @@ const styles = StyleSheet.create({
   },
   greeting: { color: "#FFFFFF", opacity: 0.8, fontSize: 13 },
   name: { color: "#FFFFFF", fontSize: 18, fontWeight: "700", fontFamily: FONT.bold, marginTop: 2 },
-  tourLink: { flexDirection: "row", alignItems: "center", gap: spacing.xs, marginTop: 6 },
-  tourLinkText: { color: "#FFFFFF", opacity: 0.85, fontSize: 11, fontWeight: "700", fontFamily: FONT.bold, textDecorationLine: "underline" },
   searchCard: {
     backgroundColor: colors.surface,
     marginHorizontal: spacing.lg,
