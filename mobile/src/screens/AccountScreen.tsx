@@ -152,15 +152,22 @@ export default function AccountScreen({ navigation }: any) {
           />
           <Row icon="gift-outline" label={t("sideMenu.rewards")} onPress={() => navigation.navigate("Rewards")} />
           <Row icon="settings-outline" label={t("sideMenu.settings")} onPress={() => navigation.navigate("Settings")} />
-          {/* Moved here from Settings — this is the account-level "leave
-              the platform entirely" action, the same shelf Logout below
-              sits on, not really a settings toggle. */}
-          <Row icon="trash-outline" label={t("settings.deleteAccount")} onPress={() => navigation.navigate("DeleteAccount")} danger />
         </View>
 
         <Pressable style={styles.logoutRow} onPress={handleLogout}>
           <Ionicons name="log-out-outline" size={17} color={colors.danger} />
           <Text style={styles.logoutText}>{t("sideMenu.logOut")}</Text>
+        </Pressable>
+
+        {/* Deliberately not a Row in the list above — that put it right
+            next to Rewards/Settings, both regular navigable rows someone
+            scrolling and tapping quickly could hit by accident. A small,
+            plain text link set apart below Logout (same treatment it had
+            on the old SettingsScreen) still gets there but doesn't read
+            as "just another menu item" the way a full icon+chevron row
+            did. */}
+        <Pressable style={styles.deleteAccountLink} onPress={() => navigation.navigate("DeleteAccount")}>
+          <Text style={styles.deleteAccountLinkText}>{t("settings.deleteAccount")}</Text>
         </Pressable>
       </ScrollView>
       <AppBottomNav navigation={navigation} profile={profile} active="menu" />
@@ -168,13 +175,13 @@ export default function AccountScreen({ navigation }: any) {
   );
 }
 
-function Row({ icon, label, onPress, badge, danger }: { icon: string; label: string; onPress: () => void; badge?: number; danger?: boolean }) {
+function Row({ icon, label, onPress, badge }: { icon: string; label: string; onPress: () => void; badge?: number }) {
   return (
     <Pressable style={styles.row} onPress={onPress}>
-      <View style={[styles.rowIconWrap, danger && styles.rowIconWrapDanger]}>
-        <Ionicons name={icon as any} size={17} color={danger ? colors.danger : colors.accentText} />
+      <View style={styles.rowIconWrap}>
+        <Ionicons name={icon as any} size={17} color={colors.accentText} />
       </View>
-      <Text style={[styles.rowText, danger && styles.rowTextDanger]}>{label}</Text>
+      <Text style={styles.rowText}>{label}</Text>
       {!!badge && (
         <View style={styles.rowBadge}>
           <Text style={styles.rowBadgeText}>{badge > 9 ? "9+" : badge}</Text>
@@ -217,9 +224,7 @@ const styles = StyleSheet.create({
   },
   row: { flexDirection: "row", alignItems: "center", gap: spacing.sm, paddingVertical: 11 },
   rowIconWrap: { width: 30, height: 30, borderRadius: 9, backgroundColor: colors.accentBg, alignItems: "center", justifyContent: "center" },
-  rowIconWrapDanger: { backgroundColor: colors.dangerBg },
   rowText: { ...typography.body, color: colors.textPrimary, flex: 1 },
-  rowTextDanger: { color: colors.danger },
   rowBadge: {
     minWidth: 18,
     height: 18,
@@ -232,4 +237,6 @@ const styles = StyleSheet.create({
   rowBadgeText: { color: "#FFFFFF", fontSize: 10, fontWeight: "700", fontFamily: FONT.bold },
   logoutRow: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: spacing.sm, marginTop: spacing.xl, paddingVertical: spacing.md, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: radius.md },
   logoutText: { ...typography.body, color: colors.danger, fontWeight: "700", fontFamily: FONT.bold },
+  deleteAccountLink: { alignItems: "center", justifyContent: "center", padding: spacing.sm, marginTop: spacing.md },
+  deleteAccountLinkText: { ...typography.small, color: colors.textMuted, textDecorationLine: "underline" },
 });

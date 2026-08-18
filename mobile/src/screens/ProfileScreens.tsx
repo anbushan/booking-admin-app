@@ -45,20 +45,15 @@ export function ProfileScreen({ navigation }: any) {
   const since = memberSince(profile.createdAt);
 
   // Your ratings/Payment history moved to AccountScreen (the Menu tab's
-  // own page) — listed there too, so this was a straight duplicate.
+  // own page) — listed there too, so this was a straight duplicate. My
+  // vehicles/Earnings (Home's driver quick-actions grid) and Settings
+  // (AccountScreen) were the same story — removed for the same reason.
   const links: { icon: keyof typeof Ionicons.glyphMap; label: string; onPress: () => void }[] = [
     { icon: "pencil-outline", label: t("profile.editProfile"), onPress: () => navigation.navigate("EditProfile", { profile }) },
     // Reachable by any role (an account can be both a driver and a
     // passenger) — purely a trust badge, never required to book, so
     // it's just a settings-style link rather than gated to one role.
     { icon: "shield-checkmark-outline", label: t("verification.passengerLink"), onPress: () => navigation.navigate("VerifyPassenger") },
-    ...(isDriver
-      ? [
-          { icon: "car-sport-outline" as const, label: t("sideMenu.myVehicles"), onPress: () => navigation.navigate("VehicleList") },
-          { icon: "wallet-outline" as const, label: t("home.earnings"), onPress: () => navigation.navigate("Earnings") },
-        ]
-      : []),
-    { icon: "settings-outline", label: t("sideMenu.settings"), onPress: () => navigation.navigate("Settings") },
   ];
 
   return (
