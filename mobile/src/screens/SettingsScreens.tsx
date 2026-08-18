@@ -58,12 +58,13 @@ export function SettingsScreen({ navigation }: any) {
   // legitimate path to a role-specific screen. Logout and Delete account
   // moved there too (this screen no longer has either) — both are
   // account-level, not really "settings", and Logout was already
-  // duplicated on AccountScreen regardless.
+  // duplicated on AccountScreen regardless. Notifications is the same
+  // story — AccountScreen's own row already covers it (and carries the
+  // unread badge this one never did).
   const rows: { key: string; label: string; icon: keyof typeof Ionicons.glyphMap; onPress: () => void }[] = [
     { key: "profile", label: t("settings.profile"), icon: "person-outline", onPress: () => navigation.navigate("Profile") },
     { key: "loginPasscode", label: t("settings.loginPasscode"), icon: "key-outline", onPress: () => navigation.navigate("LoginPasscode") },
     { key: "language", label: t("settings.language"), icon: "language-outline", onPress: () => navigation.navigate("LanguageSelection") },
-    { key: "notifications", label: t("sideMenu.notifications"), icon: "notifications-outline", onPress: () => navigation.navigate("Notifications") },
     { key: "shareApp", label: t("settings.shareApp"), icon: "share-social-outline", onPress: handleShare },
     // Hidden until PLAY_STORE_READY flips — a "Rate us" row pointing at
     // a store listing that doesn't exist yet would be a dead end, worse

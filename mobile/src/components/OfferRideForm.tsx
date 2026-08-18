@@ -263,7 +263,14 @@ export function OfferRideForm({ navigation }: { navigation: any }) {
 
   return (
     <View>
-      {vehicles && vehicles.length > 1 && (
+      {/* Shown whenever there's at least one vehicle, not just when
+          there's a real choice to make (>1) — with only one vehicle,
+          this used to skip straight past the label entirely, silently
+          auto-selecting it with nothing on screen confirming which
+          vehicle the ride would actually publish under. Now it always
+          shows, just as a single already-active chip when there's
+          nothing else to switch to. */}
+      {vehicles && vehicles.length > 0 && (
         <>
           <Text style={styles.label}>{t("offerRide.vehicle")}</Text>
           <View style={styles.chipRow}>
