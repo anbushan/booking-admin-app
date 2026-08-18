@@ -8,7 +8,7 @@ import { isWithinIndia } from "../lib/geo.js";
 import { getRouteAlternatives, decodePolyline, pointToPolylineDistanceKm, progressAlongRouteKm, MATCH_RADIUS_KM } from "../lib/directions.js";
 import { peakOccupancy, recomputeRideSeatsAvailable, proratedFarePerSeat } from "../lib/segments.js";
 import { validate, isLat, isLng, isNonEmptyString, isFutureDate, isPositiveInt, isPositiveNumber } from "../lib/validate.js";
-import { photoViewUrl, photoViewUrlsByUser } from "../lib/photo.js";
+import { profilePhotoViewUrl, profilePhotoViewUrlsByUser } from "../lib/photo.js";
 import { verifiedDriverIdsBatch, isVehicleRcVerified, verifiedPassengerIdsBatch } from "../lib/verification.js";
 import { haversineKm, computeFareCap } from "../lib/fareCap.js";
 
@@ -323,7 +323,7 @@ router.get("/search", requireAuth, async (req, res) => {
       travelDate: travelDateFilter,
     },
     include: {
-      driver: { select: { id: true, name: true, ratingAvg: true, photoR2Key: true } },
+      driver: { select: { id: true, name: true, ratingAvg: true, photoR2Key: true, photoBase64: true } },
       vehicle: { select: { make: true, model: true, seatCapacity: true } },
     },
     orderBy: { travelDate: "asc" },
@@ -350,8 +350,11 @@ router.get("/search", requireAuth, async (req, res) => {
   // Same batch-per-unique-driver approach as verifiedDriverIds above —
   // resolves each driver's signed photo URL once even if they have
   // multiple rides in the result set.
-  const photoUrlByDriverId = await photoViewUrlsByUser(
-    driverIds.map((id) => ({ id, photoR2Key: inRadius.find((r) => r.driverId === id)?.driver?.photoR2Key }))
+  const photoUrlByDriverId = await profilePhotoViewUrlsByUser(
+    driverIds.map((id) => {
+      const driver = inRadius.find((r) => r.driverId === id)?.driver;
+      return { id, photoR2Key: driver?.photoR2Key, photoBase64: driver?.photoBase64 };
+    })
   );
 
   const minSeats = Number(seats || 1);
@@ -429,7 +432,7 @@ router.get("/:id/details", requireAuth, async (req, res) => {
 
   res.json({
     ...ride,
-    driver: { ...ride.driver, photoViewUrl: await photoViewUrl(ride.driver.photoR2Key) },
+    driver: { ...ride.driver, photoViewUrl: await profilePhotoViewUrl(ride.driver) },
     ...estimateArrival(ride),
     segmentPricePerSeat,
     driverVerified: licenseVerified,
@@ -464,14 +467,14 @@ router.get("/:id/bookings", requireAuth, requireRole("DRIVER"), async (req, res)
 
   const bookings = await prisma.booking.findMany({
     where: { rideId: req.params.id, status: "BOOKED" },
-    include: { passenger: { select: { id: true, name: true, ratingAvg: true, photoR2Key: true } } },
+    include: { passenger: { select: { id: true, name: true, ratingAvg: true, photoR2Key: true, photoBase64: true } } },
     orderBy: { createdAt: "asc" },
   });
 
   const withPhotos = await Promise.all(
     bookings.map(async (b) => ({
       ...b,
-      passenger: { ...b.passenger, photoViewUrl: await photoViewUrl(b.passenger.photoR2Key) },
+      passenger: { ...b.passenger, photoViewUrl: await profilePhotoViewUrl(b.passenger) },
     }))
   );
 

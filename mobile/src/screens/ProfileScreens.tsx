@@ -11,7 +11,7 @@ import { BackHeader } from "../components/BackHeader";
 import { KeyboardAvoider } from "../components/KeyboardAvoider";
 import { CarLoader } from "../components/CarLoader";
 import { useScreenView } from "../lib/useScreenView";
-import { pickImage, uploadToSignedUrl } from "../lib/imageUpload";
+import { pickProfilePhoto } from "../lib/imageUpload";
 import { useTranslation } from "../lib/i18n/I18nContext";
 
 function memberSince(createdAt?: string) {
@@ -136,12 +136,13 @@ export function EditProfileScreen({ route, navigation }: any) {
   // picked (nothing to lose by not "saving" a photo specifically).
   async function handleChangePhoto() {
     try {
-      const picked = await pickImage();
-      if (!picked) return;
+      const photoBase64 = await pickProfilePhoto();
+      if (!photoBase64) return;
       setUploadingPhoto(true);
-      const { uploadUrl } = await api.getProfilePhotoUploadUrl();
-      await uploadToSignedUrl(uploadUrl, picked.uri, picked.mimeType);
-      setPhotoUri(picked.uri);
+      await api.updateProfilePhoto(photoBase64);
+      // The data URI itself is a valid <Image> source — no separate
+      // view URL to fetch back, unlike the old signed-R2-URL flow.
+      setPhotoUri(photoBase64);
     } catch (err: any) {
       showError(err.message || t("profile.couldntUpdatePhoto"));
     } finally {

@@ -28,3 +28,24 @@ export async function photoViewUrlsByUser(usersWithR2Key) {
   );
   return new Map(entries);
 }
+
+// Profile photos specifically (User.photoBase64) — a `data:image/...`
+// URI stored directly on the row, no signing or R2 round trip needed.
+// photoR2Key stays as a read-only fallback for whichever accounts
+// uploaded their photo before this switch (see users.routes.js's old
+// POST /me/photo-upload-url, now replaced by PUT /me/photo). Every new
+// upload only ever writes photoBase64, so this fallback path is purely
+// for photos already on disk in R2 from before.
+export async function profilePhotoViewUrl(user) {
+  if (!user) return null;
+  if (user.photoBase64) return user.photoBase64;
+  return photoViewUrl(user.photoR2Key);
+}
+
+// Same batching shape as photoViewUrlsByUser above, for profile photos.
+export async function profilePhotoViewUrlsByUser(users) {
+  const entries = await Promise.all(
+    users.map(async (u) => [u.id, await profilePhotoViewUrl(u)])
+  );
+  return new Map(entries);
+}

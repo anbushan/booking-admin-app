@@ -1,16 +1,18 @@
 import { Router } from "express";
-import { PutObjectCommand } from "@aws-sdk/client-s3";
-import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { prisma } from "../lib/prisma.js";
 import { requireAuth } from "../middleware/auth.js";
 import { validate, isNonEmptyString, isEmail, isOneOf, isPhone } from "../lib/validate.js";
 import { serializeUser } from "../lib/serializeUser.js";
-import { r2, R2_BUCKET } from "../lib/r2.js";
-import { photoViewUrl } from "../lib/photo.js";
+import { profilePhotoViewUrl } from "../lib/photo.js";
 import { redis } from "../lib/redis.js";
 
 const router = Router();
-const UPLOAD_URL_TTL_SECONDS = 600; // 10 min
+// A profile photo is resized + JPEG-compressed client-side before
+// upload (see mobile's pickProfilePhoto, capped well under this), so
+// anything landing here that's actually this big is either a bug on
+// the client or someone bypassing it — reject rather than writing an
+// unexpectedly huge value into the row.
+const MAX_PHOTO_BASE64_LENGTH = 400_000; // ~300KB of raw image bytes
 
 // PUT /api/users/me — completes registration (name/email/role) after
 // first-time OTP verification.
@@ -43,23 +45,26 @@ router.put("/me", requireAuth, async (req, res) => {
 });
 
 router.get("/me", requireAuth, async (req, res) => {
-  res.json({ ...serializeUser(req.user), photoViewUrl: await photoViewUrl(req.user.photoR2Key) });
+  res.json({ ...serializeUser(req.user), photoViewUrl: await profilePhotoViewUrl(req.user) });
 });
 
-// POST /api/users/me/photo-upload-url — same private-bucket pattern as
-// documents.routes.js: the client PUTs bytes straight to R2 using the
-// signed URL this returns. Saves photoR2Key onto the user immediately
-// (not after a separate "confirm" step) — same eager-write convention
-// documents.routes.js already uses, since a failed upload just means
-// the old photo (or none) keeps showing until they retry.
-router.post("/me/photo-upload-url", requireAuth, async (req, res) => {
-  const r2Key = `${req.user.id}/profile-photo-${Date.now()}`;
-  const command = new PutObjectCommand({ Bucket: R2_BUCKET, Key: r2Key });
-  const uploadUrl = await getSignedUrl(r2, command, { expiresIn: UPLOAD_URL_TTL_SECONDS });
+// PUT /api/users/me/photo — replaces the old two-step "get a signed R2
+// upload URL, then PUT bytes straight to it" flow. A profile photo is
+// small (mobile resizes + compresses it before ever calling this), so
+// there's no real benefit to the extra R2 round trip and signed-URL
+// machinery that document uploads genuinely need — this just writes
+// the data URI straight onto the row in one request.
+router.put("/me/photo", requireAuth, async (req, res) => {
+  const { photoBase64 } = req.body;
+  if (typeof photoBase64 !== "string" || !photoBase64.startsWith("data:image/")) {
+    return res.status(400).json({ error: "A valid image is required." });
+  }
+  if (photoBase64.length > MAX_PHOTO_BASE64_LENGTH) {
+    return res.status(400).json({ error: "That image is too large." });
+  }
 
-  await prisma.user.update({ where: { id: req.user.id }, data: { photoR2Key: r2Key } });
-
-  res.json({ r2Key, uploadUrl });
+  await prisma.user.update({ where: { id: req.user.id }, data: { photoBase64 } });
+  res.json({ photoViewUrl: photoBase64 });
 });
 
 // PUT /api/users/me/role — switches which profile (driver/passenger) is
@@ -177,6 +182,7 @@ router.delete("/me", requireAuth, async (req, res) => {
         name: null,
         email: null,
         photoR2Key: null,
+        photoBase64: null,
         fcmToken: null,
         passcodeHash: null,
         passcodeCreatedAt: null,
@@ -232,11 +238,11 @@ router.post("/request-deletion", async (req, res) => {
 router.get("/:id/public", requireAuth, async (req, res) => {
   const user = await prisma.user.findUnique({
     where: { id: req.params.id },
-    select: { id: true, name: true, photoR2Key: true, ratingAvg: true, role: true, createdAt: true },
+    select: { id: true, name: true, photoR2Key: true, photoBase64: true, ratingAvg: true, role: true, createdAt: true },
   });
   if (!user) return res.status(404).json({ error: "User not found." });
-  const { photoR2Key, ...rest } = user;
-  res.json({ ...rest, photoViewUrl: await photoViewUrl(photoR2Key) });
+  const { photoR2Key, photoBase64, ...rest } = user;
+  res.json({ ...rest, photoViewUrl: await profilePhotoViewUrl({ photoR2Key, photoBase64 }) });
 });
 
 export default router;

@@ -11,7 +11,7 @@ import { isWithinIndia } from "../lib/geo.js";
 import { decodePolyline, progressAlongRouteKm, MATCH_RADIUS_KM } from "../lib/directions.js";
 import { availableSeatsForInterval, recomputeRideSeatsAvailable, releaseSeatHold, proratedFarePerSeat } from "../lib/segments.js";
 import { validate, isNonEmptyString, isLat, isLng, isPositiveInt } from "../lib/validate.js";
-import { photoViewUrl, photoViewUrlsByUser } from "../lib/photo.js";
+import { profilePhotoViewUrl, profilePhotoViewUrlsByUser } from "../lib/photo.js";
 import { verifiedDriverIdsBatch, isVehicleRcVerified, verifiedPassengerIdsBatch, isPassengerVerified } from "../lib/verification.js";
 import { applyAvailableCredit, markCreditsUsed } from "../lib/credits.js";
 
@@ -50,10 +50,11 @@ async function attachUnreadCounts(bookings, userId, readAtField) {
 
 // Resolves each booking's `ride.driver.photoViewUrl` in one batched pass
 // (unique drivers only, same driver often repeats across a list) —
-// requires the caller's `include` to have selected `driver.photoR2Key`.
+// requires the caller's `include` to have selected `driver.photoR2Key`
+// and `driver.photoBase64`.
 async function attachDriverPhotos(bookings) {
   const drivers = bookings.map((b) => b.ride.driver).filter(Boolean);
-  const urlById = await photoViewUrlsByUser(drivers);
+  const urlById = await profilePhotoViewUrlsByUser(drivers);
   return bookings.map((b) => ({
     ...b,
     ride: { ...b.ride, driver: { ...b.ride.driver, photoViewUrl: urlById.get(b.ride.driver.id) || null } },
@@ -61,10 +62,10 @@ async function attachDriverPhotos(bookings) {
 }
 
 // Same as attachDriverPhotos but for `passenger.photoViewUrl` — requires
-// `passenger.photoR2Key` to have been selected.
+// `passenger.photoR2Key`/`passenger.photoBase64` to have been selected.
 async function attachPassengerPhotos(bookings) {
   const passengers = bookings.map((b) => b.passenger).filter(Boolean);
-  const urlById = await photoViewUrlsByUser(passengers);
+  const urlById = await profilePhotoViewUrlsByUser(passengers);
   return bookings.map((b) => ({
     ...b,
     passenger: { ...b.passenger, photoViewUrl: urlById.get(b.passenger.id) || null },
@@ -390,7 +391,7 @@ router.put("/:id/driver-cancel", requireAuth, requireRole("DRIVER"), async (req,
 router.get("/my", requireAuth, requireRole("PASSENGER"), async (req, res) => {
   const bookings = await prisma.booking.findMany({
     where: { passengerId: req.user.id },
-    include: { ride: { include: { driver: { select: { id: true, name: true, ratingAvg: true, photoR2Key: true } } } } },
+    include: { ride: { include: { driver: { select: { id: true, name: true, ratingAvg: true, photoR2Key: true, photoBase64: true } } } } },
     orderBy: { createdAt: "desc" },
   });
   const withPhotos = await attachUnreadCounts(await attachDriverPhotos(bookings), req.user.id, "passengerLastReadAt");
@@ -423,7 +424,7 @@ router.get("/driver-pending", requireAuth, requireRole("DRIVER"), async (req, re
       // request from every ride interleaved in one flat list, with no
       // visual separation of which request belongs to which trip.
       ride: { select: { id: true, sourceAddress: true, destAddress: true, travelDate: true } },
-      passenger: { select: { id: true, name: true, ratingAvg: true, photoR2Key: true } },
+      passenger: { select: { id: true, name: true, ratingAvg: true, photoR2Key: true, photoBase64: true } },
     },
     orderBy: { expiresAt: "asc" },
   });
@@ -452,7 +453,7 @@ router.get("/driver-active", requireAuth, requireRole("DRIVER"), async (req, res
       // Payment queue and Start trip now, both grouped by which ride
       // each booking belongs to.
       ride: { select: { sourceAddress: true, destAddress: true, travelDate: true } },
-      passenger: { select: { id: true, name: true, photoR2Key: true } },
+      passenger: { select: { id: true, name: true, photoR2Key: true, photoBase64: true } },
     },
     orderBy: { createdAt: "desc" },
   });
@@ -493,8 +494,8 @@ router.get("/:id", requireAuth, async (req, res) => {
   const booking = await prisma.booking.findUnique({
     where: { id: req.params.id },
     include: {
-      ride: { include: { driver: { select: { id: true, name: true, phone: true, ratingAvg: true, photoR2Key: true } }, vehicle: true } },
-      passenger: { select: { id: true, name: true, phone: true, ratingAvg: true, photoR2Key: true } },
+      ride: { include: { driver: { select: { id: true, name: true, phone: true, ratingAvg: true, photoR2Key: true, photoBase64: true } }, vehicle: true } },
+      passenger: { select: { id: true, name: true, phone: true, ratingAvg: true, photoR2Key: true, photoBase64: true } },
       refund: true,
     },
   });
@@ -525,12 +526,12 @@ router.get("/:id", requireAuth, async (req, res) => {
     ...booking,
     ride: {
       ...booking.ride,
-      driver: { ...booking.ride.driver, photoViewUrl: await photoViewUrl(booking.ride.driver.photoR2Key) },
+      driver: { ...booking.ride.driver, photoViewUrl: await profilePhotoViewUrl(booking.ride.driver) },
       driverVerified: licenseVerified,
       licenseVerified,
       rcVerified,
     },
-    passenger: { ...booking.passenger, photoViewUrl: await photoViewUrl(booking.passenger.photoR2Key), passengerVerified },
+    passenger: { ...booking.passenger, photoViewUrl: await profilePhotoViewUrl(booking.passenger), passengerVerified },
     // What this specific booking's passenger owes per seat for their own
     // matched segment — see rides.routes.js GET /:id/details for the
     // same computation pre-booking. BookingDetailScreen.tsx shows this

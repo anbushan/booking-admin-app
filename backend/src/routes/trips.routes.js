@@ -8,7 +8,7 @@ import { closeRideIfNoActiveBookings } from "../lib/rideLifecycle.js";
 import { validate, isLat, isLng } from "../lib/validate.js";
 import { getIO } from "../lib/socket.js";
 import { proratedFarePerSeat } from "../lib/segments.js";
-import { photoViewUrl } from "../lib/photo.js";
+import { profilePhotoViewUrl } from "../lib/photo.js";
 import { verifiedPassengerIdsBatch } from "../lib/verification.js";
 
 const router = Router();
@@ -47,7 +47,7 @@ router.get("/ride/:rideId/manifest", requireAuth, requireRole("DRIVER"), async (
 
   const bookings = await prisma.booking.findMany({
     where: { rideId: ride.id, status: { in: ["CONFIRMED", "IN_PROGRESS", "COMPLETED"] } },
-    include: { passenger: { select: { id: true, name: true, ratingAvg: true, photoR2Key: true } } },
+    include: { passenger: { select: { id: true, name: true, ratingAvg: true, photoR2Key: true, photoBase64: true } } },
     // Bookings with no resolved pickup point (legacy/no-route rides) sort
     // first — nulls last would push a single-passenger legacy ride's one
     // and only stop to the bottom for no reason.
@@ -69,7 +69,7 @@ router.get("/ride/:rideId/manifest", requireAuth, requireRole("DRIVER"), async (
         id: b.passenger.id,
         name: b.passenger.name,
         ratingAvg: b.passenger.ratingAvg,
-        photoViewUrl: await photoViewUrl(b.passenger.photoR2Key),
+        photoViewUrl: await profilePhotoViewUrl(b.passenger),
         passengerVerified: verifiedPassengerIds.has(b.passenger.id),
       },
     }))

@@ -99,11 +99,20 @@ export function OfferRideForm({ navigation }: { navigation: any }) {
 
   // Every vehicle counts now, regardless of status — verification is a
   // trust badge shown to passengers, not a publish gate.
+  //
+  // Defaults to the first vehicle regardless of how many there are, not
+  // just when there's exactly one — with 2+, nothing used to be
+  // pre-selected at all, so the chip row rendered with every chip
+  // looking identically inactive until the driver deliberately tapped
+  // one. A ride with more than one vehicle almost always has one that's
+  // "the usual one"; picking the first for them and letting them switch
+  // is the same pattern the seats/price fields already use (a sane
+  // default, not a forced blank choice).
   function loadVehicles() {
     api.getVehicles()
       .then((list) => {
         setVehicles(list);
-        if (list.length === 1) setVehicleId((prev) => prev ?? list[0].id);
+        if (list.length > 0) setVehicleId((prev) => prev ?? list[0].id);
         setVehiclesError(false);
       })
       .catch(() => setVehiclesError(true));

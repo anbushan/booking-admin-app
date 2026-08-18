@@ -174,11 +174,12 @@ export const api = {
   resetPassengerVerification: () =>
     request("/api/verification/passenger/reset", { method: "POST" }),
 
-  // Writes photoR2Key on the User row eagerly, server-side (see
-  // users.routes.js) — a cached profile would keep showing the old
-  // photoViewUrl without this.
-  getProfilePhotoUploadUrl: () =>
-    request("/api/users/me/photo-upload-url", { method: "POST" }).then((res) => { invalidateProfileCache(); return res; }),
+  // photoBase64 (from lib/imageUpload.ts's pickProfilePhoto) goes
+  // straight in the request body — no signed URL / separate upload step
+  // needed, since it's small enough to just write directly onto the
+  // User row (see users.routes.js's PUT /me/photo).
+  updateProfilePhoto: (photoBase64: string) =>
+    request("/api/users/me/photo", { method: "PUT", body: JSON.stringify({ photoBase64 }) }).then((res) => { invalidateProfileCache(); return res; }),
 
   createRide: (payload: {
     sourceLat: number; sourceLng: number; sourceAddress: string;

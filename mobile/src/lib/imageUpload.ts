@@ -1,11 +1,12 @@
 import * as ImagePicker from "expo-image-picker";
 import * as ImageManipulator from "expo-image-manipulator";
 
-// Shared by every "pick a photo and upload it to R2" flow — profile
-// photo (EditProfileScreen), car photo/RC/DL (AddVehicleScreen) — same
-// permission request + picker call + PUT-to-signed-URL sequence
-// DocumentUploadScreen already established for document uploads,
-// pulled out so it's not copy-pasted at every new call site.
+// The "pick a photo and upload it to R2" flow — currently just shared
+// chat images (ChatDetailScreen), same permission request + picker call
+// + PUT-to-signed-URL sequence document uploads use elsewhere. Profile
+// photo (EditProfileScreen) uses pickProfilePhoto below instead — it's
+// stored as a data URI directly on the User row, not in R2, so it never
+// needs a signed upload URL at all.
 //
 // quality defaults to 0.7 (fine for a car photo or profile picture —
 // mostly aesthetic, a bit of compression doesn't matter), but a
@@ -58,7 +59,10 @@ export async function pickImage(quality = 0.7): Promise<{ uri: string; mimeType?
 }
 
 // Bytes go straight from the client to R2 via the signed PUT URL,
-// never through our own API server — same as DocumentUploadScreen.
+// never through our own API server — same as DocumentUploadScreen. Only
+// car photo/RC/DL still use this path; profile photos moved to
+// pickProfilePhoto + api.updateProfilePhoto below (stored as a data URI
+// in the DB directly, no R2 round trip needed for something this small).
 export async function uploadToSignedUrl(uploadUrl: string, uri: string, mimeType?: string) {
   const fileResponse = await fetch(uri);
   const fileBlob = await fileResponse.blob();
@@ -70,4 +74,44 @@ export async function uploadToSignedUrl(uploadUrl: string, uri: string, mimeType
   if (!putResponse.ok) {
     throw new Error("Upload to storage failed. Please try again.");
   }
+}
+
+// A profile photo only ever shows as a small circle (avatar), never
+// full-screen — 480px and a fairly aggressive compression keeps the
+// resulting base64 string in the tens of KB, comfortably under the
+// backend's MAX_PHOTO_BASE64_LENGTH cap, while still resolving crisp at
+// every size it's actually displayed at in this app.
+const PROFILE_PHOTO_MAX_DIMENSION = 480;
+const PROFILE_PHOTO_QUALITY = 0.6;
+
+export async function pickProfilePhoto(): Promise<string | null> {
+  const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+  if (status !== "granted") {
+    throw new Error("Photo library permission is needed to pick an image.");
+  }
+  const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ["images"], quality: 1 });
+  if (result.canceled || !result.assets?.length) return null;
+  const asset = result.assets[0];
+
+  const width = asset.width || 0;
+  const height = asset.height || 0;
+  const needsResize = width > PROFILE_PHOTO_MAX_DIMENSION || height > PROFILE_PHOTO_MAX_DIMENSION;
+  const actions: ImageManipulator.Action[] = needsResize
+    ? [{ resize: width >= height ? { width: PROFILE_PHOTO_MAX_DIMENSION } : { height: PROFILE_PHOTO_MAX_DIMENSION } }]
+    : [];
+
+  // base64: true skips a separate file-read step — manipulateAsync
+  // returns the encoded bytes directly alongside the resized file.
+  const manipulated = await ImageManipulator.manipulateAsync(asset.uri, actions, {
+    compress: PROFILE_PHOTO_QUALITY,
+    format: ImageManipulator.SaveFormat.JPEG,
+    base64: true,
+  });
+  if (!manipulated.base64) throw new Error("Couldn't process that image. Please try another.");
+
+  // manipulateAsync's `base64` field is the raw encoded bytes only, no
+  // `data:` prefix — the backend (and every <Image> consumer here) both
+  // expect a real data URI, so this is the one place that prefix gets
+  // attached rather than reconstructing it at every read site.
+  return `data:image/jpeg;base64,${manipulated.base64}`;
 }

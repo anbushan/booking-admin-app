@@ -28,6 +28,8 @@ model User {
   // as Document uploads): a real display URL has to be a short-lived
   // signed one generated on read, not a stored permanent link.
   photoR2Key  String?
+  // Mirrored from backend/prisma/schema.prisma — see there for why.
+  photoBase64 String?  @db.Text
   ratingAvg   Float?
   disabled    Boolean  @default(false)
   // Self-service account deletion (Settings → Delete account). Reuses

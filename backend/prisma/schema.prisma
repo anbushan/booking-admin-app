@@ -27,7 +27,19 @@ model User {
   // isn't reusable as-is since this app's R2 bucket is private (same
   // as Document uploads): a real display URL has to be a short-lived
   // signed one generated on read, not a stored permanent link.
+  // Superseded by photoBase64 below for every new upload — kept
+  // read-only so accounts that uploaded before the switch don't lose
+  // their photo.
   photoR2Key  String?
+  // Full `data:image/jpeg;base64,...` URI, stored directly — a profile
+  // photo is small (resized + compressed client-side before upload, see
+  // mobile's pickProfilePhoto), so the R2 signed-URL round trip it used
+  // to need (upload URL request, direct PUT, then a signed view URL on
+  // every read) was a lot of moving parts for what's really just a few
+  // KB of bytes. Read directly off this column instead — see
+  // lib/photo.js's profilePhotoViewUrl, which falls back to the R2 path
+  // above only when this is empty (a pre-switch account).
+  photoBase64 String?  @db.Text
   ratingAvg   Float?
   disabled    Boolean  @default(false)
   // Self-service account deletion (Settings → Delete account). Reuses
