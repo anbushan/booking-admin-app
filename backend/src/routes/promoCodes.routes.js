@@ -34,14 +34,29 @@ router.post("/redeem", requireAuth, async (req, res) => {
   }
 
   const credit = await prisma.userCredit.create({
-    data: { userId: req.user.id, amountInr: promo.discountInr, source: "PROMO_CODE", sourceId: promo.id },
+    data: {
+      userId: req.user.id,
+      // fullWaiver credits carry amountInr: 0 — the real "how much does
+      // this cover" answer for those is "the entire fee, whatever it
+      // is", which applyAvailableCredit reads off the fullWaiver flag,
+      // not this number. discountInr on a fullWaiver code is otherwise
+      // unused (the admin form still has a required field to fill).
+      amountInr: promo.fullWaiver ? 0 : promo.discountInr,
+      fullWaiver: promo.fullWaiver,
+      source: "PROMO_CODE",
+      sourceId: promo.id,
+    },
   });
   await prisma.$transaction([
     prisma.promoCodeRedemption.create({ data: { promoCodeId: promo.id, userId: req.user.id, creditId: credit.id } }),
     prisma.promoCode.update({ where: { id: promo.id }, data: { redemptionCount: { increment: 1 } } }),
   ]);
 
-  res.json({ success: true, creditAppliedInr: Number(promo.discountInr) });
+  res.json({
+    success: true,
+    fullWaiver: promo.fullWaiver,
+    creditAppliedInr: promo.fullWaiver ? null : Number(promo.discountInr),
+  });
 });
 
 export default router;

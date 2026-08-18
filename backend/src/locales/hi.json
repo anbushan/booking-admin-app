@@ -864,6 +864,7 @@
   "rewards.promoCodePlaceholder": "प्रोमो कोड डालें",
   "rewards.referralRedeemed": "कोड लागू हो गया — आपको ₹{amount} क्रेडिट मिला।",
   "rewards.promoRedeemed": "कोड लागू हो गया — आपको ₹{amount} क्रेडिट मिला।",
+  "rewards.promoRedeemedFullWaiver": "कोड लागू हो गया — आपकी अगली प्लेटफ़ॉर्म फ़ीस मुफ़्त है!",
   "rewards.couldntRedeem": "वह कोड रिडीम नहीं हो सका। फिर से कोशिश करें।",
   "rewards.yourReferrals": "आपके रेफरल",
   "rewards.paidOut": "आपको {date} को क्रेडिट मिला",
@@ -875,5 +876,7 @@
   "locationPermission.benefit2": "ज़रूरत पड़ने पर SOS बटन को सक्षम बनाता है",
   "locationPermission.benefit3": "सक्रिय ट्रिप के अलावा कभी ट्रैक नहीं किया जाता",
   "verification.aadhaarFailedRetryHint": "नंबर दोबारा जांचें, फिर दोबारा प्रयास के लिए रीसेट करें और फिर से भुगतान करें।",
-  "verification.resetAndPayAgain": "रीसेट करें और फिर से भुगतान करें"
+  "verification.resetAndPayAgain": "रीसेट करें और फिर से भुगतान करें",
+  "home.whereFrom": "कहाँ से?",
+  "home.swapLocations": "पिकअप और ड्रॉप बदलें"
 }

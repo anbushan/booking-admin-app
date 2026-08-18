@@ -23,6 +23,16 @@ export async function applyAvailableCredit(passengerId, rawFeeAmount) {
   });
   if (credits.length === 0) return { finalAmount: rawFeeAmount, creditAppliedInr: 0 };
 
+  // A full-waiver credit (MVP promo codes — see promoCodes.routes.js)
+  // zeroes the fee outright regardless of its own amountInr, ahead of
+  // and instead of the usual sum-oldest-first loop below. Checked as a
+  // find, not just credits[0], so a waiver doesn't get skipped just for
+  // sitting behind an older partial credit in the queue.
+  const waiver = credits.find((c) => c.fullWaiver);
+  if (waiver) {
+    return { finalAmount: 0, creditAppliedInr: rawFeeAmount, usedCreditIds: [waiver.id] };
+  }
+
   let remaining = rawFeeAmount;
   let creditAppliedInr = 0;
   const usedCreditIds = [];

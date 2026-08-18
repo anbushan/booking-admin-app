@@ -547,6 +547,12 @@ model UserCredit {
   usedOnBookingId String?
   usedAt          DateTime?
   createdAt       DateTime  @default(now())
+  // True only for credits minted from a PromoCode.fullWaiver redemption
+  // (see promoCodes.routes.js) — applyAvailableCredit checks this ahead
+  // of amountInr and zeroes the platform fee outright, regardless of
+  // what amountInr happens to hold. amountInr is still set (0) on these
+  // for display consistency, never actually summed.
+  fullWaiver      Boolean   @default(false)
 
   // applyAvailableCredit's own query: this user's spendable balance,
   // oldest-first.
@@ -585,6 +591,11 @@ model PromoCode {
   // user over the trust hurdle — checked at redemption time (zero prior
   // paid bookings), not re-checked when the credit is actually spent.
   firstRideOnly   Boolean   @default(true)
+  // MVP-launch codes: waives the platform fee entirely on redemption,
+  // instead of just knocking a fixed discountInr off it — discountInr
+  // is ignored (kept at whatever the admin form defaults it to) when
+  // this is set. See promoCodes.routes.js and lib/credits.js.
+  fullWaiver      Boolean   @default(false)
   maxRedemptions  Int?
   redemptionCount Int       @default(0)
   active          Boolean   @default(true)

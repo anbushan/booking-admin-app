@@ -864,6 +864,7 @@
   "rewards.promoCodePlaceholder": "புரோமோ குறியீட்டை உள்ளிடவும்",
   "rewards.referralRedeemed": "குறியீடு பயன்படுத்தப்பட்டது — உங்களுக்கு ₹{amount} கிரெடிட் கிடைத்தது.",
   "rewards.promoRedeemed": "குறியீடு பயன்படுத்தப்பட்டது — உங்களுக்கு ₹{amount} கிரெடிட் கிடைத்தது.",
+  "rewards.promoRedeemedFullWaiver": "குறியீடு பயன்படுத்தப்பட்டது — உங்கள் அடுத்த தளக் கட்டணம் இலவசம்!",
   "rewards.couldntRedeem": "அந்தக் குறியீட்டை மீட்க முடியவில்லை. மீண்டும் முயற்சிக்கவும்.",
   "rewards.yourReferrals": "உங்கள் பரிந்துரைகள்",
   "rewards.paidOut": "{date} அன்று உங்களுக்கு கிரெடிட் கிடைத்தது",
@@ -875,5 +876,7 @@
   "locationPermission.benefit2": "உதவி தேவைப்படும்போது SOS பொத்தானை இயக்குகிறது",
   "locationPermission.benefit3": "செயலில் உள்ள பயணத்திற்கு வெளியே ஒருபோதும் கண்காணிக்கப்படாது",
   "verification.aadhaarFailedRetryHint": "எண்ணை மீண்டும் சரிபார்த்து, மீண்டும் முயற்சிக்க மீட்டமைத்து மீண்டும் பணம் செலுத்தவும்.",
-  "verification.resetAndPayAgain": "மீட்டமைத்து மீண்டும் செலுத்தவும்"
+  "verification.resetAndPayAgain": "மீட்டமைத்து மீண்டும் செலுத்தவும்",
+  "home.whereFrom": "எங்கிருந்து?",
+  "home.swapLocations": "பிக்அப் மற்றும் ட்ராப்பை மாற்று"
 }

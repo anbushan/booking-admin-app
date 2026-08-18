@@ -864,6 +864,7 @@
   "rewards.promoCodePlaceholder": "Enter promo code",
   "rewards.referralRedeemed": "Code applied — you've earned ₹{amount} credit.",
   "rewards.promoRedeemed": "Code applied — you've earned ₹{amount} credit.",
+  "rewards.promoRedeemedFullWaiver": "Code applied — your next platform fee is free!",
   "rewards.couldntRedeem": "Couldn't redeem that code. Try again.",
   "rewards.yourReferrals": "Your referrals",
   "rewards.paidOut": "you earned credit {date}",
@@ -875,5 +876,7 @@
   "locationPermission.benefit2": "Powers the SOS button if you ever need help",
   "locationPermission.benefit3": "Never tracked outside an active trip",
   "verification.aadhaarFailedRetryHint": "Double-check the number, then reset and pay again to make another attempt.",
-  "verification.resetAndPayAgain": "Reset & pay again"
+  "verification.resetAndPayAgain": "Reset & pay again",
+  "home.whereFrom": "Where from?",
+  "home.swapLocations": "Swap pickup and drop"
 }
