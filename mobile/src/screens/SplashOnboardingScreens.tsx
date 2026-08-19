@@ -8,6 +8,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { colors, spacing, typography, FONT } from "../theme/theme";
 import { Analytics } from "../lib/analytics";
 import { api } from "../lib/api";
+import { isVersionBelowMinimum } from "../lib/versionCheck";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useScreenView } from "../lib/useScreenView";
 import { useTranslation } from "../lib/i18n/I18nContext";
@@ -60,6 +61,13 @@ export function SplashScreen({ navigation }: any) {
         const status = await api.getAppStatus();
         if (status.maintenanceMode) {
           navigation.replace("Maintenance", { message: status.maintenanceMessage });
+          return;
+        }
+        // Checked right after maintenanceMode, same reasoning: catches
+        // every launch (signed in or not) before any routing decision
+        // that might depend on API shapes this install predates.
+        if (status.minSupportedVersion && isVersionBelowMinimum(status.minSupportedVersion)) {
+          navigation.replace("UpdateRequired");
           return;
         }
       } catch {

@@ -14,6 +14,11 @@ router.get("/", async (req, res) => {
   res.json({
     maintenanceMode: config.maintenanceMode,
     maintenanceMessage: config.maintenanceMessage || null,
+    // Client compares its own app.json version against this (see
+    // SplashOnboardingScreens.tsx) and blocks with an "update required"
+    // screen if it's below. Comparison happens client-side, same as
+    // maintenanceMode — this route just hands back the threshold.
+    minSupportedVersion: config.minSupportedVersion,
   });
 });
 

@@ -40,6 +40,9 @@ const DEFAULTS = {
   strikeRollingWindowDays: 30,
   maintenanceMode: false,
   maintenanceMessage: null,
+  // See status.routes.js / schema.prisma for the full story — "0.0.0"
+  // means no version is old enough to be blocked.
+  minSupportedVersion: process.env.MIN_SUPPORTED_VERSION || "0.0.0",
   // Paid third-party (Eko) verification — licenseVerificationFeeInr is a
   // flat, one-time charge for a driver's license check; vehicleRcFeeInr
   // is charged separately for EVERY vehicle's RC check, including the

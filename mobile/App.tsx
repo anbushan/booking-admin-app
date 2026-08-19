@@ -52,6 +52,7 @@ import { SplashScreen, OnboardingScreen } from "./src/screens/SplashOnboardingSc
 import { AppSocketBridge } from "./src/components/AppSocketBridge";
 import { navigationRef } from "./src/lib/navigationRef";
 import MaintenanceScreen from "./src/screens/MaintenanceScreen";
+import UpdateRequiredScreen from "./src/screens/UpdateRequiredScreen";
 import { PhoneEntryScreen, OtpVerifyScreen } from "./src/screens/OtpScreens";
 import RegisterScreen from "./src/screens/RegisterScreen";
 import SwitchRoleScreen from "./src/screens/SwitchRoleScreen";
@@ -194,6 +195,7 @@ function App() {
         {/* Launch */}
         <Stack.Screen name="Splash" component={SplashScreen} />
         <Stack.Screen name="Maintenance" component={MaintenanceScreen} />
+        <Stack.Screen name="UpdateRequired" component={UpdateRequiredScreen} />
         <Stack.Screen name="Onboarding" component={OnboardingScreen} />
 
         {/* Auth */}

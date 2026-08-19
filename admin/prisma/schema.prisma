@@ -435,6 +435,13 @@ model AppConfig {
   maintenanceMode    Boolean @default(false)
   maintenanceMessage String?
 
+  // Mobile also sends its own app.json version on every GET /api/app-status
+  // (backend's status.routes.js) and compares it against this — below it,
+  // the splash screen shows a blocking "please update" screen instead of
+  // routing into the app. "0.0.0" (the default) means every installed
+  // version passes, i.e. no gate.
+  minSupportedVersion String @default("0.0.0")
+
   // Paid third-party (Eko) verification — flat, one-time license fee;
   // RC fee charged per vehicle (every vehicle, including the first).
   // Mirrored from backend/prisma/schema.prisma — this admin schema never

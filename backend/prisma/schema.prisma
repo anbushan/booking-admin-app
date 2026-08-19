@@ -522,6 +522,17 @@ model AppConfig {
   maintenanceMode    Boolean @default(false)
   maintenanceMessage String?
 
+  // Mobile also sends its own app.json version on every GET /api/app-status
+  // (see status.routes.js) and compares it against this — below it, the
+  // splash screen shows a blocking "please update" screen instead of
+  // routing into the app, with a button straight to the Play Store
+  // listing. "0.0.0" (the default) means every installed version passes,
+  // i.e. no gate — this only ever blocks anyone once an admin
+  // deliberately raises it, e.g. after shipping a backend change that
+  // isn't backward-compatible with older app versions still in the wild
+  // from a not-yet-complete store rollout.
+  minSupportedVersion String @default("0.0.0")
+
   // Paid third-party (Eko) verification — flat, one-time license fee;
   // RC fee charged per vehicle (every vehicle, including the first).
   licenseVerificationFeeInr Float @default(4)

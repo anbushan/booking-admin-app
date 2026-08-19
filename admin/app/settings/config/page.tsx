@@ -49,6 +49,7 @@ async function saveConfig(formData: FormData) {
     // that ever sets this field.
     data.maintenanceMode = formData.get("maintenanceMode") === "on";
     data.maintenanceMessage = String(formData.get("maintenanceMessage") || "").trim() || null;
+    data.minSupportedVersion = String(formData.get("minSupportedVersion") || "").trim() || "0.0.0";
 
     if (existing) {
       await prisma.appConfig.update({ where: { id: existing.id }, data });
@@ -169,6 +170,26 @@ export default async function AppConfigPage() {
               placeholder="NanbaGO is down for scheduled maintenance right now. Please check back shortly."
               className="admin-input"
               style={{ width: "100%", minHeight: 64, resize: "vertical", fontFamily: "inherit" }}
+            />
+          </div>
+
+          <div style={{ border: "1px solid #FAEEDA", background: "#FFFCF5", borderRadius: 10, padding: 16 }}>
+            <h2 style={{ fontSize: 14, fontWeight: 600, marginBottom: 4 }}>Minimum app version</h2>
+            <p style={{ fontSize: 12, color: "#854F0B", marginBottom: 12 }}>
+              Any installed app below this version gets a blocking "please update" screen with a
+              button to the Play Store, instead of the normal app — checked once on launch, same as
+              maintenance mode above. Only raise this after the new version is actually live on the
+              Play Store; matches app.json&apos;s "version" field (e.g. "1.2.0"), not the Android
+              version code. Leave as "0.0.0" to not gate anyone.
+            </p>
+            <label style={{ fontSize: 13, fontWeight: 500, display: "block", marginBottom: 4 }}>Minimum supported version</label>
+            <input
+              name="minSupportedVersion"
+              type="text"
+              defaultValue={config!.minSupportedVersion}
+              placeholder="0.0.0"
+              className="admin-input"
+              style={{ width: "100%" }}
             />
           </div>
 
