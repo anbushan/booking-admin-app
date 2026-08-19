@@ -1,4 +1,5 @@
 import { type LucideIcon } from "lucide-react";
+import { TONE_COLORS, type Tone } from "../lib/tone";
 
 // One consistent page-title treatment (icon in a tinted circle + title
 // + optional subtitle/count) instead of a bare `<h1>` per page — same
@@ -7,18 +8,10 @@ import { type LucideIcon } from "lucide-react";
 //
 // `tone` defaults to the original hardcoded blue, so every existing
 // call site (all ~25 pages) renders unchanged unless it opts into a
-// different one — same tone vocabulary StatCard already uses, so a
-// page can now visually agree with its own stat cards (e.g. a danger
-// queue page passing tone="warning") instead of every page's header
-// being the same blue regardless of what it's about.
-const TONES = {
-  accent: { bg: "#E6F1FB", fg: "#0C447C" },
-  success: { bg: "#EAF3DE", fg: "#3B6D11" },
-  warning: { bg: "#FAEEDA", fg: "#854F0B" },
-  danger: { bg: "#FCEBEB", fg: "#A32D2D" },
-  neutral: { bg: "#F1EFE8", fg: "#5F5E5A" },
-};
-
+// different one — same shared tone vocabulary StatCard/Badge use (see
+// lib/tone.ts), so a page can now visually agree with its own stat
+// cards (e.g. a danger queue page passing tone="warning") instead of
+// every page's header being the same blue regardless of what it's about.
 export function PageHeader({
   icon: Icon,
   title,
@@ -28,9 +21,9 @@ export function PageHeader({
   icon: LucideIcon;
   title: string;
   subtitle?: string;
-  tone?: keyof typeof TONES;
+  tone?: Tone;
 }) {
-  const { bg, fg } = TONES[tone];
+  const { bg, fg } = TONE_COLORS[tone];
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 20 }}>
       <div

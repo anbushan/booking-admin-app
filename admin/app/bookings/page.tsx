@@ -1,6 +1,7 @@
 import { prisma } from "../../lib/prisma";
 import { getSession, requireRole } from "../../lib/session";
 import { redirect } from "next/navigation";
+import Link from "next/link";
 import AdminShell from "../../components/AdminShell";
 import { PageHeader } from "../../components/PageHeader";
 import { Badge } from "../../components/Badge";
@@ -9,6 +10,7 @@ import Pagination from "../../components/Pagination";
 import { EmptyState } from "../../components/EmptyState";
 import { SearchFilterBar } from "../../components/SearchFilterBar";
 import { SortableTh } from "../../components/SortableTh";
+import { ListRow } from "../../components/ListRow";
 
 export const dynamic = "force-dynamic";
 const PAGE_SIZE = 25;
@@ -76,7 +78,7 @@ export default async function BookingsPage({
           filters={[{ name: "status", label: "All statuses", value: status, options: BOOKING_STATUSES.map((s) => ({ value: s, label: s.replaceAll("_", " ") })) }]}
         />
 
-        <table style={{ width: "100%", marginTop: 8, borderCollapse: "collapse", fontSize: 13 }}>
+        <table className="admin-table-responsive" style={{ width: "100%", marginTop: 8, borderCollapse: "collapse", fontSize: 13 }}>
           <thead>
             <tr style={{ textAlign: "left", borderBottom: "1px solid #E3E1D8" }}>
               <th style={{ padding: "8px 4px" }}>Passenger</th>
@@ -91,9 +93,9 @@ export default async function BookingsPage({
             {bookings.map((b) => (
               <tr key={b.id} style={{ borderBottom: "1px solid #E3E1D8" }}>
                 <td style={{ padding: "8px 4px" }}>
-                  <a href={`/bookings/${b.id}`} style={{ color: "#0C447C" }}>
+                  <Link href={`/bookings/${b.id}`} style={{ color: "#0C447C" }}>
                     {b.passenger.name || b.passenger.phone}
-                  </a>
+                  </Link>
                 </td>
                 <td style={{ padding: "8px 4px" }}>{b.ride.sourceAddress} to {b.ride.destAddress}</td>
                 <td style={{ padding: "8px 4px" }}>Rs {Number(b.ride.pricePerSeat) * b.seatsBooked}</td>
@@ -104,6 +106,33 @@ export default async function BookingsPage({
             ))}
           </tbody>
         </table>
+
+        <div className="admin-row-list">
+          {bookings.map((b) => (
+            <ListRow
+              key={b.id}
+              left={
+                <>
+                  <Link href={`/bookings/${b.id}`} style={{ color: "#0C447C", fontWeight: 500 }}>
+                    {b.passenger.name || b.passenger.phone}
+                  </Link>
+                  <div style={{ fontSize: 12, color: "#888780", marginTop: 4 }}>
+                    {b.ride.sourceAddress} to {b.ride.destAddress} · {b.createdAt.toLocaleDateString()}
+                  </div>
+                </>
+              }
+              right={
+                <>
+                  <span style={{ fontSize: 12, color: "#5F5E5A" }}>
+                    Rs {Number(b.ride.pricePerSeat) * b.seatsBooked}
+                    {b.platformFeeAmount != null && ` (fee Rs ${Number(b.platformFeeAmount)})`}
+                  </span>
+                  <Badge>{b.status}</Badge>
+                </>
+              }
+            />
+          ))}
+        </div>
         {bookings.length === 0 && <EmptyState title="No bookings match" />}
         <Pagination page={page} totalPages={totalPages} basePath="/bookings" extraParams={{ ...extraParams, sortBy, sortDir }} />
       </div>

@@ -1,4 +1,5 @@
 import { type LucideIcon } from "lucide-react";
+import { TONE_COLORS } from "../lib/tone";
 
 // Icon + big number + label — the Dashboard's stat tiles had the
 // number and label already but no icon, so every card looked identical
@@ -20,8 +21,7 @@ export function StatCard({
   value: string | number;
   tone?: "accent" | "success" | "warning" | "neutral";
 }) {
-  const iconBg = { accent: "#E6F1FB", success: "#EAF3DE", warning: "#FAEEDA", neutral: "#F1EFE8" }[tone];
-  const iconFg = { accent: "#0C447C", success: "#3B6D11", warning: "#854F0B", neutral: "#5F5E5A" }[tone];
+  const { bg: iconBg, fg: iconFg } = TONE_COLORS[tone];
   return (
     <div
       className="admin-card admin-card-hover"

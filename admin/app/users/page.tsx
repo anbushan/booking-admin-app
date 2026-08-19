@@ -2,6 +2,7 @@ import { prisma } from "../../lib/prisma";
 import { getSession, requireRole } from "../../lib/session";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
+import Link from "next/link";
 import AdminShell from "../../components/AdminShell";
 import Pagination from "../../components/Pagination";
 import { EmptyState } from "../../components/EmptyState";
@@ -9,6 +10,7 @@ import { PageHeader } from "../../components/PageHeader";
 import { Badge } from "../../components/Badge";
 import { SearchFilterBar } from "../../components/SearchFilterBar";
 import { SortableTh } from "../../components/SortableTh";
+import { ListRow } from "../../components/ListRow";
 import { SubmitButton } from "../../components/SubmitButton";
 import { ConfirmButton } from "../../components/ConfirmButton";
 import { redirectWithToast } from "../../lib/toastRedirect";
@@ -74,6 +76,31 @@ export default async function UsersPage({
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
   const extraParams = { q, role, status };
 
+  // Shared between the <table> (tablet/desktop) and the .admin-row-list
+  // (mobile) markups below — same server action either way, just
+  // avoids writing this form twice per user.
+  function suspendAction(u: (typeof users)[number]) {
+    return u.disabled ? (
+      <form action={toggleSuspend}>
+        <input type="hidden" name="userId" value={u.id} />
+        <input type="hidden" name="currentlyDisabled" value="true" />
+        <SubmitButton className="admin-btn admin-btn-primary admin-btn-sm" pendingLabel="Reinstating...">
+          Reinstate
+        </SubmitButton>
+      </form>
+    ) : (
+      <ConfirmButton
+        action={toggleSuspend}
+        hiddenFields={{ userId: u.id, currentlyDisabled: "false" }}
+        label="Suspend"
+        className="admin-btn admin-btn-secondary admin-btn-sm"
+        confirmTitle="Suspend this account?"
+        confirmMessage={`${u.name || u.phone} won't be able to sign in or use the app until reinstated.`}
+        confirmLabel="Suspend"
+      />
+    );
+  }
+
   return (
     <AdminShell activeHref="/users">
       <div style={{ padding: 24 }}>
@@ -89,7 +116,7 @@ export default async function UsersPage({
           ]}
         />
 
-        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13, marginTop: 8 }}>
+        <table className="admin-table-responsive" style={{ width: "100%", borderCollapse: "collapse", fontSize: 13, marginTop: 8 }}>
           <thead>
             <tr style={{ textAlign: "left", borderBottom: "1px solid #E3E1D8" }}>
               <SortableTh label="Name" field="name" currentSortBy={sortBy} currentSortDir={sortDir} basePath="/users" extraParams={extraParams} />
@@ -104,7 +131,7 @@ export default async function UsersPage({
             {users.map((u) => (
               <tr key={u.id} style={{ borderBottom: "1px solid #E3E1D8" }}>
                 <td style={{ padding: "8px 4px" }}>
-                  <a href={u.role === "DRIVER" ? `/drivers/${u.id}` : `/users/${u.id}`} style={{ color: "#0C447C" }}>{u.name || "—"}</a>
+                  <Link href={u.role === "DRIVER" ? `/drivers/${u.id}` : `/users/${u.id}`} style={{ color: "#0C447C" }}>{u.name || "—"}</Link>
                 </td>
                 <td style={{ padding: "8px 4px" }}>{u.phone}</td>
                 <td style={{ padding: "8px 4px" }}><Badge tone={u.role === "DRIVER" ? "info" : "neutral"}>{u.role}</Badge></td>
@@ -112,31 +139,36 @@ export default async function UsersPage({
                 <td style={{ padding: "8px 4px" }}>
                   <Badge tone={u.disabled ? "danger" : "success"}>{u.disabled ? "Suspended" : "Active"}</Badge>
                 </td>
-                <td style={{ padding: "8px 4px" }}>
-                  {u.disabled ? (
-                    <form action={toggleSuspend}>
-                      <input type="hidden" name="userId" value={u.id} />
-                      <input type="hidden" name="currentlyDisabled" value="true" />
-                      <SubmitButton className="admin-btn admin-btn-primary admin-btn-sm" pendingLabel="Reinstating...">
-                        Reinstate
-                      </SubmitButton>
-                    </form>
-                  ) : (
-                    <ConfirmButton
-                      action={toggleSuspend}
-                      hiddenFields={{ userId: u.id, currentlyDisabled: "false" }}
-                      label="Suspend"
-                      className="admin-btn admin-btn-secondary admin-btn-sm"
-                      confirmTitle="Suspend this account?"
-                      confirmMessage={`${u.name || u.phone} won't be able to sign in or use the app until reinstated.`}
-                      confirmLabel="Suspend"
-                    />
-                  )}
-                </td>
+                <td style={{ padding: "8px 4px" }}>{suspendAction(u)}</td>
               </tr>
             ))}
           </tbody>
         </table>
+
+        <div className="admin-row-list">
+          {users.map((u) => (
+            <ListRow
+              key={u.id}
+              left={
+                <>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <Link href={u.role === "DRIVER" ? `/drivers/${u.id}` : `/users/${u.id}`} style={{ color: "#0C447C", fontWeight: 500 }}>{u.name || "—"}</Link>
+                    <Badge tone={u.role === "DRIVER" ? "info" : "neutral"}>{u.role}</Badge>
+                  </div>
+                  <div style={{ fontSize: 12, color: "#888780", marginTop: 4 }}>
+                    {u.phone} · {u.ratingAvg?.toFixed(1) || "No rating"}
+                  </div>
+                </>
+              }
+              right={
+                <>
+                  <Badge tone={u.disabled ? "danger" : "success"}>{u.disabled ? "Suspended" : "Active"}</Badge>
+                  {suspendAction(u)}
+                </>
+              }
+            />
+          ))}
+        </div>
         {users.length === 0 && <EmptyState title="No users match" />}
         <Pagination page={page} totalPages={totalPages} basePath="/users" extraParams={{ ...extraParams, sortBy, sortDir }} />
       </div>

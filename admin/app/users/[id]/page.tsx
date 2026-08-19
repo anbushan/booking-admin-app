@@ -2,15 +2,17 @@ import { prisma } from "../../../lib/prisma";
 import { getSession, requireRole } from "../../../lib/session";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
+import Link from "next/link";
 import AdminShell from "../../../components/AdminShell";
 import { EmptyState } from "../../../components/EmptyState";
 import { PageHeader } from "../../../components/PageHeader";
 import { Badge } from "../../../components/Badge";
+import { Breadcrumb } from "../../../components/Breadcrumb";
 import { SubmitButton } from "../../../components/SubmitButton";
 import { ConfirmButton } from "../../../components/ConfirmButton";
 import { redirectWithToast } from "../../../lib/toastRedirect";
 import { isRedirectError } from "../../../lib/actionError";
-import { User as UserIcon, ArrowLeft } from "lucide-react";
+import { User as UserIcon } from "lucide-react";
 
 export const dynamic = "force-dynamic";
 
@@ -40,7 +42,7 @@ export default async function UserDetailPage({ params }: { params: { id: string 
   const [bookings, rides] = await Promise.all([
     prisma.booking.findMany({
       where: { passengerId: params.id },
-      include: { ride: { select: { sourceAddress: true, destAddress: true } } },
+      include: { ride: { select: { id: true, sourceAddress: true, destAddress: true } } },
       orderBy: { createdAt: "desc" },
       take: 10,
     }),
@@ -61,9 +63,7 @@ export default async function UserDetailPage({ params }: { params: { id: string 
   return (
     <AdminShell activeHref="/users">
       <div style={{ padding: 24 }}>
-        <a href="/users" style={{ fontSize: 13, color: "#5F5E5A", display: "inline-flex", alignItems: "center", gap: 4 }}>
-          <ArrowLeft size={14} /> Back to users
-        </a>
+        <Breadcrumb items={[{ label: "Users", href: "/users" }, { label: user.name || user.phone }]} />
         <div style={{ marginTop: 12 }}>
           <PageHeader icon={UserIcon} title={user.name || user.phone} />
         </div>
@@ -113,44 +113,52 @@ export default async function UserDetailPage({ params }: { params: { id: string 
 
         {user.role === "PASSENGER" && (
           <>
-            <h2 style={{ fontSize: 15, fontWeight: 500, marginTop: 24 }}>Aadhaar verification (paid, Eko)</h2>
-            {passengerVerification ? (
-              <div style={{ fontSize: 13, padding: "10px 0", borderBottom: "1px solid #E3E1D8" }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-                  <Badge>{passengerVerification.paymentStatus}</Badge>
-                  <Badge>{passengerVerification.aadhaarStatus}</Badge>
-                  {passengerVerification.amountPaidInr != null && <span style={{ color: "#5F5E5A" }}>Rs {passengerVerification.amountPaidInr.toString()} paid</span>}
+            <div className="admin-card" style={{ padding: 16, marginTop: 16 }}>
+              <h2 style={{ fontSize: 15, fontWeight: 500, marginTop: 0 }}>Aadhaar verification (paid, Eko)</h2>
+              {passengerVerification ? (
+                <div style={{ fontSize: 13, padding: "10px 0" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                    <Badge>{passengerVerification.paymentStatus}</Badge>
+                    <Badge>{passengerVerification.aadhaarStatus}</Badge>
+                    {passengerVerification.amountPaidInr != null && <span style={{ color: "#5F5E5A" }}>Rs {passengerVerification.amountPaidInr.toString()} paid</span>}
+                  </div>
+                  {passengerVerification.aadhaarVerifiedAt && (
+                    <div style={{ color: "#888780", marginTop: 4 }}>Resolved {passengerVerification.aadhaarVerifiedAt.toLocaleString()}</div>
+                  )}
                 </div>
-                {passengerVerification.aadhaarVerifiedAt && (
-                  <div style={{ color: "#888780", marginTop: 4 }}>Resolved {passengerVerification.aadhaarVerifiedAt.toLocaleString()}</div>
-                )}
-              </div>
-            ) : (
-              <EmptyState title="Never started a paid Aadhaar check" />
-            )}
+              ) : (
+                <EmptyState title="Never started a paid Aadhaar check" />
+              )}
+            </div>
 
-            <h2 style={{ fontSize: 15, fontWeight: 500, marginTop: 24 }}>Recent bookings</h2>
-            {bookings.map((b) => (
-              <div key={b.id} style={{ fontSize: 13, padding: "8px 0", borderBottom: "1px solid #E3E1D8", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, flexWrap: "wrap" }}>
-                <span>{b.ride.sourceAddress} to {b.ride.destAddress}</span>
-                <Badge>{b.status}</Badge>
-              </div>
-            ))}
-            {bookings.length === 0 && <EmptyState title="No bookings yet" />}
+            <div className="admin-card" style={{ padding: 16, marginTop: 16 }}>
+              <h2 style={{ fontSize: 15, fontWeight: 500, marginTop: 0 }}>Recent bookings</h2>
+              {bookings.map((b) => (
+                <div key={b.id} style={{ fontSize: 13, padding: "8px 0", borderBottom: "1px solid #E3E1D8", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, flexWrap: "wrap" }}>
+                  <Link href={`/rides/${b.ride.id}`} style={{ color: "#0C447C" }}>
+                    {b.ride.sourceAddress} to {b.ride.destAddress}
+                  </Link>
+                  <Badge>{b.status}</Badge>
+                </div>
+              ))}
+              {bookings.length === 0 && <EmptyState title="No bookings yet" />}
+            </div>
           </>
         )}
 
         {user.role === "DRIVER" && (
-          <>
-            <h2 style={{ fontSize: 15, fontWeight: 500, marginTop: 24 }}>Recent rides</h2>
+          <div className="admin-card" style={{ padding: 16, marginTop: 16 }}>
+            <h2 style={{ fontSize: 15, fontWeight: 500, marginTop: 0 }}>Recent rides</h2>
             {rides.map((r) => (
               <div key={r.id} style={{ fontSize: 13, padding: "8px 0", borderBottom: "1px solid #E3E1D8", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, flexWrap: "wrap" }}>
-                <span>{r.sourceAddress} to {r.destAddress}</span>
+                <Link href={`/rides/${r.id}`} style={{ color: "#0C447C" }}>
+                  {r.sourceAddress} to {r.destAddress}
+                </Link>
                 <Badge>{r.status}</Badge>
               </div>
             ))}
             {rides.length === 0 && <EmptyState title="No rides published yet" />}
-          </>
+          </div>
         )}
       </div>
     </AdminShell>

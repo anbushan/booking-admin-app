@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 // A plain GET <form> — matches this app's existing convention (see
 // reports/daily's date-range filter, which already worked this way)
 // rather than introducing a "use client" component just for this.
@@ -68,9 +70,9 @@ export function SearchFilterBar({
         Apply
       </button>
       {hasActiveFilter && (
-        <a href={basePath} style={{ fontSize: 13, color: "#5F5E5A" }}>
+        <Link href={basePath} style={{ fontSize: 13, color: "#5F5E5A" }}>
           Clear
-        </a>
+        </Link>
       )}
     </form>
   );

@@ -1,6 +1,7 @@
 import { prisma } from "../../lib/prisma";
 import { getSession, requireRole } from "../../lib/session";
 import { redirect } from "next/navigation";
+import Link from "next/link";
 import AdminShell from "../../components/AdminShell";
 import { PageHeader } from "../../components/PageHeader";
 import { Badge } from "../../components/Badge";
@@ -9,6 +10,7 @@ import Pagination from "../../components/Pagination";
 import { EmptyState } from "../../components/EmptyState";
 import { SearchFilterBar } from "../../components/SearchFilterBar";
 import { SortableTh } from "../../components/SortableTh";
+import { ListRow } from "../../components/ListRow";
 
 export const dynamic = "force-dynamic";
 const PAGE_SIZE = 25;
@@ -94,7 +96,7 @@ export default async function PaymentsPage({
           ]}
         />
 
-        <table style={{ width: "100%", marginTop: 8, borderCollapse: "collapse", fontSize: 13 }}>
+        <table className="admin-table-responsive" style={{ width: "100%", marginTop: 8, borderCollapse: "collapse", fontSize: 13 }}>
           <thead>
             <tr style={{ textAlign: "left", borderBottom: "1px solid #E3E1D8" }}>
               <th style={{ padding: "8px 4px" }}>Passenger</th>
@@ -108,9 +110,9 @@ export default async function PaymentsPage({
             {payments.map((p) => (
               <tr key={p.id} style={{ borderBottom: "1px solid #E3E1D8" }}>
                 <td style={{ padding: "8px 4px" }}>
-                  <a href={`/bookings/${p.id}`} style={{ color: "#0C447C" }}>
+                  <Link href={`/bookings/${p.id}`} style={{ color: "#0C447C" }}>
                     {p.passenger.name || p.passenger.phone}
-                  </a>
+                  </Link>
                 </td>
                 <td style={{ padding: "8px 4px" }}>{p.ride.sourceAddress} to {p.ride.destAddress}</td>
                 <td style={{ padding: "8px 4px" }}>{p.platformFeeAmount != null ? `Rs ${Number(p.platformFeeAmount)}` : "—"}</td>
@@ -120,6 +122,33 @@ export default async function PaymentsPage({
             ))}
           </tbody>
         </table>
+
+        <div className="admin-row-list">
+          {payments.map((p) => (
+            <ListRow
+              key={p.id}
+              left={
+                <>
+                  <Link href={`/bookings/${p.id}`} style={{ color: "#0C447C", fontWeight: 500 }}>
+                    {p.passenger.name || p.passenger.phone}
+                  </Link>
+                  <div style={{ fontSize: 12, color: "#888780", marginTop: 4 }}>
+                    {p.ride.sourceAddress} to {p.ride.destAddress}
+                  </div>
+                </>
+              }
+              right={
+                <>
+                  <span style={{ fontSize: 12, color: "#5F5E5A" }}>
+                    {p.platformFeeAmount != null ? `Rs ${Number(p.platformFeeAmount)}` : "—"}
+                    {p.platformFeePaidAt && ` · ${p.platformFeePaidAt.toLocaleDateString()}`}
+                  </span>
+                  <Badge>{p.status}</Badge>
+                </>
+              }
+            />
+          ))}
+        </div>
         {payments.length === 0 && <EmptyState title="No payments match" />}
         <Pagination page={page} totalPages={totalPages} basePath="/payments" extraParams={{ ...extraParams, sortBy, sortDir }} />
       </div>

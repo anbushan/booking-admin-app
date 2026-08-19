@@ -1,6 +1,7 @@
 import { prisma } from "../../../lib/prisma";
 import { getSession, requireRole } from "../../../lib/session";
 import { redirect } from "next/navigation";
+import Link from "next/link";
 import AdminShell from "../../../components/AdminShell";
 import { PageHeader } from "../../../components/PageHeader";
 import { Badge } from "../../../components/Badge";
@@ -66,7 +67,7 @@ export default async function RecurringRidesPage({ searchParams }: { searchParam
                     {tpl.sourceAddress} to {tpl.destAddress}
                   </div>
                   <div style={{ fontSize: 12, color: "#888780", marginTop: 4 }}>
-                    <a href={`/drivers/${tpl.driver.id}`} style={{ color: "#0C447C" }}>{tpl.driver.name || tpl.driver.phone}</a>
+                    <Link href={`/drivers/${tpl.driver.id}`} style={{ color: "#0C447C" }}>{tpl.driver.name || tpl.driver.phone}</Link>
                     {" · "}{formatDays(tpl.daysOfWeek)} at {tpl.departureTime}
                     {" · "}Rs {tpl.pricePerSeat.toString()}/seat · {tpl.seatsAvailable} seats
                   </div>

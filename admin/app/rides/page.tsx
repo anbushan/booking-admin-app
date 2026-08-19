@@ -2,6 +2,7 @@ import { prisma } from "../../lib/prisma";
 import { getSession, requireRole } from "../../lib/session";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
+import Link from "next/link";
 import AdminShell from "../../components/AdminShell";
 import { PageHeader } from "../../components/PageHeader";
 import { Badge } from "../../components/Badge";
@@ -10,6 +11,7 @@ import Pagination from "../../components/Pagination";
 import { EmptyState } from "../../components/EmptyState";
 import { SearchFilterBar } from "../../components/SearchFilterBar";
 import { SortableTh } from "../../components/SortableTh";
+import { ListRow } from "../../components/ListRow";
 import { ConfirmButton } from "../../components/ConfirmButton";
 import { redirectWithToast } from "../../lib/toastRedirect";
 import { isRedirectError } from "../../lib/actionError";
@@ -81,6 +83,22 @@ export default async function RidesPage({
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
   const extraParams = { q, status };
 
+  // Shared between the <table> (tablet/desktop) and the .admin-row-list
+  // (mobile) markups below.
+  function cancelAction(r: (typeof rides)[number]) {
+    return r.status === "PUBLISHED" ? (
+      <ConfirmButton
+        action={cancelRide}
+        hiddenFields={{ rideId: r.id }}
+        label="Cancel"
+        className="admin-btn admin-btn-secondary admin-btn-sm"
+        confirmTitle="Cancel this ride?"
+        confirmMessage="Every open booking on this ride gets cancelled too. This can't be undone from here."
+        confirmLabel="Cancel ride"
+      />
+    ) : null;
+  }
+
   return (
     <AdminShell activeHref="/rides">
       <div style={{ padding: 24 }}>
@@ -93,7 +111,7 @@ export default async function RidesPage({
           filters={[{ name: "status", label: "All statuses", value: status, options: RIDE_STATUSES.map((s) => ({ value: s, label: s.replaceAll("_", " ") })) }]}
         />
 
-        <table style={{ width: "100%", marginTop: 8, borderCollapse: "collapse", fontSize: 13 }}>
+        <table className="admin-table-responsive" style={{ width: "100%", marginTop: 8, borderCollapse: "collapse", fontSize: 13 }}>
           <thead>
             <tr style={{ textAlign: "left", borderBottom: "1px solid #E3E1D8" }}>
               <th style={{ padding: "8px 4px" }}>Route</th>
@@ -107,30 +125,42 @@ export default async function RidesPage({
             {rides.map((r) => (
               <tr key={r.id} style={{ borderBottom: "1px solid #E3E1D8" }}>
                 <td style={{ padding: "8px 4px" }}>
-                  <a href={`/rides/${r.id}`} style={{ color: "#0C447C" }}>
+                  <Link href={`/rides/${r.id}`} style={{ color: "#0C447C" }}>
                     {r.sourceAddress} to {r.destAddress}
-                  </a>
+                  </Link>
                 </td>
                 <td style={{ padding: "8px 4px" }}>{r.driver.name || r.driver.phone}</td>
                 <td style={{ padding: "8px 4px" }}>{r.travelDate.toLocaleDateString()}</td>
                 <td style={{ padding: "8px 4px" }}><Badge>{r.status}</Badge></td>
-                <td style={{ padding: "8px 4px" }}>
-                  {r.status === "PUBLISHED" && (
-                    <ConfirmButton
-                      action={cancelRide}
-                      hiddenFields={{ rideId: r.id }}
-                      label="Cancel"
-                      className="admin-btn admin-btn-secondary admin-btn-sm"
-                      confirmTitle="Cancel this ride?"
-                      confirmMessage="Every open booking on this ride gets cancelled too. This can't be undone from here."
-                      confirmLabel="Cancel ride"
-                    />
-                  )}
-                </td>
+                <td style={{ padding: "8px 4px" }}>{cancelAction(r)}</td>
               </tr>
             ))}
           </tbody>
         </table>
+
+        <div className="admin-row-list">
+          {rides.map((r) => (
+            <ListRow
+              key={r.id}
+              left={
+                <>
+                  <Link href={`/rides/${r.id}`} style={{ color: "#0C447C", fontWeight: 500 }}>
+                    {r.sourceAddress} to {r.destAddress}
+                  </Link>
+                  <div style={{ fontSize: 12, color: "#888780", marginTop: 4 }}>
+                    {r.driver.name || r.driver.phone} · {r.travelDate.toLocaleDateString()}
+                  </div>
+                </>
+              }
+              right={
+                <>
+                  <Badge>{r.status}</Badge>
+                  {cancelAction(r)}
+                </>
+              }
+            />
+          ))}
+        </div>
         {rides.length === 0 && <EmptyState title="No rides match" />}
         <Pagination page={page} totalPages={totalPages} basePath="/rides" extraParams={{ ...extraParams, sortBy, sortDir }} />
       </div>

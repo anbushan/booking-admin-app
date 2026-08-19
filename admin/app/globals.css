@@ -17,6 +17,24 @@
   box-sizing: border-box;
 }
 
+/* Plain (non-tone) color tokens — the de facto palette already repeated
+   as hardcoded hex throughout this file, now named once. Deliberately
+   scoped to just the flat ink/border colors actually reused as-is
+   elsewhere; the 5 tone bg/fg pairs (accent/success/warning/danger/
+   neutral) stay as hex in lib/tone.ts instead of living here, since two
+   call sites (PageHeader, Badge) build an alpha-suffixed color at
+   render time (`${fg}22`) and `var(--x)22` isn't valid CSS — see the
+   comment at the top of lib/tone.ts for the full split. This is new
+   vocabulary for code that gets touched going forward, not a rewrite of
+   every existing hex literal in this file. */
+:root {
+  --admin-ink: #1A1A18;
+  --admin-ink-muted: #5F5E5A;
+  --admin-ink-faint: #888780;
+  --admin-border: #E3E1D8;
+  --admin-marigold: #D97F0A;
+}
+
 /* Skip-to-content link for the public marketing pages (MarketingShell) —
    MarketingHeader's own nav (plus the mobile hamburger menu's extra tab
    stops) sat between a keyboard user and <main id="main-content"> with
@@ -649,6 +667,32 @@
     display: block;
     overflow-x: auto;
     white-space: nowrap;
+  }
+}
+
+/* Paired with ListRow.tsx — a handful of list pages (users, rides,
+   bookings, payments) render BOTH their real <table> (marked
+   .admin-table-responsive) AND a stacked .admin-row-list of ListRows
+   for the same data, server-side, and this toggles which one is
+   visible by viewport rather than picking one at render time — avoids
+   any hydration/SSR mismatch a JS-viewport-check would risk. Below
+   767px the table (which would otherwise fall back to the
+   horizontal-scroll rule above) is replaced by the row-list instead,
+   matching the ~11 other list pages that already reflow this way
+   because they never used a <table> to begin with. Tables that don't
+   opt into `.admin-table-responsive` are untouched — they keep the
+   plain horizontal-scroll behavior above. */
+.admin-row-list {
+  display: none;
+}
+@media (max-width: 767px) {
+  .admin-main table.admin-table-responsive {
+    display: none;
+  }
+  .admin-row-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
   }
 }
 

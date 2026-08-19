@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { ArrowUp, ArrowDown, ArrowUpDown } from "lucide-react";
 
 // A clickable column header — click toggles asc → desc → asc for that
@@ -32,7 +33,7 @@ export function SortableTh({
 
   return (
     <th style={{ padding: "8px 4px", textAlign: "left" }}>
-      <a
+      <Link
         href={`${basePath}?${params.toString()}`}
         style={{
           display: "inline-flex",
@@ -49,7 +50,7 @@ export function SortableTh({
         ) : (
           <ArrowUpDown size={11} style={{ opacity: 0.35 }} />
         )}
-      </a>
+      </Link>
     </th>
   );
 }

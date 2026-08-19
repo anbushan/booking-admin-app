@@ -1,6 +1,7 @@
 import { prisma } from "../../lib/prisma";
 import { getSession, requireRole } from "../../lib/session";
 import { redirect } from "next/navigation";
+import Link from "next/link";
 import AdminShell from "../../components/AdminShell";
 import { PageHeader } from "../../components/PageHeader";
 import { Badge } from "../../components/Badge";
@@ -64,9 +65,9 @@ export default async function ReferralsPage({ searchParams }: { searchParams: { 
             <div key={r.id} style={{ border: "1px solid #E3E1D8", borderRadius: 8, padding: 16, display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12 }}>
               <div>
                 <div style={{ fontSize: 14 }}>
-                  <a href={`/users/${r.referrer.id}`} style={{ color: "#0C447C", fontWeight: 500 }}>{r.referrer.name || r.referrer.phone}</a>
+                  <Link href={`/users/${r.referrer.id}`} style={{ color: "#0C447C", fontWeight: 500 }}>{r.referrer.name || r.referrer.phone}</Link>
                   {" referred "}
-                  <a href={`/users/${r.referee.id}`} style={{ color: "#0C447C", fontWeight: 500 }}>{r.referee.name || r.referee.phone}</a>
+                  <Link href={`/users/${r.referee.id}`} style={{ color: "#0C447C", fontWeight: 500 }}>{r.referee.name || r.referee.phone}</Link>
                 </div>
                 <div style={{ fontSize: 12, color: "#888780", marginTop: 4 }}>
                   Redeemed {r.createdAt.toLocaleDateString()}

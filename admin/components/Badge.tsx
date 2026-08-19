@@ -4,14 +4,20 @@
 // glance the same way the mobile app's StatusBadge does, which is
 // exactly the "more visual, anybody can understand" gap here — every
 // table read as a wall of text with no visual hierarchy between rows.
+import { TONE_COLORS } from "../lib/tone";
+import { statusLabel } from "../lib/statusLabel";
+
 export type BadgeTone = "success" | "warning" | "danger" | "info" | "neutral";
 
+// "info" has no equivalent in the shared 5-tone map (which uses "accent"
+// for the same blue) — mapped here rather than renaming this component's
+// public prop, so every existing `tone="info"` call site keeps working.
 const TONE_STYLES: Record<BadgeTone, { bg: string; fg: string }> = {
-  success: { bg: "#EAF3DE", fg: "#3B6D11" },
-  warning: { bg: "#FAEEDA", fg: "#854F0B" },
-  danger: { bg: "#FCEBEB", fg: "#A32D2D" },
-  info: { bg: "#E6F1FB", fg: "#0C447C" },
-  neutral: { bg: "#F1EFE8", fg: "#5F5E5A" },
+  success: TONE_COLORS.success,
+  warning: TONE_COLORS.warning,
+  danger: TONE_COLORS.danger,
+  info: TONE_COLORS.accent,
+  neutral: TONE_COLORS.neutral,
 };
 
 // Best-effort default tone from a raw status/role string, so most call
@@ -47,7 +53,7 @@ export function Badge({ children, tone }: { children: string; tone?: BadgeTone }
         whiteSpace: "nowrap",
       }}
     >
-      {children.replaceAll("_", " ")}
+      {statusLabel(children)}
     </span>
   );
 }

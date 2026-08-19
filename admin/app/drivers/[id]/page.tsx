@@ -1,12 +1,14 @@
 import { prisma } from "../../../lib/prisma";
 import { getSession, requireRole } from "../../../lib/session";
 import { redirect } from "next/navigation";
+import Link from "next/link";
 import AdminShell from "../../../components/AdminShell";
 import { EmptyState } from "../../../components/EmptyState";
 import { PageHeader } from "../../../components/PageHeader";
 import { StatCard } from "../../../components/StatCard";
 import { Badge } from "../../../components/Badge";
-import { Car, ArrowLeft, Wallet, Route, AlertTriangle } from "lucide-react";
+import { Breadcrumb } from "../../../components/Breadcrumb";
+import { Car, Wallet, Route, AlertTriangle } from "lucide-react";
 
 export const dynamic = "force-dynamic";
 
@@ -48,9 +50,7 @@ export default async function DriverDetailPage({ params }: { params: { id: strin
   return (
     <AdminShell activeHref="/users">
       <div style={{ padding: 24 }}>
-        <a href="/users" style={{ fontSize: 13, color: "#5F5E5A", display: "inline-flex", alignItems: "center", gap: 4 }}>
-          <ArrowLeft size={14} /> Back to users
-        </a>
+        <Breadcrumb items={[{ label: "Users", href: "/users" }, { label: driver.name || driver.phone }]} />
         <div style={{ marginTop: 12 }}>
           <PageHeader icon={Car} title={driver.name || driver.phone} />
         </div>
@@ -68,89 +68,99 @@ export default async function DriverDetailPage({ params }: { params: { id: strin
           <StatCard icon={AlertTriangle} label={`Strikes (last ${rollingWindowDays}d)`} value={activeStrikeCount} tone={activeStrikeCount > 0 ? "warning" : "neutral"} />
         </div>
 
-        <h2 style={{ fontSize: 15, fontWeight: 500, marginTop: 24 }}>Strikes</h2>
-        {strikes.map((s) => (
-          <div key={s.id} style={{ fontSize: 13, padding: "8px 0", borderBottom: "1px solid #E3E1D8" }}>
-            {s.reason === "NO_SHOW" ? "No-show" : "Late cancellation"} — {s.createdAt.toLocaleString()}
-            {s.bookingId && (
-              <>
-                {" "}
-                (<a href={`/bookings/${s.bookingId}`} style={{ color: "#0C447C" }}>booking</a>)
-              </>
-            )}
-          </div>
-        ))}
-        {strikes.length === 0 && <EmptyState title="No strikes on record" />}
-
-        <h2 style={{ fontSize: 15, fontWeight: 500, marginTop: 24 }}>License verification (paid, Eko)</h2>
-        {ekoVerification ? (
-          <div style={{ fontSize: 13, padding: "10px 0", borderBottom: "1px solid #E3E1D8" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-              <Badge>{ekoVerification.paymentStatus}</Badge>
-              <Badge>{ekoVerification.licenseStatus}</Badge>
-              {ekoVerification.amountPaidInr != null && <span style={{ color: "#5F5E5A" }}>Rs {ekoVerification.amountPaidInr.toString()} paid{ekoVerification.paidAt ? ` on ${ekoVerification.paidAt.toLocaleDateString()}` : ""}</span>}
-            </div>
-            {ekoVerification.licenseVerifiedAt && (
-              <div style={{ color: "#888780", marginTop: 4 }}>Verified {ekoVerification.licenseVerifiedAt.toLocaleString()}</div>
-            )}
-            {ekoVerification.licenseEkoResponse != null && (
-              <details style={{ marginTop: 6 }}>
-                <summary style={{ cursor: "pointer", color: "#0C447C", fontSize: 12 }}>Raw Eko response</summary>
-                <pre style={{ fontSize: 11, background: "#F1EFE8", padding: 8, borderRadius: 6, overflowX: "auto", marginTop: 4 }}>
-                  {JSON.stringify(ekoVerification.licenseEkoResponse, null, 2)}
-                </pre>
-              </details>
-            )}
-          </div>
-        ) : (
-          <EmptyState title="Never started a paid license check" />
-        )}
-
-        <h2 style={{ fontSize: 15, fontWeight: 500, marginTop: 24 }}>Vehicles &amp; RC verification (paid, Eko)</h2>
-        {vehicles.map((v) => (
-          <div key={v.id} style={{ fontSize: 13, padding: "10px 0", borderBottom: "1px solid #E3E1D8" }}>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, flexWrap: "wrap" }}>
-              <span>{v.make} {v.model} — {v.regNumber}</span>
-              {v.verification ? (
-                <div style={{ display: "flex", gap: 6 }}>
-                  <Badge>{v.verification.paymentStatus}</Badge>
-                  <Badge>{v.verification.rcStatus}</Badge>
-                </div>
-              ) : (
-                <Badge tone="neutral">No RC check started</Badge>
+        <div className="admin-card" style={{ padding: 16, marginTop: 16 }}>
+          <h2 style={{ fontSize: 15, fontWeight: 500, marginTop: 0 }}>Strikes</h2>
+          {strikes.map((s) => (
+            <div key={s.id} style={{ fontSize: 13, padding: "8px 0", borderBottom: "1px solid #E3E1D8" }}>
+              {s.reason === "NO_SHOW" ? "No-show" : "Late cancellation"} — {s.createdAt.toLocaleString()}
+              {s.bookingId && (
+                <>
+                  {" "}
+                  (<Link href={`/bookings/${s.bookingId}`} style={{ color: "#0C447C" }}>booking</Link>)
+                </>
               )}
             </div>
-            {v.verification?.rcEkoResponse != null && (
-              <details style={{ marginTop: 6 }}>
-                <summary style={{ cursor: "pointer", color: "#0C447C", fontSize: 12 }}>Raw Eko response</summary>
-                <pre style={{ fontSize: 11, background: "#F1EFE8", padding: 8, borderRadius: 6, overflowX: "auto", marginTop: 4 }}>
-                  {JSON.stringify(v.verification.rcEkoResponse, null, 2)}
-                </pre>
-              </details>
-            )}
-          </div>
-        ))}
-        {vehicles.length === 0 && <EmptyState title="No vehicles added yet" />}
+          ))}
+          {strikes.length === 0 && <EmptyState title="No strikes on record" />}
+        </div>
 
-        <h2 style={{ fontSize: 15, fontWeight: 500, marginTop: 24 }}>Documents (legacy manual review)</h2>
-        {documents.map((d) => (
-          <div key={d.id} style={{ fontSize: 13, padding: "8px 0", borderBottom: "1px solid #E3E1D8", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, flexWrap: "wrap" }}>
-            <span>{d.docType}</span>
-            <Badge>{d.status}</Badge>
-          </div>
-        ))}
-        {documents.length === 0 && <EmptyState title="No documents uploaded yet" />}
+        <div className="admin-card" style={{ padding: 16, marginTop: 16 }}>
+          <h2 style={{ fontSize: 15, fontWeight: 500, marginTop: 0 }}>License verification (paid, Eko)</h2>
+          {ekoVerification ? (
+            <div style={{ fontSize: 13, padding: "10px 0" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                <Badge>{ekoVerification.paymentStatus}</Badge>
+                <Badge>{ekoVerification.licenseStatus}</Badge>
+                {ekoVerification.amountPaidInr != null && <span style={{ color: "#5F5E5A" }}>Rs {ekoVerification.amountPaidInr.toString()} paid{ekoVerification.paidAt ? ` on ${ekoVerification.paidAt.toLocaleDateString()}` : ""}</span>}
+              </div>
+              {ekoVerification.licenseVerifiedAt && (
+                <div style={{ color: "#888780", marginTop: 4 }}>Verified {ekoVerification.licenseVerifiedAt.toLocaleString()}</div>
+              )}
+              {ekoVerification.licenseEkoResponse != null && (
+                <details style={{ marginTop: 6 }}>
+                  <summary style={{ cursor: "pointer", color: "#0C447C", fontSize: 12 }}>Raw Eko response</summary>
+                  <pre style={{ fontSize: 11, background: "#F1EFE8", padding: 8, borderRadius: 6, overflowX: "auto", marginTop: 4 }}>
+                    {JSON.stringify(ekoVerification.licenseEkoResponse, null, 2)}
+                  </pre>
+                </details>
+              )}
+            </div>
+          ) : (
+            <EmptyState title="Never started a paid license check" />
+          )}
+        </div>
 
-        <h2 style={{ fontSize: 15, fontWeight: 500, marginTop: 24 }}>Recent rides</h2>
-        {rides.map((r) => (
-          <div key={r.id} style={{ fontSize: 13, padding: "8px 0", borderBottom: "1px solid #E3E1D8", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, flexWrap: "wrap" }}>
-            <a href={`/rides/${r.id}`} style={{ color: "#0C447C" }}>
-              {r.sourceAddress} to {r.destAddress}
-            </a>
-            <Badge>{r.status}</Badge>
-          </div>
-        ))}
-        {rides.length === 0 && <EmptyState title="No rides published yet" />}
+        <div className="admin-card" style={{ padding: 16, marginTop: 16 }}>
+          <h2 style={{ fontSize: 15, fontWeight: 500, marginTop: 0 }}>Vehicles &amp; RC verification (paid, Eko)</h2>
+          {vehicles.map((v) => (
+            <div key={v.id} style={{ fontSize: 13, padding: "10px 0", borderBottom: "1px solid #E3E1D8" }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, flexWrap: "wrap" }}>
+                <span>{v.make} {v.model} — {v.regNumber}</span>
+                {v.verification ? (
+                  <div style={{ display: "flex", gap: 6 }}>
+                    <Badge>{v.verification.paymentStatus}</Badge>
+                    <Badge>{v.verification.rcStatus}</Badge>
+                  </div>
+                ) : (
+                  <Badge tone="neutral">No RC check started</Badge>
+                )}
+              </div>
+              {v.verification?.rcEkoResponse != null && (
+                <details style={{ marginTop: 6 }}>
+                  <summary style={{ cursor: "pointer", color: "#0C447C", fontSize: 12 }}>Raw Eko response</summary>
+                  <pre style={{ fontSize: 11, background: "#F1EFE8", padding: 8, borderRadius: 6, overflowX: "auto", marginTop: 4 }}>
+                    {JSON.stringify(v.verification.rcEkoResponse, null, 2)}
+                  </pre>
+                </details>
+              )}
+            </div>
+          ))}
+          {vehicles.length === 0 && <EmptyState title="No vehicles added yet" />}
+        </div>
+
+        <div className="admin-card" style={{ padding: 16, marginTop: 16 }}>
+          <h2 style={{ fontSize: 15, fontWeight: 500, marginTop: 0 }}>Documents (legacy manual review)</h2>
+          {documents.map((d) => (
+            <div key={d.id} style={{ fontSize: 13, padding: "8px 0", borderBottom: "1px solid #E3E1D8", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, flexWrap: "wrap" }}>
+              <span>{d.docType}</span>
+              <Badge>{d.status}</Badge>
+            </div>
+          ))}
+          {documents.length === 0 && <EmptyState title="No documents uploaded yet" />}
+        </div>
+
+        <div className="admin-card" style={{ padding: 16, marginTop: 16 }}>
+          <h2 style={{ fontSize: 15, fontWeight: 500, marginTop: 0 }}>Recent rides</h2>
+          {rides.map((r) => (
+            <div key={r.id} style={{ fontSize: 13, padding: "8px 0", borderBottom: "1px solid #E3E1D8", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, flexWrap: "wrap" }}>
+              <Link href={`/rides/${r.id}`} style={{ color: "#0C447C" }}>
+                {r.sourceAddress} to {r.destAddress}
+              </Link>
+              <Badge>{r.status}</Badge>
+            </div>
+          ))}
+          {rides.length === 0 && <EmptyState title="No rides published yet" />}
+        </div>
       </div>
     </AdminShell>
   );

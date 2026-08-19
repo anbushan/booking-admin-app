@@ -2,6 +2,7 @@ import { prisma } from "../../lib/prisma";
 import { getSession, requireRole } from "../../lib/session";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
+import Link from "next/link";
 import AdminShell from "../../components/AdminShell";
 import { PageHeader } from "../../components/PageHeader";
 import { Badge } from "../../components/Badge";
@@ -125,9 +126,9 @@ export default async function SosAlertsPage({ searchParams }: { searchParams: { 
                 <div>
                   <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
                     <Badge tone={sosTone(alert.status)}>{alert.status}</Badge>
-                    <a href={`/bookings/${alert.booking.id}`} style={{ fontSize: 13, fontWeight: 500, color: "#0C447C" }}>
+                    <Link href={`/bookings/${alert.booking.id}`} style={{ fontSize: 13, fontWeight: 500, color: "#0C447C" }}>
                       Booking {alert.booking.id}
-                    </a>
+                    </Link>
                   </div>
                   <div style={{ fontSize: 12, color: "#5F5E5A", marginTop: 6 }}>
                     Passenger: {passenger.name || passenger.phone} ({passenger.phone}) · Driver: {driver.name || driver.phone} ({driver.phone})

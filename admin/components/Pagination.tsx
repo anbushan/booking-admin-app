@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 // `extraParams` carries whatever search/filter/sort is currently
 // active so paging Next/Previous doesn't silently drop it — this used
 // to only ever build `${basePath}?page=N`, so navigating to page 2
@@ -31,9 +33,9 @@ export default function Pagination({
           the same pill/hover treatment every other action in the admin
           already uses, so paging finally looks like the rest of the UI. */}
       {page > 1 ? (
-        <a href={buildHref(basePath, page - 1, extraParams)} className="admin-btn admin-btn-secondary admin-btn-sm">
+        <Link href={buildHref(basePath, page - 1, extraParams)} className="admin-btn admin-btn-secondary admin-btn-sm">
           Previous
-        </a>
+        </Link>
       ) : (
         <span className="admin-btn admin-btn-secondary admin-btn-sm" style={{ opacity: 0.4, pointerEvents: "none" }}>
           Previous
@@ -43,9 +45,9 @@ export default function Pagination({
         Page {page} of {totalPages}
       </span>
       {page < totalPages ? (
-        <a href={buildHref(basePath, page + 1, extraParams)} className="admin-btn admin-btn-secondary admin-btn-sm">
+        <Link href={buildHref(basePath, page + 1, extraParams)} className="admin-btn admin-btn-secondary admin-btn-sm">
           Next
-        </a>
+        </Link>
       ) : (
         <span className="admin-btn admin-btn-secondary admin-btn-sm" style={{ opacity: 0.4, pointerEvents: "none" }}>
           Next

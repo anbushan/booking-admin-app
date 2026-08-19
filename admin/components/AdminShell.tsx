@@ -1,6 +1,7 @@
 "use client";
 
 import { Suspense, useEffect, useState } from "react";
+import Link from "next/link";
 import {
   LayoutDashboard,
   Users,
@@ -152,7 +153,7 @@ export default function AdminShell({
             const Icon = link.icon;
             const active = activeHref === link.href;
             return (
-              <a
+              <Link
                 key={link.href}
                 href={link.href}
                 className={`admin-link${active ? " admin-link-active" : ""}`}
@@ -161,7 +162,7 @@ export default function AdminShell({
               >
                 <Icon size={18} strokeWidth={2} style={{ flexShrink: 0 }} />
                 {!collapsed && <span>{link.label}</span>}
-              </a>
+              </Link>
             );
           })}
         </div>

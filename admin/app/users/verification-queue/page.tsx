@@ -1,6 +1,7 @@
 import { prisma } from "../../../lib/prisma";
 import { getSession, requireRole } from "../../../lib/session";
 import { redirect } from "next/navigation";
+import Link from "next/link";
 import AdminShell from "../../../components/AdminShell";
 import { PageHeader } from "../../../components/PageHeader";
 import { Badge } from "../../../components/Badge";
@@ -56,9 +57,9 @@ export default async function PassengerVerificationQueuePage({ searchParams }: {
             >
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12 }}>
                 <div>
-                  <a href={`/users/${rec.user.id}`} style={{ fontWeight: 500, fontSize: 14, color: "#0C447C" }}>
+                  <Link href={`/users/${rec.user.id}`} style={{ fontWeight: 500, fontSize: 14, color: "#0C447C" }}>
                     {rec.user.name || rec.user.phone}
-                  </a>
+                  </Link>
                   <div style={{ fontSize: 12, color: "#888780", marginTop: 4 }}>
                     Record created {rec.createdAt.toLocaleDateString()}
                     {rec.aadhaarVerifiedAt && ` · resolved ${rec.aadhaarVerifiedAt.toLocaleString()}`}
