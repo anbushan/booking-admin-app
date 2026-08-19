@@ -1,8 +1,10 @@
 import { Server } from "socket.io";
+import { createAdapter } from "@socket.io/redis-adapter";
 import jwt from "jsonwebtoken";
 import { prisma } from "./prisma.js";
 import { notify } from "./notify.js";
 import { photoViewUrl } from "./photo.js";
+import { redis } from "./redis.js";
 
 // Wire this up in index.js:
 //   import http from "http";
@@ -23,6 +25,21 @@ export function getIO() {
 export function attachSocketServer(httpServer) {
   const io = new Server(httpServer, { cors: { origin: "*" } });
   ioInstance = io;
+
+  // `io.to("booking:X").emit(...)` / `io.to("user:X").emit(...)` below
+  // only reach sockets that joined that room *on this same process* by
+  // default — fine with one Node process, silently wrong under PM2
+  // cluster mode (see ecosystem.config.js): the driver and passenger in
+  // a chat can easily land on two different workers (Nginx round-robins
+  // connections), and a message sent by one would just never arrive for
+  // the other, with no error anywhere. The Redis adapter fans every
+  // room emit out through Redis pub/sub so it reaches the right socket
+  // regardless of which worker holds that connection — the app-level
+  // `io.to(...).emit(...)` calls elsewhere in this file don't change at
+  // all, this only changes how they're delivered under the hood.
+  const pubClient = redis.duplicate();
+  const subClient = redis.duplicate();
+  io.adapter(createAdapter(pubClient, subClient));
 
   io.use((socket, next) => {
     try {

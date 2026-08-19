@@ -20,9 +20,9 @@ export const prisma = basePrisma.$extends({
       async $allOperations({ operation, args, query }) {
         const result = await query(args);
         if (["update", "upsert", "delete"].includes(operation) && result?.id) {
-          invalidateUserCache(result.id);
+          await invalidateUserCache(result.id);
         } else if (["updateMany", "deleteMany"].includes(operation)) {
-          invalidateUserCache(); // no id to target — caller passes none, clears everything
+          await invalidateUserCache(); // no id to target — caller passes none, clears everything
         }
         return result;
       },

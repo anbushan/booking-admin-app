@@ -1,4 +1,5 @@
 import { prisma } from "./prisma.js";
+import { cacheGet, cacheSet, cacheDel } from "./cache.js";
 
 // AppConfig used to be scaffolded but never actually read anywhere in this
 // codebase — every route read the equivalent value from an env var
@@ -8,11 +9,13 @@ import { prisma } from "./prisma.js";
 // instead of reading process.env or hardcoding a number, so an admin edit
 // takes effect without a redeploy.
 //
-// A short in-memory cache avoids a DB round trip on every request (this
-// config changes rarely) while still picking up admin edits quickly.
+// A short Redis-backed cache (lib/cache.js) avoids a DB round trip on
+// every request (this config changes rarely) while still picking up
+// admin edits quickly — and, unlike a plain in-memory cache, stays in
+// sync across every PM2 worker process instead of each worker holding
+// its own stale copy for up to CACHE_MS.
 const CACHE_MS = 15 * 1000;
-let cache = null;
-let cachedAt = 0;
+const CACHE_KEY = "app-config";
 
 // Defaults mirror the schema's @default values (and the old env vars,
 // where one existed) so behavior is unchanged until an AppConfig row
@@ -50,18 +53,19 @@ const DEFAULTS = {
 };
 
 export async function getAppConfig() {
-  if (cache && Date.now() - cachedAt < CACHE_MS) return cache;
+  const cached = await cacheGet(CACHE_KEY);
+  if (cached) return cached;
 
   const row = await prisma.appConfig.findFirst();
-  cache = { ...DEFAULTS, ...(row || {}) };
-  cachedAt = Date.now();
-  return cache;
+  const config = { ...DEFAULTS, ...(row || {}) };
+  await cacheSet(CACHE_KEY, config, CACHE_MS);
+  return config;
 }
 
 // Exposed for routes/crons that just fired off a config-changing admin
 // action and want the very next read to be fresh (not required anywhere
 // today since admin writes directly to the DB, not through this backend,
 // but keeps the cache from being a surprise if that ever changes).
-export function invalidateAppConfigCache() {
-  cache = null;
+export async function invalidateAppConfigCache() {
+  await cacheDel(CACHE_KEY);
 }

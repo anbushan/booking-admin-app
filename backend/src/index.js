@@ -42,20 +42,35 @@ import { checkNoShows } from "./cron/checkNoShows.js";
 import { expireStaleRides } from "./cron/expireStaleRides.js";
 import { generateRecurringRides } from "./cron/generateRecurringRides.js";
 import { attachSocketServer } from "./lib/socket.js";
+import { generalLimiter, authLimiter, paymentsLimiter } from "./middleware/rateLimit.js";
 
 const app = express();
+
+// Nginx (see deploy/nginx.conf) terminates the client connection and
+// proxies to this process, so req.ip/req.socket.remoteAddress would
+// otherwise always be Nginx's own address, not the real client's —
+// wrong for both rate limiting (everyone would share one bucket) and
+// any future IP-based logic. `1` trusts exactly one hop in front
+// (the local Nginx), matching the single-box deploy in deploy/nginx.conf.
+app.set("trust proxy", 1);
+
 app.use(cors());
 app.use(express.json());
 
 app.get("/health", (req, res) => res.json({ ok: true }));
 
-app.use("/api/auth", authRoutes);
+// Global safety net first, ahead of every route — see middleware/
+// rateLimit.js for why this is Redis-backed rather than the default
+// in-memory store (correctness across PM2 cluster workers).
+app.use(generalLimiter);
+
+app.use("/api/auth", authLimiter, authRoutes);
 app.use("/api/users", usersRoutes);
 app.use("/api/vehicles", vehiclesRoutes);
 app.use("/api/rides", ridesRoutes);
 app.use("/api/bookings", bookingsRoutes);
 app.use("/api/trips", tripsRoutes);
-app.use("/api/payments", paymentsRoutes);
+app.use("/api/payments", paymentsLimiter, paymentsRoutes);
 app.use("/api/emergency-contacts", emergencyContactsRoutes);
 app.use("/api/documents", documentsRoutes);
 app.use("/api/chats", chatRoutes);
@@ -83,23 +98,37 @@ server.listen(PORT, () => {
   console.log(`Carpool API + Socket.IO listening on port ${PORT} (${process.env.NODE_ENV})`);
 });
 
-// Fallback sweep for booking auto-expiry (driver-response window and
-// platform-fee payment window) — every 2 minutes.
-setInterval(expireStaleBookings, 2 * 60 * 1000);
+// These four crons run in-process via setInterval, which was fine with
+// exactly one Node process. Under PM2 cluster mode (see ecosystem.
+// config.js) there are several identical processes on the same box, and
+// every one of them would otherwise fire the same interval independently
+// — e.g. expireStaleBookings racing itself 4x a minute, each instance
+// trying to refund/notify the same stale booking. Cheap, deploy-agnostic
+// fix: only the first worker (PM2 sets NODE_APP_INSTANCE per worker,
+// "0" for the first) runs them. A plain `node src/index.js` outside PM2
+// never sets that var, so it's undefined and this still evaluates true
+// — single-process local dev (see README/DEPLOY.md) is unaffected.
+const isCronWorker = (process.env.NODE_APP_INSTANCE ?? "0") === "0";
 
-// No-show auto-cancel needs tighter tolerance than the expiry sweep
-// since it's keyed off a real-world departure time, not a fixed TTL.
-setInterval(checkNoShows, 60 * 1000);
+if (isCronWorker) {
+  // Fallback sweep for booking auto-expiry (driver-response window and
+  // platform-fee payment window) — every 2 minutes.
+  setInterval(expireStaleBookings, 2 * 60 * 1000);
 
-// Runs right after checkNoShows on the same cadence — by the time this
-// fires, any ride whose no-show story needed handling already has been,
-// so anything still PUBLISHED past its departure time genuinely never
-// got used.
-setInterval(expireStaleRides, 60 * 1000);
+  // No-show auto-cancel needs tighter tolerance than the expiry sweep
+  // since it's keyed off a real-world departure time, not a fixed TTL.
+  setInterval(checkNoShows, 60 * 1000);
 
-// Keeps every active recurring-ride series' rolling 14-day window
-// topped up — see lib/recurringRides.js. Hourly is plenty (a new/resumed
-// template already generates its own first batch synchronously, see
-// recurringRides.routes.js), this is just the ongoing top-up as today's
-// date moves forward.
-setInterval(generateRecurringRides, 60 * 60 * 1000);
+  // Runs right after checkNoShows on the same cadence — by the time this
+  // fires, any ride whose no-show story needed handling already has been,
+  // so anything still PUBLISHED past its departure time genuinely never
+  // got used.
+  setInterval(expireStaleRides, 60 * 1000);
+
+  // Keeps every active recurring-ride series' rolling 14-day window
+  // topped up — see lib/recurringRides.js. Hourly is plenty (a new/resumed
+  // template already generates its own first batch synchronously, see
+  // recurringRides.routes.js), this is just the ongoing top-up as today's
+  // date moves forward.
+  setInterval(generateRecurringRides, 60 * 60 * 1000);
+}

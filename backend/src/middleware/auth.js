@@ -13,10 +13,10 @@ export async function requireAuth(req, res, next) {
     // for the invalidation story) turns the mobile app's frequent
     // polling of the same user's endpoints into one DB round trip every
     // few seconds instead of one per request.
-    let user = getCachedUser(payload.userId);
+    let user = await getCachedUser(payload.userId);
     if (!user) {
       user = await prisma.user.findUnique({ where: { id: payload.userId } });
-      if (user) setCachedUser(user);
+      if (user) await setCachedUser(user);
     }
     if (!user || user.disabled) {
       return res.status(403).json({ error: "Account unavailable." });

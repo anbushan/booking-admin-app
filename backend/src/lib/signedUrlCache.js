@@ -13,31 +13,26 @@
 // string for a while is what actually lets those client caches hit —
 // this is a server-side fix with zero client-side changes needed.
 //
-// Same shape as lib/userCache.js/lib/appConfig.js: short-TTL in-memory
-// Map, no persistence, correctness comes from the TTL alone (there's
-// nothing to "invalidate" here — a re-uploaded photo/document always
-// gets a new r2Key, e.g. `${userId}/PHOTO-${Date.now()}`, so a stale
-// cached URL for an old key just... never gets requested again).
+// Same shape as lib/userCache.js/lib/appConfig.js: short-TTL Redis cache
+// (lib/cache.js), no persistence beyond the TTL, correctness comes from
+// the TTL alone (there's nothing to "invalidate" here — a re-uploaded
+// photo/document always gets a new r2Key, e.g. `${userId}/PHOTO-
+// ${Date.now()}`, so a stale cached URL for an old key just... never
+// gets requested again). Redis instead of a plain in-memory Map for the
+// same reason as the other two caches: this backend runs as several PM2
+// worker processes, and each one hitting R2 for its own copy of the same
+// signature would waste exactly the round trips this cache exists to
+// avoid.
+import { cacheGet, cacheSet } from "./cache.js";
+
 const CACHE_MS = 4 * 60 * 1000; // 4 min — under every call site's 5 min (300s) signed TTL, so a cache hit still has real time left when it reaches the client.
-const cache = new Map(); // r2Key -> { url, cachedAt }
+const KEY_PREFIX = "signed-url:";
 
 export async function getCachedSignedUrl(key, sign) {
-  const entry = cache.get(key);
-  if (entry && Date.now() - entry.cachedAt < CACHE_MS) return entry.url;
+  const cached = await cacheGet(KEY_PREFIX + key);
+  if (cached) return cached;
 
   const url = await sign();
-  cache.set(key, { url, cachedAt: Date.now() });
-
-  // Opportunistic sweep instead of a dedicated setInterval — keeps this
-  // module self-contained rather than one more timer for index.js to
-  // wire up. Only runs on the (relatively rare) cache-miss path, and
-  // only once the map has actually grown enough for it to matter.
-  if (cache.size > 1000) {
-    const now = Date.now();
-    for (const [k, v] of cache) {
-      if (now - v.cachedAt > CACHE_MS) cache.delete(k);
-    }
-  }
-
+  await cacheSet(KEY_PREFIX + key, url, CACHE_MS);
   return url;
 }
