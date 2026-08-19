@@ -451,6 +451,8 @@
   "bookingRequestDetail.whatHappensNext": "ಮುಂದೆ ಏನಾಗುತ್ತದೆ",
   "bookingRequestDetail.acceptBooking": "ಬುಕಿಂಗ್ ಸ್ವೀಕರಿಸಿ",
   "bookingDetail.title": "ಬುಕಿಂಗ್",
+  "bookingDetail.peopleSection": "ಜನರು",
+  "bookingDetail.fareSection": "ದರ ಮತ್ತು ಪಾವತಿ",
   "bookingDetail.notFound": "ಬುಕಿಂಗ್ ಕಂಡುಬಂದಿಲ್ಲ.",
   "bookingDetail.cashUpiDue": "ಚಾಲಕರಿಗೆ ನಗದು/UPI ಬಾಕಿ",
   "bookingDetail.viewReceipt": "ರಸೀದಿ ವೀಕ್ಷಿಸಿ",

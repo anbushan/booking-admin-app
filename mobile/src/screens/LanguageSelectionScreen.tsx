@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { View, Text, FlatList, StyleSheet } from "react-native";
 import { Pressable } from "../components/Pressable";
+import { Button } from "../components/Button";
 import { colors, spacing, radius, typography, FONT } from "../theme/theme";
 import { Analytics } from "../lib/analytics";
 import { API_BASE_URL } from "../lib/api";
@@ -131,11 +132,12 @@ export default function LanguageSelectionScreen({ navigation, route }: any) {
       />
 
       <View style={styles.footer}>
-        <Pressable style={styles.confirmButton} onPress={handleConfirm} disabled={confirming}>
-          <Text style={styles.confirmButtonText}>
-            {confirming ? t("switchRole.switching") : onboardingEntry ? t("common.continue") : t("common.confirm")}
-          </Text>
-        </Pressable>
+        <Button
+          title={confirming ? t("switchRole.switching") : onboardingEntry ? t("common.continue") : t("common.confirm")}
+          loading={confirming}
+          size="md"
+          onPress={handleConfirm}
+        />
       </View>
     </SafeAreaView>
   );
@@ -149,6 +151,4 @@ const styles = StyleSheet.create({
   checkmark: { color: colors.accentText, fontWeight: "700", fontFamily: FONT.bold },
   skipText: { ...typography.body, color: colors.textMuted, fontWeight: "700", fontFamily: FONT.bold },
   footer: { padding: spacing.lg, borderTopWidth: 1, borderTopColor: colors.border, backgroundColor: colors.surface },
-  confirmButton: { backgroundColor: colors.textPrimary, height: 46, borderRadius: radius.sm, alignItems: "center", justifyContent: "center" },
-  confirmButtonText: { ...typography.title, color: "#FFFFFF" },
 });

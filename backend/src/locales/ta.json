@@ -451,6 +451,8 @@
   "bookingRequestDetail.whatHappensNext": "அடுத்து என்ன நடக்கும்",
   "bookingRequestDetail.acceptBooking": "முன்பதிவை ஏற்கவும்",
   "bookingDetail.title": "முன்பதிவு",
+  "bookingDetail.peopleSection": "நபர்கள்",
+  "bookingDetail.fareSection": "கட்டணம் & பணம்",
   "bookingDetail.notFound": "முன்பதிவு கிடைக்கவில்லை.",
   "bookingDetail.cashUpiDue": "ஓட்டுநருக்கு பணமாக/UPI செலுத்த வேண்டியது",
   "bookingDetail.viewReceipt": "ரசீதைப் பார்",

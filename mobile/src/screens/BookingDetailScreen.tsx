@@ -6,6 +6,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { colors, spacing, radius, typography, FONT } from "../theme/theme";
 import { api } from "../lib/api";
 import { CarLoader } from "../components/CarLoader";
+import { EmptyState } from "../components/EmptyState";
 import { StatusBadge } from "../components/StatusBadge";
 import { VerifiedBadge } from "../components/VerifiedBadge";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -76,8 +77,8 @@ export default function BookingDetailScreen({ route, navigation }: any) {
 
   if (!booking) {
     return (
-      <SafeAreaView style={[styles.screen, { justifyContent: "center", alignItems: "center" }]} edges={["top", "bottom"]}>
-        <Text style={styles.notFound}>{t("bookingDetail.notFound")}</Text>
+      <SafeAreaView style={styles.screen} edges={["top", "bottom"]}>
+        <EmptyState title={t("bookingDetail.notFound")} />
       </SafeAreaView>
     );
   }
@@ -98,9 +99,12 @@ export default function BookingDetailScreen({ route, navigation }: any) {
       <BackHeader title={t("bookingDetail.title")} onBack={() => navigation.goBack()} />
 
       <View style={styles.body}>
-        <Text style={styles.route}>{t("common.routeTo", { source: booking.ride.sourceAddress, dest: booking.ride.destAddress })}</Text>
-        <Text style={styles.date}>{new Date(booking.ride.travelDate).toLocaleString()}</Text>
+        <View style={styles.card}>
+          <Text style={styles.route}>{t("common.routeTo", { source: booking.ride.sourceAddress, dest: booking.ride.destAddress })}</Text>
+          <Text style={styles.date}>{new Date(booking.ride.travelDate).toLocaleString()}</Text>
+        </View>
 
+        <Text style={styles.sectionLabel}>{t("bookingDetail.peopleSection")}</Text>
         <View style={styles.card}>
           {/* Names link through to the public profile — every other list
               in the app that shows a driver/passenger already does this;
@@ -110,7 +114,10 @@ export default function BookingDetailScreen({ route, navigation }: any) {
             disabled={!booking.ride.driver.id}
             onPress={() => navigation.navigate("PublicProfile", { userId: booking.ride.driver.id })}
           >
-            <Text style={styles.label}>{t("register.driver")}</Text>
+            <View style={styles.labelRow}>
+              <Ionicons name="car-outline" size={15} color={colors.textSecondary} />
+              <Text style={styles.label}>{t("register.driver")}</Text>
+            </View>
             <View style={styles.valueRow}>
               <Text style={styles.value}>{booking.ride.driver.name || booking.ride.driver.phone}</Text>
               <VerifiedBadge verified={!!booking.ride.driverVerified} size="sm" />
@@ -118,35 +125,52 @@ export default function BookingDetailScreen({ route, navigation }: any) {
             </View>
           </Pressable>
           <Pressable
-            style={styles.row}
+            style={[styles.row, { borderBottomWidth: 0 }]}
             disabled={!booking.passenger.id}
             onPress={() => navigation.navigate("PublicProfile", { userId: booking.passenger.id })}
           >
-            <Text style={styles.label}>{t("register.passenger")}</Text>
+            <View style={styles.labelRow}>
+              <Ionicons name="person-outline" size={15} color={colors.textSecondary} />
+              <Text style={styles.label}>{t("register.passenger")}</Text>
+            </View>
             <View style={styles.valueRow}>
               <Text style={styles.value}>{booking.passenger.name || booking.passenger.phone}</Text>
               <VerifiedBadge verified={!!booking.passenger.passengerVerified} size="sm" label={booking.passenger.passengerVerified ? t("verification.idVerifiedLabel") : t("verification.idUnverifiedLabel")} />
               {!!booking.passenger.id && <Ionicons name="chevron-forward" size={14} color={colors.textMuted} />}
             </View>
           </Pressable>
+        </View>
+
+        <Text style={styles.sectionLabel}>{t("bookingDetail.fareSection")}</Text>
+        <View style={styles.card}>
           <View style={styles.row}>
-            <Text style={styles.label}>{t("searchOptions.seats")}</Text>
+            <View style={styles.labelRow}>
+              <Ionicons name="people-outline" size={15} color={colors.textSecondary} />
+              <Text style={styles.label}>{t("searchOptions.seats")}</Text>
+            </View>
             <Text style={styles.value}>{booking.seatsBooked}</Text>
           </View>
-          <View style={styles.row}>
-            <Text style={styles.label}>{t("booking.fare")}</Text>
+          <View style={booking.remainingFareAmount != null ? styles.row : [styles.row, { borderBottomWidth: 0 }]}>
+            <View style={styles.labelRow}>
+              <Ionicons name="cash-outline" size={15} color={colors.textSecondary} />
+              <Text style={styles.label}>{t("booking.fare")}</Text>
+            </View>
             <Text style={styles.value}>Rs {formatInr(amount)}</Text>
           </View>
           {booking.remainingFareAmount != null && (
-            <View style={styles.row}>
-              <Text style={styles.label}>{t("bookingDetail.cashUpiDue")}</Text>
+            <View style={[styles.row, { borderBottomWidth: 0 }]}>
+              <View style={styles.labelRow}>
+                <Ionicons name="wallet-outline" size={15} color={colors.textSecondary} />
+                <Text style={styles.label}>{t("bookingDetail.cashUpiDue")}</Text>
+              </View>
               <Text style={styles.value}>Rs {formatInr(booking.remainingFareAmount)}</Text>
             </View>
           )}
-          <View style={[styles.row, { borderBottomWidth: 0 }]}>
-            <Text style={styles.label}>{t("bookingDetail.statusLabel")}</Text>
-            <StatusBadge status={booking.status} size="sm" />
-          </View>
+        </View>
+
+        <Text style={styles.sectionLabel}>{t("bookingDetail.statusLabel")}</Text>
+        <View style={[styles.card, styles.statusCard]}>
+          <StatusBadge status={booking.status} size="sm" />
         </View>
 
         {/* Only ever present once the trip's done and the other party
@@ -210,16 +234,20 @@ const styles = StyleSheet.create({
   title: typography.title,
   body: { padding: spacing.lg },
   route: { ...typography.title, fontSize: 15 },
-  date: { ...typography.small, color: colors.textMuted, marginTop: 2, marginBottom: spacing.md },
+  date: { ...typography.small, color: colors.textMuted, marginTop: 2 },
   card: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: radius.md, padding: spacing.md },
-  row: { flexDirection: "row", justifyContent: "space-between", paddingVertical: spacing.sm, borderBottomWidth: 1, borderBottomColor: colors.border },
+  statusCard: { alignItems: "flex-start" },
+  // Same recipe as reviewTitle below — naming this once instead of a
+  // 6th one-off caption-with-bold-override.
+  sectionLabel: { ...typography.caption, color: colors.textSecondary, fontWeight: "700", fontFamily: FONT.bold, marginTop: spacing.lg, marginBottom: spacing.xs },
+  row: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingVertical: spacing.sm, borderBottomWidth: 1, borderBottomColor: colors.border },
+  labelRow: { flexDirection: "row", alignItems: "center", gap: spacing.xs },
   label: { ...typography.caption, color: colors.textSecondary },
   valueRow: { flexDirection: "row", alignItems: "center", gap: spacing.xs },
   value: typography.body,
   actionButton: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, height: 44, borderRadius: radius.sm, alignItems: "center", justifyContent: "center", marginTop: spacing.md },
   actionButtonText: { ...typography.body, color: colors.accentText },
   calendarButtonRow: { flexDirection: "row", alignItems: "center", gap: 6 },
-  notFound: { ...typography.body, color: colors.textMuted },
   reviewCard: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: radius.md, padding: spacing.md, marginTop: spacing.md },
   reviewTitle: { ...typography.caption, color: colors.textSecondary, fontWeight: "700", fontFamily: FONT.bold },
   reviewStars: { color: colors.warning, fontSize: 16, marginTop: spacing.xs },

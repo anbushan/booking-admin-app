@@ -1,6 +1,7 @@
 import React, { useRef, useState, useEffect } from "react";
 import { View, Text, TextInput, Image, StyleSheet } from "react-native";
 import { Pressable } from "../components/Pressable";
+import { Button } from "../components/Button";
 import { Ionicons } from "@expo/vector-icons";
 import { showAlert } from "../lib/alert";
 import { colors, spacing, radius, typography, FONT } from "../theme/theme";
@@ -209,19 +210,21 @@ export function PhoneEntryScreen({ navigation }: any) {
           */}
 
           {mode === "otp" ? (
-            <Pressable style={[styles.button, phone.length !== 10 && styles.buttonDisabled]} onPress={handleSendOtp} disabled={sending || phone.length !== 10}>
-              {!sending && <Ionicons name="arrow-forward-circle-outline" size={18} color="#FFFFFF" />}
-              <Text style={styles.buttonText}>{sending ? t("auth.sendingOtp") : t("auth.sendOtp")}</Text>
-            </Pressable>
+            <Button
+              title={sending ? t("auth.sendingOtp") : t("auth.sendOtp")}
+              icon="arrow-forward-circle-outline"
+              loading={sending}
+              disabled={phone.length !== 10}
+              onPress={handleSendOtp}
+            />
           ) : (
-            <Pressable
-              style={[styles.button, (phone.length !== 10 || !isPasscodeValid) && styles.buttonDisabled]}
+            <Button
+              title={sending ? t("auth.loggingIn") : t("auth.logIn")}
+              icon="log-in-outline"
+              loading={sending}
+              disabled={phone.length !== 10 || !isPasscodeValid}
               onPress={handlePasscodeLogin}
-              disabled={sending || phone.length !== 10 || !isPasscodeValid}
-            >
-              {!sending && <Ionicons name="log-in-outline" size={18} color="#FFFFFF" />}
-              <Text style={styles.buttonText}>{sending ? t("auth.loggingIn") : t("auth.logIn")}</Text>
-            </Pressable>
+            />
           )}
 
           {/* Only makes sense once a passcode has actually been
@@ -358,10 +361,13 @@ export function OtpVerifyScreen({ route, navigation }: any) {
           </View>
           <Text style={styles.autoVerifyHint}>{t("auth.autoVerifyHint", { count: OTP_LENGTH })}</Text>
 
-          <Pressable style={styles.button} onPress={() => handleVerify(otp)} disabled={verifying || otp.length !== OTP_LENGTH}>
-            {!verifying && <Ionicons name="checkmark-circle-outline" size={18} color="#FFFFFF" />}
-            <Text style={styles.buttonText}>{verifying ? t("auth.verifying") : t("auth.verify")}</Text>
-          </Pressable>
+          <Button
+            title={verifying ? t("auth.verifying") : t("auth.verify")}
+            icon="checkmark-circle-outline"
+            loading={verifying}
+            disabled={otp.length !== OTP_LENGTH}
+            onPress={() => handleVerify(otp)}
+          />
 
           <Pressable style={styles.resendRow} onPress={handleResend} disabled={cooldown > 0 || resending}>
             <Ionicons
@@ -440,18 +446,6 @@ const styles = StyleSheet.create({
   otpBoxActive: { borderColor: colors.accent, borderWidth: 2, backgroundColor: colors.accentBg },
   otpDigit: { fontSize: 22, fontWeight: "700", fontFamily: FONT.bold, color: colors.textPrimary },
   hiddenInput: { position: "absolute", opacity: 0, top: 0, left: 0, right: 0, bottom: 0 },
-  button: {
-    flexDirection: "row",
-    gap: spacing.xs,
-    backgroundColor: colors.textPrimary,
-    height: 50,
-    borderRadius: radius.sm,
-    alignItems: "center",
-    justifyContent: "center",
-    width: "100%",
-  },
-  buttonDisabled: { opacity: 0.5 },
-  buttonText: { ...typography.title, color: "#FFFFFF" },
   resendRow: { flexDirection: "row", alignItems: "center", gap: 5, marginTop: spacing.lg, padding: spacing.xs },
   resendText: { ...typography.caption, color: colors.textMuted },
   resendTextActive: { color: colors.accentText, fontWeight: "700", fontFamily: FONT.bold },

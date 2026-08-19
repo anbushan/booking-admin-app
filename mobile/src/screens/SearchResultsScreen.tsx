@@ -6,7 +6,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { colors, spacing, radius, typography, FONT } from "../theme/theme";
 import { api } from "../lib/api";
 import { SkeletonCardList } from "../components/Skeleton";
-import { NoRidesFound } from "../components/NoRidesFound";
+import { EmptyState } from "../components/EmptyState";
 import { ErrorState } from "../components/ErrorState";
 import { Analytics } from "../lib/analytics";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -298,7 +298,7 @@ export default function SearchResultsScreen({ navigation, route }: any) {
             />
           )}
           ListEmptyComponent={
-            <NoRidesFound title={t("search.noRidesFound")} subtitle={t("search.noRidesSubtitle")} />
+            <EmptyState title={t("search.noRidesFound")} subtitle={t("search.noRidesSubtitle")} size="large" />
           }
         />
       )}

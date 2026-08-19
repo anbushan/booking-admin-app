@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { View, Text, TextInput, Image, ScrollView, StyleSheet } from "react-native";
 import { Pressable } from "../components/Pressable";
+import { Button } from "../components/Button";
 import { Ionicons } from "@expo/vector-icons";
 import { showAlert } from "../lib/alert";
 import { colors, spacing, radius, typography } from "../theme/theme";
@@ -139,10 +140,13 @@ export default function RegisterScreen({ navigation }: any) {
           </View>
           <FieldError message={errors.role} />
 
-          <Pressable style={styles.button} onPress={handleSubmit} disabled={submitting}>
-            {!submitting && <Ionicons name="arrow-forward-circle-outline" size={18} color="#FFFFFF" />}
-            <Text style={styles.buttonText}>{submitting ? t("register.saving") : t("register.continue")}</Text>
-          </Pressable>
+          <Button
+            title={submitting ? t("register.saving") : t("register.continue")}
+            icon="arrow-forward-circle-outline"
+            loading={submitting}
+            onPress={handleSubmit}
+            style={{ marginTop: spacing.xl }}
+          />
         </ScrollView>
       </KeyboardAvoider>
     </SafeAreaView>
@@ -196,15 +200,4 @@ const styles = StyleSheet.create({
   roleText: { ...typography.title, fontSize: 14 },
   roleTextActive: { color: colors.accentText },
   roleSub: { ...typography.small, color: colors.textMuted, marginTop: 2, textAlign: "center" },
-  button: {
-    flexDirection: "row",
-    gap: spacing.xs,
-    backgroundColor: colors.textPrimary,
-    height: 48,
-    borderRadius: radius.sm,
-    alignItems: "center",
-    justifyContent: "center",
-    marginTop: spacing.xl,
-  },
-  buttonText: { ...typography.title, color: "#FFFFFF" },
 });

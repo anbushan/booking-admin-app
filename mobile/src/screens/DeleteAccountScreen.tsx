@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useCallback } from "react";
 import { View, Text, TextInput, StyleSheet } from "react-native";
 import { Pressable } from "../components/Pressable";
+import { Button } from "../components/Button";
 import { useFocusEffect } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
 import { showAlert } from "../lib/alert";
@@ -110,14 +111,15 @@ export default function DeleteAccountScreen({ navigation }: any) {
                 onChangeText={setConfirmText}
               />
 
-              <Pressable
-                style={[styles.deleteButton, !canDelete && { opacity: 0.5 }]}
+              <Button
+                title={deleting ? t("deleteAccount.deleting") : t("deleteAccount.deleteMyAccount")}
+                icon="trash-outline"
+                variant="danger"
+                loading={deleting}
+                disabled={!canDelete}
                 onPress={handleDelete}
-                disabled={!canDelete || deleting}
-              >
-                <Ionicons name="trash-outline" size={17} color="#FFFFFF" />
-                <Text style={styles.deleteButtonText}>{deleting ? t("deleteAccount.deleting") : t("deleteAccount.deleteMyAccount")}</Text>
-              </Pressable>
+                style={{ marginTop: spacing.lg }}
+              />
             </>
           )}
         </View>
@@ -152,15 +154,4 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
     letterSpacing: 1,
   },
-  deleteButton: {
-    flexDirection: "row",
-    gap: spacing.xs,
-    backgroundColor: colors.danger,
-    height: 48,
-    borderRadius: radius.sm,
-    alignItems: "center",
-    justifyContent: "center",
-    marginTop: spacing.lg,
-  },
-  deleteButtonText: { ...typography.title, color: "#FFFFFF" },
 });

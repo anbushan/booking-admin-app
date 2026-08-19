@@ -451,6 +451,8 @@
   "bookingRequestDetail.whatHappensNext": "आगे क्या होगा",
   "bookingRequestDetail.acceptBooking": "बुकिंग स्वीकार करें",
   "bookingDetail.title": "बुकिंग",
+  "bookingDetail.peopleSection": "लोग",
+  "bookingDetail.fareSection": "किराया व भुगतान",
   "bookingDetail.notFound": "बुकिंग नहीं मिली।",
   "bookingDetail.cashUpiDue": "चालक को नकद/यूपीआई देय",
   "bookingDetail.viewReceipt": "रसीद देखें",

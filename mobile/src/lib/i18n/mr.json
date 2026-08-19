@@ -451,6 +451,8 @@
   "bookingRequestDetail.whatHappensNext": "पुढे काय होते",
   "bookingRequestDetail.acceptBooking": "बुकिंग स्वीकारा",
   "bookingDetail.title": "बुकिंग",
+  "bookingDetail.peopleSection": "लोक",
+  "bookingDetail.fareSection": "भाडे व पेमेंट",
   "bookingDetail.notFound": "बुकिंग सापडले नाही.",
   "bookingDetail.cashUpiDue": "चालकाला रोख/UPI देय",
   "bookingDetail.viewReceipt": "पावती पहा",

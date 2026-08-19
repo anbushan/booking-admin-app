@@ -451,6 +451,8 @@
   "bookingRequestDetail.whatHappensNext": "এরপর কী হবে",
   "bookingRequestDetail.acceptBooking": "বুকিং গ্রহণ করুন",
   "bookingDetail.title": "বুকিং",
+  "bookingDetail.peopleSection": "মানুষ",
+  "bookingDetail.fareSection": "ভাড়া ও পেমেন্ট",
   "bookingDetail.notFound": "বুকিং পাওয়া যায়নি।",
   "bookingDetail.cashUpiDue": "চালককে নগদ/UPI বাকি",
   "bookingDetail.viewReceipt": "রসিদ দেখুন",

@@ -8,9 +8,8 @@ export const BACK_BUTTON_SIZE = 34;
 
 // The one back-arrow treatment used everywhere — a fixed-size tinted
 // circle, not a bare icon with an expanded hitSlop sitting loose next
-// to whatever's beside it. Used directly by screens with a custom
-// header (Chat, OTP, location search) and internally by AppHeader for
-// everything else.
+// to whatever's beside it. Used by CloseButton and by screens with a
+// custom header.
 export function BackButton({ onPress }: { onPress: () => void }) {
   return (
     <Pressable onPress={onPress} hitSlop={6} style={styles.button}>

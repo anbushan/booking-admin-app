@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { View, Text, TextInput, ScrollView, StyleSheet } from "react-native";
 import { Pressable } from "../components/Pressable";
+import { Button } from "../components/Button";
 import { Ionicons } from "@expo/vector-icons";
 import { showAlert } from "../lib/alert";
 import { colors, spacing, radius, typography, FONT } from "../theme/theme";
@@ -170,9 +171,13 @@ export default function AddVehicleScreen({ navigation }: any) {
 
         <Text style={styles.docsHint}>{t("vehicle.docsHintAdd")}</Text>
 
-        <Pressable style={styles.button} onPress={handleSubmit} disabled={submitting}>
-          <Text style={styles.buttonText}>{submitting ? t("vehicle.uploadingAndSaving") : t("vehicle.saveVehicle")}</Text>
-        </Pressable>
+        <Button
+          title={submitting ? t("vehicle.uploadingAndSaving") : t("vehicle.saveVehicle")}
+          loading={submitting}
+          size="md"
+          onPress={handleSubmit}
+          style={{ marginTop: spacing.xl }}
+        />
       </ScrollView>
       </KeyboardAvoider>
     </SafeAreaView>
@@ -220,14 +225,4 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.xs,
     paddingHorizontal: spacing.md,
   },
-  button: {
-    backgroundColor: colors.textPrimary,
-    height: 46,
-    borderRadius: radius.sm,
-    alignItems: "center",
-    justifyContent: "center",
-    paddingHorizontal: spacing.lg,
-    marginTop: spacing.xl,
-  },
-  buttonText: { ...typography.title, color: "#FFFFFF" },
 });

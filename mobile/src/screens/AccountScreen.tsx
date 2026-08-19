@@ -1,5 +1,5 @@
 import React, { useCallback, useState } from "react";
-import { View, Text, ScrollView, StyleSheet } from "react-native";
+import { View, Text, ScrollView, StyleSheet, RefreshControl } from "react-native";
 import { Pressable } from "../components/Pressable";
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
@@ -24,14 +24,22 @@ export default function AccountScreen({ navigation }: any) {
   const { t } = useTranslation();
   const [profile, setProfile] = useState<any>(null);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [refreshing, setRefreshing] = useState(false);
 
   const isDriver = profile?.role === "DRIVER";
   const otherRoleHasProfile = isDriver ? profile?.isPassenger : profile?.isDriver;
 
+  function load(isRefresh = false) {
+    if (isRefresh) setRefreshing(true);
+    Promise.all([
+      api.getMyProfile().then(setProfile).catch(() => {}),
+      api.getNotifications().then((list: any[]) => setUnreadCount(list.filter((n) => !n.read).length)).catch(() => {}),
+    ]).finally(() => setRefreshing(false));
+  }
+
   useFocusEffect(
     useCallback(() => {
-      api.getMyProfile().then(setProfile).catch(() => {});
-      api.getNotifications().then((list: any[]) => setUnreadCount(list.filter((n) => !n.read).length)).catch(() => {});
+      load();
     }, [])
   );
 
@@ -89,7 +97,11 @@ export default function AccountScreen({ navigation }: any) {
 
   return (
     <SafeAreaView style={styles.screen} edges={["top"]}>
-      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: spacing.lg, paddingBottom: spacing.xl }}>
+      <ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={{ padding: spacing.lg, paddingBottom: spacing.xl }}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => load(true)} colors={[colors.accent]} tintColor={colors.accent} />}
+      >
         <Pressable style={styles.profileCard} onPress={() => navigation.navigate("Profile")}>
           <Avatar uri={profile?.photoViewUrl} name={profile?.name} size={52} />
           <View style={{ flex: 1, marginLeft: spacing.md }}>

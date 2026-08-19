@@ -1,9 +1,9 @@
 import React, { useState } from "react";
 import { View, Text, StyleSheet } from "react-native";
-import { Pressable } from "../components/Pressable";
+import { Button } from "../components/Button";
 import MapView, { Marker, PROVIDER_GOOGLE, Region } from "react-native-maps";
 import { Ionicons } from "@expo/vector-icons";
-import { colors, spacing, radius, typography } from "../theme/theme";
+import { colors, spacing, typography } from "../theme/theme";
 import { api } from "../lib/api";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { BackHeader } from "../components/BackHeader";
@@ -88,10 +88,14 @@ export default function MapPinConfirmScreen({ route, navigation }: any) {
           <Ionicons name="hand-left-outline" size={13} color={colors.textMuted} />
           <Text style={styles.hint}>{t("mapPinConfirm.dragHint")}</Text>
         </View>
-        <Pressable style={styles.confirmButton} onPress={handleConfirm} disabled={confirming}>
-          <Ionicons name="checkmark-circle-outline" size={18} color="#FFFFFF" />
-          <Text style={styles.confirmButtonText}>{t("mapPinConfirm.title")}</Text>
-        </Pressable>
+        <Button
+          title={t("mapPinConfirm.title")}
+          icon="checkmark-circle-outline"
+          loading={confirming}
+          size="md"
+          onPress={handleConfirm}
+          style={{ marginTop: spacing.xl }}
+        />
       </View>
     </SafeAreaView>
   );
@@ -107,15 +111,4 @@ const styles = StyleSheet.create({
   address: { ...typography.title, marginTop: spacing.xs },
   hintRow: { flexDirection: "row", alignItems: "center", gap: 5, marginTop: spacing.sm },
   hint: { ...typography.small, color: colors.textMuted },
-  confirmButton: {
-    flexDirection: "row",
-    gap: spacing.xs,
-    backgroundColor: colors.textPrimary,
-    height: 46,
-    borderRadius: radius.sm,
-    alignItems: "center",
-    justifyContent: "center",
-    marginTop: spacing.xl,
-  },
-  confirmButtonText: { ...typography.title, color: "#FFFFFF" },
 });

@@ -451,6 +451,8 @@
   "bookingRequestDetail.whatHappensNext": "What happens next",
   "bookingRequestDetail.acceptBooking": "Accept booking",
   "bookingDetail.title": "Booking",
+  "bookingDetail.peopleSection": "People",
+  "bookingDetail.fareSection": "Fare & payment",
   "bookingDetail.notFound": "Booking not found.",
   "bookingDetail.cashUpiDue": "Cash/UPI due to driver",
   "bookingDetail.viewReceipt": "View receipt",

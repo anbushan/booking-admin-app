@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { View, Text, FlatList, StyleSheet } from "react-native";
+import { View, Text, FlatList, StyleSheet, RefreshControl } from "react-native";
 import { Pressable } from "../components/Pressable";
 import { Ionicons } from "@expo/vector-icons";
 import { showAlert } from "../lib/alert";
@@ -72,12 +72,20 @@ export default function RouteOptionsScreen({ route, navigation }: any) {
   const [alternatives, setAlternatives] = useState<RouteOption[] | null>(null);
   const [error, setError] = useState(false);
   const [publishing, setPublishing] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
-  useEffect(() => {
+  function load(isRefresh = false) {
+    if (isRefresh) setRefreshing(true);
+    setError(false);
     api
       .getRouteOptions(rideForm.sourceLat, rideForm.sourceLng, rideForm.sourceAddress, rideForm.destLat, rideForm.destLng, rideForm.destAddress)
       .then((data) => setAlternatives(data.alternatives || []))
-      .catch(() => setError(true));
+      .catch(() => setError(true))
+      .finally(() => setRefreshing(false));
+  }
+
+  useEffect(() => {
+    load();
   }, []);
 
   async function selectRoute(alt: RouteOption | null) {
@@ -148,7 +156,7 @@ export default function RouteOptionsScreen({ route, navigation }: any) {
       {alternatives === null && !error ? (
         <SkeletonCardList count={2} />
       ) : error ? (
-        <ErrorState message={t("routeOptions.couldntLoad")} onRetry={() => { setError(false); setAlternatives(null); }} />
+        <ErrorState message={t("routeOptions.couldntLoad")} onRetry={() => load()} />
       ) : alternatives.length === 0 ? (
         // Directions couldn't resolve a route at all — not a hard
         // blocker, publish still works, just without route-aware
@@ -166,6 +174,7 @@ export default function RouteOptionsScreen({ route, navigation }: any) {
           data={alternatives}
           keyExtractor={(_, i) => String(i)}
           contentContainerStyle={{ padding: spacing.md, gap: spacing.sm }}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => load(true)} colors={[colors.accent]} tintColor={colors.accent} />}
           renderItem={({ item }) => (
             <RouteOptionCard
               item={item}

@@ -3,6 +3,7 @@ import { Animated, Text, StyleSheet, View, Modal } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { colors, spacing, radius, typography, FONT } from "../theme/theme";
+import { haptics } from "../lib/haptics";
 
 type ToastType = "success" | "error";
 type ToastState = { message: string; type: ToastType } | null;
@@ -32,6 +33,8 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
   function show(message: string, type: ToastType) {
     if (hideTimer.current) clearTimeout(hideTimer.current);
     setToast({ message, type });
+    if (type === "success") haptics.success();
+    else haptics.error();
     translateY.setValue(24);
     Animated.parallel([
       Animated.timing(opacity, { toValue: 1, duration: 220, useNativeDriver: true }),

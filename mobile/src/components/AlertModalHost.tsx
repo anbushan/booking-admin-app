@@ -4,6 +4,7 @@ import { Pressable } from "./Pressable";
 import { Ionicons } from "@expo/vector-icons";
 import { colors, spacing, radius, typography, FONT } from "../theme/theme";
 import { registerAlertListener, popAlert, AlertRequest } from "../lib/alertStore";
+import { haptics } from "../lib/haptics";
 
 // Mounted once at the App root (see App.tsx). Every showAlert(...) call
 // across the app (42 call sites, from "cancel this booking?" to network
@@ -20,6 +21,14 @@ export default function AlertModalHost() {
   }, []);
 
   const current = queue[0];
+
+  // Fires once when a new alert with a destructive option appears —
+  // deliberately on the dialog showing up, not on the button tap that
+  // dismisses it, since the point is "pay attention before you confirm
+  // this," not "acknowledge you tapped something."
+  useEffect(() => {
+    if (current?.buttons.some((b) => b.style === "destructive")) haptics.warning();
+  }, [current]);
 
   function handlePress(button: AlertRequest["buttons"][number]) {
     popAlert();

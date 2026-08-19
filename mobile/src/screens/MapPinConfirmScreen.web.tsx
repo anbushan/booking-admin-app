@@ -1,8 +1,8 @@
 import React, { useState } from "react";
 import { View, Text, StyleSheet } from "react-native";
-import { Pressable } from "../components/Pressable";
+import { Button } from "../components/Button";
 import { Ionicons } from "@expo/vector-icons";
-import { colors, spacing, radius, typography } from "../theme/theme";
+import { colors, spacing, typography } from "../theme/theme";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { BackHeader } from "../components/BackHeader";
 import { useScreenView } from "../lib/useScreenView";
@@ -47,10 +47,14 @@ export default function MapPinConfirmScreen({ route, navigation }: any) {
             <Text style={styles.hint}>{lat.toFixed(5)}, {lng.toFixed(5)}</Text>
           </View>
         </View>
-        <Pressable style={styles.confirmButton} onPress={handleConfirm} disabled={confirming}>
-          <Ionicons name="checkmark-circle-outline" size={18} color="#FFFFFF" />
-          <Text style={styles.confirmButtonText}>{t("mapPinConfirm.title")}</Text>
-        </Pressable>
+        <Button
+          title={t("mapPinConfirm.title")}
+          icon="checkmark-circle-outline"
+          loading={confirming}
+          size="md"
+          onPress={handleConfirm}
+          style={{ marginTop: spacing.xl }}
+        />
       </View>
     </SafeAreaView>
   );
@@ -67,15 +71,4 @@ const styles = StyleSheet.create({
   addressLabel: { ...typography.caption, color: colors.textSecondary },
   address: { ...typography.title, marginTop: spacing.xs },
   hint: { ...typography.small, color: colors.textMuted, marginTop: spacing.sm },
-  confirmButton: {
-    flexDirection: "row",
-    gap: spacing.xs,
-    backgroundColor: colors.textPrimary,
-    height: 46,
-    borderRadius: radius.sm,
-    alignItems: "center",
-    justifyContent: "center",
-    marginTop: spacing.xl,
-  },
-  confirmButtonText: { ...typography.title, color: "#FFFFFF" },
 });
