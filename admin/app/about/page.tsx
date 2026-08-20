@@ -2,7 +2,8 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Heart, ShieldCheck, Wallet, Users } from "lucide-react";
 import { MarketingShell } from "../../components/MarketingShell";
-import { FloatingIconCluster } from "../../components/marketing/FloatingIconCluster";
+import { JourneyMockup } from "../../components/JourneyMockup";
+import { ScrollReveal3D } from "../../components/marketing/ScrollReveal3D";
 import { SITE_URL, BRAND_NAME, BRAND_TAGLINE } from "../../lib/siteContent";
 
 const TITLE = "About us";
@@ -55,7 +56,9 @@ export default function AboutPage() {
               Chennai and Bengaluru, growing city by city rather than everywhere at once.
             </p>
           </div>
-          <FloatingIconCluster icons={[Heart, ShieldCheck, Users]} />
+          <ScrollReveal3D className="mkt-hero-phone-visual mkt-glow mkt-glow-blue" delayMs={100}>
+            <JourneyMockup kind="otpVerify" />
+          </ScrollReveal3D>
         </div>
       </section>
 

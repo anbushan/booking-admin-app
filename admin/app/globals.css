@@ -1019,6 +1019,28 @@
   flex-wrap: wrap;
 }
 
+/* Honest proof strip under the hero CTAs — real facts already tracked
+   elsewhere on the site (city coverage, language count, safety
+   features), not a fabricated download/user counter. */
+.mkt-proof-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 24px;
+}
+.mkt-proof-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #5F5E5A;
+  background: #FFFFFF;
+  border: 1px solid #E3E1D8;
+  border-radius: 999px;
+  padding: 6px 12px;
+}
+
 .mkt-hero-visual {
   aspect-ratio: 4 / 5;
   border-radius: 28px;
@@ -1029,15 +1051,6 @@
   justify-content: center;
   position: relative;
   overflow: hidden;
-}
-
-.mkt-hero-visual-card {
-  background: #FFFFFF;
-  border: 1px solid #E3E1D8;
-  border-radius: 16px;
-  padding: 16px;
-  width: 78%;
-  box-shadow: 0 24px 48px rgba(26, 26, 24, 0.12);
 }
 
 /* ---------- 3D motion vocabulary (public pages only) ----------
@@ -1478,6 +1491,120 @@
   min-height: 150px;
 }
 
+/* Size variants — the hero uses -lg (replacing the old flat
+   .mkt-hero-visual-card with a real phone), the "app at a glance"
+   gallery uses -sm to fit several phones in a row. No transform:scale
+   compensation on -sm: the .mkt-mock-* content just reflows tighter at
+   150px rather than shrinking proportionally, which keeps text legible
+   instead of miniaturized. */
+.mkt-phone-frame-lg {
+  max-width: 300px;
+  padding: 20px 18px 26px;
+  border-radius: 32px;
+  box-shadow: 0 24px 48px rgba(26, 26, 24, 0.12);
+}
+.mkt-phone-frame-lg .mkt-phone-notch {
+  width: 64px;
+  height: 6px;
+  margin-bottom: 18px;
+}
+.mkt-phone-frame-lg .mkt-phone-screen {
+  min-height: 260px;
+}
+
+.mkt-phone-frame-sm {
+  max-width: 150px;
+  padding: 10px 10px 14px;
+  border-radius: 18px;
+}
+.mkt-phone-frame-sm .mkt-phone-notch {
+  width: 32px;
+  height: 4px;
+  margin-bottom: 8px;
+}
+.mkt-phone-frame-sm .mkt-phone-screen {
+  min-height: 110px;
+}
+
+/* Soft blurred color wash behind a phone mockup — the one thing
+   borrowed from the pepul reference's visual language without
+   borrowing its dark theme or its hues: every color below is one of
+   this site's own existing tokens, just used as a low-opacity glow
+   instead of a flat fill. `isolation: isolate` keeps the negative
+   z-index pseudo-element scoped to this box instead of bleeding into
+   whatever sits behind the section. */
+.mkt-glow {
+  position: relative;
+  isolation: isolate;
+}
+.mkt-glow::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 115%;
+  height: 115%;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  filter: blur(28px);
+  z-index: -1;
+  pointer-events: none;
+}
+/* Falloff stops at 55% (not the default 50%->100%) so the color reads
+   as a distinct blob behind its own phone instead of smearing into a
+   full-section wash once several of these sit close together in a
+   journey list. */
+.mkt-glow-blue::before {
+  background: radial-gradient(circle, rgba(24, 95, 165, 0.4) 0%, rgba(24, 95, 165, 0) 55%);
+}
+.mkt-glow-marigold::before {
+  background: radial-gradient(circle, rgba(217, 127, 10, 0.4) 0%, rgba(217, 127, 10, 0) 55%);
+}
+.mkt-glow-green::before {
+  background: radial-gradient(circle, rgba(59, 109, 17, 0.35) 0%, rgba(59, 109, 17, 0) 55%);
+}
+.mkt-glow-amber::before {
+  background: radial-gradient(circle, rgba(138, 84, 6, 0.32) 0%, rgba(138, 84, 6, 0) 55%);
+}
+
+/* Side-by-side phone row for the landing page's "app at a glance"
+   gallery — centers and wraps on desktop, becomes a horizontal scroll
+   strip on phones rather than wrapping into a cramped multi-row grid. */
+.mkt-phone-gallery {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 20px;
+  margin-top: 40px;
+  flex-wrap: wrap;
+}
+@media (max-width: 640px) {
+  .mkt-phone-gallery {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    justify-content: flex-start;
+    padding-bottom: 8px;
+    -webkit-overflow-scrolling: touch;
+  }
+  .mkt-phone-gallery > * {
+    flex-shrink: 0;
+  }
+}
+
+/* Fixed slot for a JourneyMockup phone standing in for
+   FloatingIconCluster on the About/Safety hero — same footprint
+   (220x200) and same disappear-below-640px behavior as the icon
+   cluster it replaces, so .mkt-hero-with-icons's layout doesn't shift. */
+.mkt-hero-phone-visual {
+  width: 220px;
+  flex-shrink: 0;
+}
+@media (max-width: 640px) {
+  .mkt-hero-phone-visual {
+    display: none;
+  }
+}
+
 .mkt-mock-label {
   font-size: 13px;
   font-weight: 700;
@@ -1633,6 +1760,29 @@
 @media (max-width: 700px) {
   .mkt-journey-step {
     grid-template-columns: 1fr;
+  }
+}
+
+/* Alternating left/right rhythm (pepul-style) on every second step —
+   DOM order stays body-then-mockup always (reading order, tab order,
+   screen-reader order all unaffected), only the visual column swaps
+   via `order`. Restarts per .mkt-journey-list, so the passenger and
+   driver journeys each independently begin text-left. */
+.mkt-journey-step:nth-child(even) {
+  grid-template-columns: 220px 1fr;
+}
+.mkt-journey-step:nth-child(even) .mkt-journey-step-body {
+  order: 2;
+}
+.mkt-journey-step:nth-child(even) .mkt-journey-step-visual {
+  order: 1;
+}
+@media (max-width: 700px) {
+  .mkt-journey-step:nth-child(even) .mkt-journey-step-body,
+  .mkt-journey-step:nth-child(even) .mkt-journey-step-visual {
+    /* Single column at this width — reset to DOM order (body, then
+       mockup) rather than keeping the desktop swap stacked vertically. */
+    order: initial;
   }
 }
 

@@ -21,7 +21,7 @@ import {
   Share2,
 } from "lucide-react";
 import { MarketingShell } from "../components/MarketingShell";
-import { JourneyMockup, type MockupKind } from "../components/JourneyMockup";
+import { JourneyMockup, PhoneFrame, type MockupKind } from "../components/JourneyMockup";
 import { HeroTilt } from "../components/marketing/HeroTilt";
 import { ScrollReveal3D } from "../components/marketing/ScrollReveal3D";
 import { SITE_URL, BRAND_NAME, BRAND_TAGLINE, STORE_LINKS_READY } from "../lib/siteContent";
@@ -114,6 +114,12 @@ const DRIVER_JOURNEY: { title: string; body: string; mockup: MockupKind }[] = [
   { title: "Complete & collect payment", body: "Mark the trip done, then confirm the remaining fare was collected in cash or UPI.", mockup: "collectPayment" },
 ];
 
+// Cycled per step, not per section — each phone gets a different soft
+// glow so a 5-step journey doesn't read as one color repeated five
+// times. All four are the site's own existing tokens (see .mkt-glow-*
+// in globals.css), not new hues.
+const GLOW_TONES = ["blue", "marigold", "green", "amber"];
+
 function JourneySection({ id, eyebrow, heading, lede, steps }: {
   id: string;
   eyebrow: string;
@@ -139,8 +145,14 @@ function JourneySection({ id, eyebrow, heading, lede, steps }: {
             {/* Staggered per-step delay (each mockup a beat behind the
                 one before it) rather than every mockup in a section
                 popping in at once the moment they cross the same
-                scroll threshold. */}
-            <ScrollReveal3D delayMs={i * 80}>
+                scroll threshold. mkt-journey-step-visual is what lets
+                .mkt-journey-step:nth-child(even) flip this to the left
+                column visually — DOM order (body, then mockup) never
+                changes, so reading/tab order stays fixed. */}
+            <ScrollReveal3D
+              delayMs={i * 80}
+              className={`mkt-journey-step-visual mkt-glow mkt-glow-${GLOW_TONES[i % GLOW_TONES.length]}`}
+            >
               <JourneyMockup kind={step.mockup} />
             </ScrollReveal3D>
           </div>
@@ -185,34 +197,57 @@ export default function LandingPage() {
                 </>
               )}
             </div>
+
+            {/* Real, checkable facts — not a fabricated download/user
+                count. Each one is already a headline elsewhere on this
+                page (FEATURES/SAFETY_FEATURES/hero copy). */}
+            <div className="mkt-proof-chips">
+              {[
+                { icon: MapPin, label: "2 cities" },
+                { icon: Globe, label: "6 languages" },
+                { icon: ShieldCheck, label: "Verified drivers" },
+                { icon: Bell, label: "Live SOS" },
+              ].map((c) => (
+                <span key={c.label} className="mkt-proof-chip">
+                  <c.icon size={14} />
+                  {c.label}
+                </span>
+              ))}
+            </div>
           </div>
 
           <div className="mkt-hero-visual" aria-hidden="true">
             {/* Idle float + mouse-parallax tilt (HeroTilt/globals.css's
-                .mkt-tilt/.mkt-float) — the card previously just sat flat
-                on the gradient backdrop with no motion at all. */}
+                .mkt-tilt/.mkt-float) — the phone previously just sat flat
+                on the gradient backdrop with no motion at all. Now a real
+                PhoneFrame (same component the journey sections use)
+                instead of a flat rounded card, with a soft glow behind
+                it — the one thing borrowed from the pepul reference's
+                visual language, in this site's own blue, not pepul's. */}
             <HeroTilt>
-              <div className="mkt-hero-visual-card">
-                <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}>
-                  <div style={{ width: 36, height: 36, borderRadius: 10, background: "#E6F1FB", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                    <KeyRound size={18} color="#0C447C" />
-                  </div>
-                  <div>
-                    <div style={{ fontSize: 13, fontWeight: 700, color: "#1A1A18" }}>Pickup code</div>
-                    <div style={{ fontSize: 11, color: "#888780" }}>Share with your driver</div>
-                  </div>
-                </div>
-                <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
-                  {["4", "8", "1", "2"].map((d, i) => (
-                    <div key={i} style={{ width: 40, height: 46, borderRadius: 10, background: "#E6F1FB", border: "1px solid #185FA5", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, fontWeight: 700, color: "#0C447C" }}>
-                      {d}
+              <div className="mkt-glow mkt-glow-blue">
+                <PhoneFrame size="lg">
+                  <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}>
+                    <div style={{ width: 36, height: 36, borderRadius: 10, background: "#E6F1FB", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                      <KeyRound size={18} color="#0C447C" />
                     </div>
-                  ))}
-                </div>
-                <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 12px", background: "#EAF3DE", borderRadius: 10 }}>
-                  <ShieldCheck size={16} color="#3B6D11" />
-                  <span style={{ fontSize: 12, fontWeight: 600, color: "#3B6D11" }}>Trip verified — ride started</span>
-                </div>
+                    <div>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: "#1A1A18" }}>Pickup code</div>
+                      <div style={{ fontSize: 11, color: "#888780" }}>Share with your driver</div>
+                    </div>
+                  </div>
+                  <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
+                    {["4", "8", "1", "2"].map((d, i) => (
+                      <div key={i} style={{ width: 40, height: 46, borderRadius: 10, background: "#E6F1FB", border: "1px solid #185FA5", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, fontWeight: 700, color: "#0C447C" }}>
+                        {d}
+                      </div>
+                    ))}
+                  </div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 12px", background: "#EAF3DE", borderRadius: 10 }}>
+                    <ShieldCheck size={16} color="#3B6D11" />
+                    <span style={{ fontSize: 12, fontWeight: 600, color: "#3B6D11" }}>Trip verified — ride started</span>
+                  </div>
+                </PhoneFrame>
               </div>
             </HeroTilt>
           </div>
@@ -254,6 +289,22 @@ export default function LandingPage() {
         </div>
       </section>
 
+      <section className="mkt-section" id="why-nanbago">
+        <div className="mkt-journey-step">
+          <div className="mkt-journey-step-body">
+            <span className="mkt-eyebrow">Why NanbaGO</span>
+            <h2 className="mkt-h2" style={{ marginTop: 12 }}>Built around real trust, not a marketplace of strangers</h2>
+            <p>
+              A driver on NanbaGO is someone already making the trip — not a commercial fleet on the clock.
+              Pickup verification and live SOS run on every ride by default, not as a premium add-on.
+            </p>
+          </div>
+          <ScrollReveal3D className="mkt-journey-step-visual mkt-glow mkt-glow-green">
+            <JourneyMockup kind="otpVerify" />
+          </ScrollReveal3D>
+        </div>
+      </section>
+
       <section className="mkt-section" style={{ background: "#FBFAF7" }}>
         <JourneySection
           id="passenger-journey"
@@ -292,6 +343,27 @@ export default function LandingPage() {
         <Link href="/safety" className="mkt-btn mkt-btn-secondary" style={{ marginTop: 24 }}>
           More on how safety works
         </Link>
+      </section>
+
+      <section className="mkt-section" id="app-glance" style={{ background: "#FBFAF7" }}>
+        <span className="mkt-eyebrow">The app, at a glance</span>
+        <h2 className="mkt-h2" style={{ marginTop: 12 }}>Every screen, one glance</h2>
+        <p className="mkt-lede">
+          A quick look across search, tracking, requests, ratings, and payment — the whole loop in one row.
+        </p>
+        <div className="mkt-phone-gallery">
+          {[
+            { kind: "search" as MockupKind, glow: "blue" },
+            { kind: "tracking" as MockupKind, glow: "green" },
+            { kind: "requests" as MockupKind, glow: "marigold" },
+            { kind: "rating" as MockupKind, glow: "amber" },
+            { kind: "payFee" as MockupKind, glow: "blue" },
+          ].map((item, i) => (
+            <ScrollReveal3D key={item.kind} delayMs={i * 80} className={`mkt-glow mkt-glow-${item.glow}`}>
+              <JourneyMockup kind={item.kind} size="sm" />
+            </ScrollReveal3D>
+          ))}
+        </div>
       </section>
 
       <section className="mkt-band">

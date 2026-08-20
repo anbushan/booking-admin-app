@@ -2,7 +2,8 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { KeyRound, ShieldCheck, Car, Star, MessageCircle, Wallet, AlertTriangle, PhoneCall, Share2 } from "lucide-react";
 import { MarketingShell } from "../../components/MarketingShell";
-import { FloatingIconCluster } from "../../components/marketing/FloatingIconCluster";
+import { JourneyMockup } from "../../components/JourneyMockup";
+import { ScrollReveal3D } from "../../components/marketing/ScrollReveal3D";
 import { SITE_URL, BRAND_NAME } from "../../lib/siteContent";
 
 const TITLE = "Safety";
@@ -86,7 +87,9 @@ export default function SafetyPage() {
               booking flow itself, so it's there whether or not anyone's thinking about it in the moment.
             </p>
           </div>
-          <FloatingIconCluster icons={[ShieldCheck, KeyRound, AlertTriangle]} />
+          <ScrollReveal3D className="mkt-hero-phone-visual mkt-glow mkt-glow-marigold" delayMs={100}>
+            <JourneyMockup kind="sos" />
+          </ScrollReveal3D>
         </div>
       </section>
 

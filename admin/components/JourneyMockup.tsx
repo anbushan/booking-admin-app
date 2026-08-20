@@ -1,4 +1,4 @@
-import { ShieldCheck, Star, MapPin, Search, Wallet, Car, Inbox, Navigation } from "lucide-react";
+import { ShieldCheck, ShieldAlert, Star, MapPin, Search, Wallet, Car, Inbox, Navigation } from "lucide-react";
 
 // Illustrative phone-frame mockups for the landing page's driver/
 // passenger journey sections — deliberately NOT real app screenshots.
@@ -18,22 +18,25 @@ export type MockupKind =
   | "search"
   | "payFee"
   | "tracking"
-  | "rating";
+  | "rating"
+  | "sos";
 
-function PhoneFrame({ children }: { children: React.ReactNode }) {
+export type MockupSize = "default" | "sm" | "lg";
+
+export function PhoneFrame({ children, size = "default" }: { children: React.ReactNode; size?: MockupSize }) {
   return (
-    <div className="mkt-phone-frame">
+    <div className={`mkt-phone-frame${size !== "default" ? ` mkt-phone-frame-${size}` : ""}`}>
       <div className="mkt-phone-notch" />
       <div className="mkt-phone-screen">{children}</div>
     </div>
   );
 }
 
-export function JourneyMockup({ kind }: { kind: MockupKind }) {
+export function JourneyMockup({ kind, size = "default" }: { kind: MockupKind; size?: MockupSize }) {
   switch (kind) {
     case "otp":
       return (
-        <PhoneFrame>
+        <PhoneFrame size={size}>
           <div className="mkt-mock-label">Verify your number</div>
           <div className="mkt-mock-sub">OTP sent to +91 9XXXX XXXXX</div>
           <div style={{ display: "flex", gap: 8, marginTop: 14 }}>
@@ -47,7 +50,7 @@ export function JourneyMockup({ kind }: { kind: MockupKind }) {
 
     case "vehicle":
       return (
-        <PhoneFrame>
+        <PhoneFrame size={size}>
           <div className="mkt-mock-label">Add your vehicle</div>
           <div className="mkt-mock-field">Maruti Swift Dzire</div>
           <div className="mkt-mock-field">TN09 AB 1234</div>
@@ -64,7 +67,7 @@ export function JourneyMockup({ kind }: { kind: MockupKind }) {
 
     case "requests":
       return (
-        <PhoneFrame>
+        <PhoneFrame size={size}>
           <div className="mkt-mock-label">Booking requests</div>
           {[{ name: "Arjun R.", seats: "2 seats" }, { name: "Priya K.", seats: "1 seat" }].map((r) => (
             <div key={r.name} className="mkt-mock-request">
@@ -82,7 +85,7 @@ export function JourneyMockup({ kind }: { kind: MockupKind }) {
 
     case "otpVerify":
       return (
-        <PhoneFrame>
+        <PhoneFrame size={size}>
           <div className="mkt-mock-label">Verify pickup</div>
           <div className="mkt-mock-sub">Ask your passenger for their code</div>
           <div className="mkt-mock-field" style={{ marginTop: 12, letterSpacing: 3, textAlign: "center" }}>4 2 9 1</div>
@@ -95,7 +98,7 @@ export function JourneyMockup({ kind }: { kind: MockupKind }) {
 
     case "collectPayment":
       return (
-        <PhoneFrame>
+        <PhoneFrame size={size}>
           <div className="mkt-mock-label">Trip completed</div>
           <div className="mkt-mock-amount">₹340</div>
           <div className="mkt-mock-sub">Remaining fare — collect via cash or UPI</div>
@@ -105,7 +108,7 @@ export function JourneyMockup({ kind }: { kind: MockupKind }) {
 
     case "search":
       return (
-        <PhoneFrame>
+        <PhoneFrame size={size}>
           <div className="mkt-mock-label">Where to?</div>
           <div className="mkt-mock-field">
             <MapPin size={11} style={{ marginRight: 6, verticalAlign: -1 }} /> Koramangala
@@ -123,7 +126,7 @@ export function JourneyMockup({ kind }: { kind: MockupKind }) {
 
     case "payFee":
       return (
-        <PhoneFrame>
+        <PhoneFrame size={size}>
           <div className="mkt-mock-label">Driver accepted!</div>
           <div className="mkt-mock-amount">₹45</div>
           <div className="mkt-mock-sub">Platform fee — pay to lock your seat</div>
@@ -135,7 +138,7 @@ export function JourneyMockup({ kind }: { kind: MockupKind }) {
 
     case "tracking":
       return (
-        <PhoneFrame>
+        <PhoneFrame size={size}>
           <div className="mkt-mock-map" aria-hidden="true">
             <div className="mkt-mock-map-dot" style={{ top: "30%", left: "22%" }} />
             <div className="mkt-mock-map-dot" style={{ top: "62%", left: "68%", background: "#D97F0A" }} />
@@ -152,7 +155,7 @@ export function JourneyMockup({ kind }: { kind: MockupKind }) {
 
     case "rating":
       return (
-        <PhoneFrame>
+        <PhoneFrame size={size}>
           <div className="mkt-mock-label">Trip complete</div>
           <div className="mkt-mock-sub">Rate your driver</div>
           <div style={{ display: "flex", gap: 4, marginTop: 10 }}>
@@ -161,6 +164,23 @@ export function JourneyMockup({ kind }: { kind: MockupKind }) {
             ))}
           </div>
           <div className="mkt-mock-btn" style={{ marginTop: 16 }}>Submit rating</div>
+        </PhoneFrame>
+      );
+
+    case "sos":
+      return (
+        <PhoneFrame size={size}>
+          <div className="mkt-mock-label">Live SOS</div>
+          <div className="mkt-mock-sub">Shares your live location instantly</div>
+          <div style={{ display: "flex", justifyContent: "center", margin: "18px 0" }}>
+            <div style={{ width: 64, height: 64, borderRadius: "50%", background: "#FBECD4", border: "2px solid #D97F0A", display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <ShieldAlert size={26} color="#8A5406" />
+            </div>
+          </div>
+          <div className="mkt-mock-row" style={{ justifyContent: "center", gap: 6 }}>
+            <ShieldCheck size={13} color="#3B6D11" />
+            <span style={{ fontSize: 11, fontWeight: 600, color: "#3B6D11" }}>2 emergency contacts notified</span>
+          </div>
         </PhoneFrame>
       );
 
